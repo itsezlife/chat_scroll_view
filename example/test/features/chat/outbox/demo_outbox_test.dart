@@ -49,8 +49,10 @@ void main() {
     await demo.dispose();
   });
 
-  OutgoingStatus statusOf(DemoOutboxChat bound, String clientMessageId) =>
-      demo.outbox.byClientMessageId(chat, clientMessageId)!.status;
+  OutgoingStatus statusOf(DemoOutboxChat bound, String clientMessageId) => demo
+      .outbox
+      .byClientMessageId(const ChatId(chat), ClientMessageId(clientMessageId))!
+      .status;
 
   String bodyAt(int id) => switch (source.getMessage(id)) {
     final UserChatMessage message => message.content,
@@ -105,7 +107,10 @@ void main() {
       statusOf(bound, message.clientMessageId),
       const OutgoingStatus.uploading(),
     );
-    final row = demo.outbox.byClientMessageId(chat, message.clientMessageId)!;
+    final row = demo.outbox.byClientMessageId(
+      const ChatId(chat),
+      message.clientMessageId,
+    )!;
     expect(row.position, history + 1);
     expect(source.getMessage(history)!.sender, DemoChatServer.peerName);
     expect(bodyAt(history + 1), contains('photo'));
@@ -192,7 +197,7 @@ void main() {
     await openChat();
 
     final restored = demo.outbox.byClientMessageId(
-      chat,
+      const ChatId(chat),
       message.clientMessageId,
     )!;
     expect(restored.position, history);
@@ -205,7 +210,7 @@ void main() {
       'in the tail, which Delete takes away', () async {
     transfers.seed(
       PublishRequest(
-        tag: ChatOutbox.tagOf(chat, 'old'),
+        tag: ChatOutbox.tagOf(const ChatId(chat), const ClientMessageId('old')),
         items: const [],
         payload: Uint8List.fromList([1, 2, 3]),
         publisher: ChatOutbox.publisherId,
@@ -217,14 +222,17 @@ void main() {
 
     await openChat();
 
-    final restored = demo.outbox.byClientMessageId(chat, 'old')!;
+    final restored = demo.outbox.byClientMessageId(
+      const ChatId(chat),
+      const ClientMessageId('old'),
+    )!;
     expect(
       restored.status,
       const OutgoingStatus.failed(OutgoingFailure.unknown()),
     );
     expect(source.identityOf!(source.getMessage(restored.position)!), 'old');
 
-    demo.outbox.delete(chat, 'old');
+    demo.outbox.delete(const ChatId(chat), const ClientMessageId('old'));
     expect(source.getMessage(restored.position), isNull);
   });
 

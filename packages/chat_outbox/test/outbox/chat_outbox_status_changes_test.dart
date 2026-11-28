@@ -31,14 +31,17 @@ void main() {
     addTearDown(outbox.dispose);
   });
 
-  OutgoingMessage sendText(String text) =>
-      outbox.sendText('c1', RichText.plain(text), payload: Note(text: text))!;
+  OutgoingMessage sendText(String text) => outbox.sendText(
+    const ChatId('c1'),
+    RichText.plain(text),
+    payload: Note(text: text),
+  )!;
 
-  PublishJobId jobOf(String clientMessageId) => transfers.jobs
+  PublishJobId jobOf(ClientMessageId clientMessageId) => transfers.jobs
       .singleWhere((job) => job.tag == 'chat:c1:$clientMessageId')
       .id;
 
-  Future<void> fail(String clientMessageId) async {
+  Future<void> fail(ClientMessageId clientMessageId) async {
     transfers.setState(
       jobOf(clientMessageId),
       const PublishJobState.failed(
@@ -56,11 +59,20 @@ void main() {
     await pumpEventQueue();
     expect(heard, isEmpty, reason: 'the send itself is not a change');
 
-    transfers.setState(jobOf('cm1'), const PublishJobState.publishing());
+    transfers.setState(
+      jobOf(const ClientMessageId('cm1')),
+      const PublishJobState.publishing(),
+    );
     await pumpEventQueue();
-    transfers.setState(jobOf('cm1'), const PublishJobState.publishing());
+    transfers.setState(
+      jobOf(const ClientMessageId('cm1')),
+      const PublishJobState.publishing(),
+    );
     await pumpEventQueue();
-    transfers.setState(jobOf('cm1'), const PublishJobState.completed(null));
+    transfers.setState(
+      jobOf(const ClientMessageId('cm1')),
+      const PublishJobState.completed(null),
+    );
     await pumpEventQueue();
 
     expect(heard, [
@@ -72,8 +84,8 @@ void main() {
     sendText('one');
     await pumpEventQueue();
 
-    await fail('cm1');
-    outbox.retry('c1', 'cm1');
+    await fail(const ClientMessageId('cm1'));
+    outbox.retry(const ChatId('c1'), const ClientMessageId('cm1'));
 
     expect(heard, [
       ('cm1', const OutgoingStatus.failed(OutgoingFailure.network())),
@@ -85,7 +97,7 @@ void main() {
     sendText('one');
     await pumpEventQueue();
 
-    outbox.cancel('c1', 'cm1');
+    outbox.cancel(const ChatId('c1'), const ClientMessageId('cm1'));
     await pumpEventQueue();
 
     expect(heard, isEmpty);

@@ -1,3 +1,4 @@
+import 'package:chat_outbox/src/message/outgoing_ids.dart';
 import 'package:chat_outbox/src/message/outgoing_message.dart';
 import 'package:chat_outbox/src/message/outgoing_status.dart';
 import 'package:chat_outbox/src/outbox/outbox_projection.dart';
@@ -27,7 +28,7 @@ final class OutboxDebugSnapshot {
   }) : tail = List.unmodifiable(tail);
 
   /// The chat.
-  final String chatId;
+  final ChatId chatId;
 
   /// The id strategy's name; null when none is set.
   final String? strategy;
@@ -104,7 +105,7 @@ final class OutboxDebugRow {
         OutboxDebugItem.of(item, sendOriginHeld: sendOriginHeld?.call(item.id)),
     ],
     jobId: job?.id,
-    jobState: job?.state,
+    jobState: job?.state?.name,
     stage: job?.stage?.name,
     attempts: attempts,
   );
@@ -113,7 +114,7 @@ final class OutboxDebugRow {
   final int position;
 
   /// The message's identity.
-  final String clientMessageId;
+  final ClientMessageId clientMessageId;
 
   /// The status's name (`OutgoingStatus.name`).
   final String status;

@@ -1,5 +1,6 @@
 import 'package:chat_outbox/src/ids/outgoing_id_strategy.dart';
 import 'package:chat_outbox/src/ids/provisional_tail_order.dart';
+import 'package:chat_outbox/src/message/outgoing_ids.dart';
 import 'package:chat_outbox/src/testing/fake_outgoing_tail.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 
@@ -11,7 +12,7 @@ final class FakeOutgoingIdStrategy implements OutgoingIdStrategy {
   /// [FakeOutgoingTail] whose newest confirmed message is 100; it proposes
   /// `tip+1` unless [proposesIds] is false.
   factory FakeOutgoingIdStrategy({
-    String chatId = 'c1',
+    ChatId chatId = const ChatId('c1'),
     OutgoingTailTarget? tail,
     bool proposesIds = true,
   }) => FakeOutgoingIdStrategy._(
@@ -21,7 +22,7 @@ final class FakeOutgoingIdStrategy implements OutgoingIdStrategy {
   );
 
   FakeOutgoingIdStrategy._(
-    String chatId,
+    ChatId chatId,
     this.target, {
     required this.proposesIds,
   }) : _order = ProvisionalTailOrder(
@@ -53,17 +54,21 @@ final class FakeOutgoingIdStrategy implements OutgoingIdStrategy {
   int? get proposedId => proposesIds ? _order.start : null;
 
   @override
-  List<String> get tail => _order.tail;
+  List<ClientMessageId> get tail => _order.tail;
 
   @override
   Map<String, int> get rebases => _order.rebaseCounts;
 
   @override
-  int? positionOf(String clientMessageId) => _order.positionOf(clientMessageId);
+  int? positionOf(ClientMessageId clientMessageId) =>
+      _order.positionOf(clientMessageId);
+
+  @override
+  void sync() => _order.sync();
 
   @override
   int allocate(
-    String clientMessageId,
+    ClientMessageId clientMessageId,
     IChatMessage Function(int position) row, {
     bool failed = false,
     bool restored = false,
@@ -90,37 +95,37 @@ final class FakeOutgoingIdStrategy implements OutgoingIdStrategy {
   }
 
   @override
-  void publishStart(String clientMessageId) {
+  void publishStart(ClientMessageId clientMessageId) {
     calls.add('publishStart $clientMessageId');
     _order.publishStart(clientMessageId);
   }
 
   @override
-  void fail(String clientMessageId) {
+  void fail(ClientMessageId clientMessageId) {
     calls.add('fail $clientMessageId');
     _order.fail(clientMessageId);
   }
 
   @override
-  void retry(String clientMessageId) {
+  void retry(ClientMessageId clientMessageId) {
     calls.add('retry $clientMessageId');
     _order.retry(clientMessageId);
   }
 
   @override
-  bool remove(String clientMessageId) {
+  bool remove(ClientMessageId clientMessageId) {
     calls.add('remove $clientMessageId');
     return _order.remove(clientMessageId);
   }
 
   @override
-  Set<String> removeAll(List<String> clientMessageIds) {
+  Set<ClientMessageId> removeAll(List<ClientMessageId> clientMessageIds) {
     calls.add('removeAll ${clientMessageIds.join(' ')}');
     return _order.removeAll(clientMessageIds);
   }
 
   @override
-  int? confirm(String clientMessageId) {
+  int? confirm(ClientMessageId clientMessageId) {
     calls.add('confirm $clientMessageId');
     return _order.confirm(clientMessageId);
   }

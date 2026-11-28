@@ -1,4 +1,5 @@
 import 'package:chat_outbox/src/ids/outgoing_id_strategy.dart';
+import 'package:chat_outbox/src/message/outgoing_ids.dart';
 import 'package:chat_outbox/src/testing/fake_outgoing_tail.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -26,7 +27,7 @@ abstract final class OutgoingIdStrategyContract {
 
       int allocate(String id, {bool failed = false, bool restored = false}) =>
           strategy.allocate(
-            id,
+            ClientMessageId(id),
             (position) => FakeTailMessage(position, id),
             failed: failed,
             restored: restored,
@@ -37,7 +38,10 @@ abstract final class OutgoingIdStrategyContract {
         expect(strategy.tail, order, reason: 'the strategy order');
         expect(tail.provisional, order, reason: 'the rows');
         for (final (index, id) in order.indexed) {
-          expect(strategy.positionOf(id), strategy.tip + 1 + index);
+          expect(
+            strategy.positionOf(ClientMessageId(id)),
+            strategy.tip + 1 + index,
+          );
         }
       }
 
@@ -62,7 +66,7 @@ abstract final class OutgoingIdStrategyContract {
         test('a sending row goes above the failed rows, which sink', () {
           allocate('a');
           allocate('b');
-          strategy.fail('a');
+          strategy.fail(const ClientMessageId('a'));
 
           expect(allocate('c'), 102);
 
@@ -88,7 +92,7 @@ abstract final class OutgoingIdStrategyContract {
         });
 
         test('answers no position for a row it never placed', () {
-          expect(strategy.positionOf('nope'), isNull);
+          expect(strategy.positionOf(const ClientMessageId('nope')), isNull);
         });
       });
 
@@ -98,10 +102,13 @@ abstract final class OutgoingIdStrategyContract {
           allocate('b');
           allocate('c');
 
-          strategy.publishStart('c');
+          strategy.publishStart(const ClientMessageId('c'));
 
           expectTail(['c', 'a', 'b']);
-          expect(strategy.positionOf('c'), strategy.tip + 1);
+          expect(
+            strategy.positionOf(const ClientMessageId('c')),
+            strategy.tip + 1,
+          );
           expect(tail.rebases, hasLength(1));
         });
 
@@ -109,7 +116,7 @@ abstract final class OutgoingIdStrategyContract {
           allocate('a');
           allocate('b');
 
-          strategy.publishStart('a');
+          strategy.publishStart(const ClientMessageId('a'));
 
           expectTail(['a', 'b']);
           expect(tail.rebases, isEmpty);
@@ -119,9 +126,9 @@ abstract final class OutgoingIdStrategyContract {
           allocate('a');
           allocate('b');
           allocate('c');
-          strategy.fail('a');
+          strategy.fail(const ClientMessageId('a'));
 
-          strategy.publishStart('c');
+          strategy.publishStart(const ClientMessageId('c'));
 
           expectTail(['c', 'b', 'a']);
         });
@@ -133,7 +140,7 @@ abstract final class OutgoingIdStrategyContract {
           allocate('b');
           allocate('c');
 
-          strategy.fail('a');
+          strategy.fail(const ClientMessageId('a'));
 
           expectTail(['b', 'c', 'a']);
         });
@@ -145,8 +152,8 @@ abstract final class OutgoingIdStrategyContract {
           allocate('d');
 
           strategy
-            ..fail('c')
-            ..fail('a');
+            ..fail(const ClientMessageId('c'))
+            ..fail(const ClientMessageId('a'));
 
           expectTail(['b', 'd', 'a', 'c']);
         });
@@ -155,7 +162,7 @@ abstract final class OutgoingIdStrategyContract {
           allocate('a');
           allocate('b');
 
-          strategy.fail('b');
+          strategy.fail(const ClientMessageId('b'));
 
           expectTail(['a', 'b']);
           expect(tail.rebases, isEmpty);
@@ -169,10 +176,10 @@ abstract final class OutgoingIdStrategyContract {
           allocate('c');
           allocate('d');
           strategy
-            ..fail('a')
-            ..fail('b');
+            ..fail(const ClientMessageId('a'))
+            ..fail(const ClientMessageId('b'));
 
-          strategy.retry('b');
+          strategy.retry(const ClientMessageId('b'));
 
           expectTail(['c', 'd', 'b', 'a']);
         });
@@ -182,11 +189,11 @@ abstract final class OutgoingIdStrategyContract {
           allocate('b');
           allocate('c');
           strategy
-            ..fail('a')
-            ..fail('b')
-            ..retry('b');
+            ..fail(const ClientMessageId('a'))
+            ..fail(const ClientMessageId('b'))
+            ..retry(const ClientMessageId('b'));
 
-          strategy.fail('b');
+          strategy.fail(const ClientMessageId('b'));
 
           expectTail(['c', 'a', 'b']);
         });
@@ -198,17 +205,17 @@ abstract final class OutgoingIdStrategyContract {
           allocate('b');
           allocate('c');
 
-          expect(strategy.remove('b'), isTrue);
+          expect(strategy.remove(const ClientMessageId('b')), isTrue);
 
           expectTail(['a', 'c']);
-          expect(strategy.positionOf('b'), isNull);
+          expect(strategy.positionOf(const ClientMessageId('b')), isNull);
           expect(tail.at(103), isNull);
         });
 
         test('the next row may take a removed row\'s position', () {
           allocate('a');
           allocate('b');
-          strategy.remove('b');
+          strategy.remove(const ClientMessageId('b'));
 
           expect(allocate('c'), 102);
         });
@@ -216,7 +223,7 @@ abstract final class OutgoingIdStrategyContract {
         test('the last row removed empties the tail', () {
           allocate('a');
 
-          strategy.remove('a');
+          strategy.remove(const ClientMessageId('a'));
 
           expectTail([]);
           expect(strategy.tip, 100);
@@ -224,7 +231,7 @@ abstract final class OutgoingIdStrategyContract {
         });
 
         test('answers false for a row it does not hold', () {
-          expect(strategy.remove('nope'), isFalse);
+          expect(strategy.remove(const ClientMessageId('nope')), isFalse);
           expect(tail.rebases, isEmpty);
         });
       });
@@ -237,12 +244,19 @@ abstract final class OutgoingIdStrategyContract {
           allocate('c');
           allocate('d');
 
-          expect(strategy.removeAll(['b', 'd', 'nope']), {'b', 'd'});
+          expect(
+            strategy.removeAll([
+              const ClientMessageId('b'),
+              const ClientMessageId('d'),
+              const ClientMessageId('nope'),
+            ]),
+            {'b', 'd'},
+          );
 
           expectTail(['a', 'c']);
           expect(tail.rebases, hasLength(1));
-          expect(strategy.positionOf('b'), isNull);
-          expect(strategy.positionOf('d'), isNull);
+          expect(strategy.positionOf(const ClientMessageId('b')), isNull);
+          expect(strategy.positionOf(const ClientMessageId('d')), isNull);
           expect(tail.at(103), isNull);
           expect(tail.at(104), isNull);
         });
@@ -251,7 +265,13 @@ abstract final class OutgoingIdStrategyContract {
           allocate('a');
           allocate('b');
 
-          expect(strategy.removeAll(['a', 'b']), {'a', 'b'});
+          expect(
+            strategy.removeAll([
+              const ClientMessageId('a'),
+              const ClientMessageId('b'),
+            ]),
+            {'a', 'b'},
+          );
 
           expectTail([]);
           expect(allocate('c'), 101);
@@ -260,7 +280,7 @@ abstract final class OutgoingIdStrategyContract {
         test('answers none and moves nothing for rows it does not hold', () {
           allocate('a');
 
-          expect(strategy.removeAll(['nope']), isEmpty);
+          expect(strategy.removeAll([const ClientMessageId('nope')]), isEmpty);
           expect(strategy.removeAll([]), isEmpty);
           expect(tail.rebases, isEmpty);
         });
@@ -270,31 +290,31 @@ abstract final class OutgoingIdStrategyContract {
         test('the confirmed row leaves at tip+1 and the tip advances', () {
           allocate('a');
           allocate('b');
-          strategy.publishStart('a');
+          strategy.publishStart(const ClientMessageId('a'));
 
-          expect(strategy.confirm('a'), 101);
+          expect(strategy.confirm(const ClientMessageId('a')), 101);
           tail.update(FakeTailMessage(101));
 
           expect(strategy.tip, 101);
           expectTail(['b']);
-          expect(strategy.positionOf('a'), isNull);
+          expect(strategy.positionOf(const ClientMessageId('a')), isNull);
         });
 
         test('a row not at tip+1 moves there first', () {
           allocate('a');
           allocate('b');
 
-          expect(strategy.confirm('b'), 101);
+          expect(strategy.confirm(const ClientMessageId('b')), 101);
           tail.update(FakeTailMessage(101));
 
           expectTail(['a']);
-          expect(strategy.positionOf('a'), 102);
+          expect(strategy.positionOf(const ClientMessageId('a')), 102);
         });
 
         test('the only row confirmed leaves the tail empty', () {
           allocate('a');
 
-          expect(strategy.confirm('a'), 101);
+          expect(strategy.confirm(const ClientMessageId('a')), 101);
           tail.update(FakeTailMessage(101));
 
           expectTail([]);
@@ -303,7 +323,7 @@ abstract final class OutgoingIdStrategyContract {
         });
 
         test('answers null for a row it does not hold', () {
-          expect(strategy.confirm('nope'), isNull);
+          expect(strategy.confirm(const ClientMessageId('nope')), isNull);
         });
       });
 
@@ -315,6 +335,9 @@ abstract final class OutgoingIdStrategyContract {
 
           // The data source applies a fetch inside the tail as this move.
           tail.rebaseTail(order: ['a', 'b'], insert: [FakeTailMessage(101)]);
+          // A getter reads the strategy as it is: sync brings it to the rows.
+          expect(strategy.tip, 100);
+          strategy.sync();
 
           expect(strategy.tip, 101);
           expectTail(['a', 'b']);
@@ -338,8 +361,8 @@ abstract final class OutgoingIdStrategyContract {
 
             expect(tail.rebases, isEmpty);
             expect(strategy.tail, isEmpty);
-            expect(strategy.positionOf('a'), 101);
-            expect(strategy.positionOf('b'), 102);
+            expect(strategy.positionOf(const ClientMessageId('a')), 101);
+            expect(strategy.positionOf(const ClientMessageId('b')), 102);
           });
         } else {
           test('an incoming message at tip+1 shifts the tail by one', () {
@@ -358,7 +381,7 @@ abstract final class OutgoingIdStrategyContract {
               'rows alike', () {
             allocate('a');
             allocate('b');
-            strategy.fail('a');
+            strategy.fail(const ClientMessageId('a'));
 
             strategy.incoming([FakeTailMessage(102), FakeTailMessage(101)]);
 
@@ -369,11 +392,14 @@ abstract final class OutgoingIdStrategyContract {
           test('a publishing row is still at tip+1 after an incoming one', () {
             allocate('a');
             allocate('b');
-            strategy.publishStart('b');
+            strategy.publishStart(const ClientMessageId('b'));
 
             strategy.incoming([FakeTailMessage(101)]);
 
-            expect(strategy.positionOf('b'), strategy.tip + 1);
+            expect(
+              strategy.positionOf(const ClientMessageId('b')),
+              strategy.tip + 1,
+            );
             expectTail(['b', 'a']);
           });
         }

@@ -42,11 +42,14 @@ void main() {
     addTearDown(outbox.dispose);
   });
 
-  OutgoingMessage sendText(String text) =>
-      outbox.sendText('c1', RichText.plain(text), payload: Note(text: text))!;
+  OutgoingMessage sendText(String text) => outbox.sendText(
+    const ChatId('c1'),
+    RichText.plain(text),
+    payload: Note(text: text),
+  )!;
 
   OutgoingMessage sendPhoto(String id, {String? caption}) => outbox.send(
-    'c1',
+    const ChatId('c1'),
     PlannedSend.single(
       photo(id),
       form: SendForm.media,
@@ -59,7 +62,7 @@ void main() {
   )!;
 
   OutgoingMessage sendAlbum(List<String> ids, {String? caption}) => outbox.send(
-    'c1',
+    const ChatId('c1'),
     PlannedSend.group(
       [for (final id in ids) photo(id)],
       form: SendForm.media,
@@ -72,7 +75,7 @@ void main() {
     payload: Note(text: caption ?? ''),
   )!;
 
-  PublishJobId jobOf(String clientMessageId) => transfers.jobs
+  PublishJobId jobOf(ClientMessageId clientMessageId) => transfers.jobs
       .singleWhere((job) => job.tag == 'chat:c1:$clientMessageId')
       .id;
 
@@ -83,12 +86,21 @@ void main() {
       final one = sendPhoto('a');
       sendText('two');
       await pumpEventQueue();
-      final job = jobOf('cm1');
+      final job = jobOf(const ClientMessageId('cm1'));
 
-      expect(outbox.cancel('c1', 'cm1'), OutgoingCancelOutcome.cancelled);
+      expect(
+        outbox.cancel(const ChatId('c1'), const ClientMessageId('cm1')),
+        OutgoingCancelOutcome.cancelled,
+      );
 
       expect(transfers.cancelled, [job]);
-      expect(outbox.byClientMessageId('c1', 'cm1'), isNull);
+      expect(
+        outbox.byClientMessageId(
+          const ChatId('c1'),
+          const ClientMessageId('cm1'),
+        ),
+        isNull,
+      );
       // The next row took the cancelled row's position.
       expect(tail.provisional, ['cm2']);
       expect(tail.positionOf('cm2'), 101);
@@ -96,7 +108,7 @@ void main() {
       expect(cancelled.single.message.status, const OutgoingStatus.cancelled());
       expect(cancelled.single.message.position, one.position);
       expect(cancelled.single.rowRemoved, isTrue);
-      expect(outbox.debugSnapshot('c1').counters.cancels, 1);
+      expect(outbox.debugSnapshot(const ChatId('c1')).counters.cancels, 1);
       expect(diagnostics.whereOp(OutboxOp.cancelled), [
         isChatEvent(
           level: ChatEventLevel.info,
@@ -117,7 +129,8 @@ void main() {
       await pumpEventQueue();
 
       final outcomes = [
-        for (var i = 0; i < 10; i++) outbox.cancel('c1', 'cm1'),
+        for (var i = 0; i < 10; i++)
+          outbox.cancel(const ChatId('c1'), const ClientMessageId('cm1')),
       ];
 
       expect(outcomes.first, OutgoingCancelOutcome.cancelled);
@@ -151,19 +164,19 @@ void main() {
         onSent: (_) {},
         rowOf: (message, payload) =>
             FakeTailMessage(message.position, message.clientMessageId),
-        clientMessageIds: () => (ids..moveNext()).current,
+        clientMessageIds: () => ClientMessageId((ids..moveNext()).current),
       );
       addTearDown(reusing.dispose);
       reusing.sendText(
-        'c1',
+        const ChatId('c1'),
         const RichText.plain('one'),
         payload: const Note(text: 'one'),
       );
-      reusing.cancel('c1', 'cm1');
+      reusing.cancel(const ChatId('c1'), const ClientMessageId('cm1'));
 
       expect(
         () => reusing.sendText(
-          'c1',
+          const ChatId('c1'),
           const RichText.plain('two'),
           payload: const Note(text: 'two'),
         ),
@@ -173,7 +186,7 @@ void main() {
 
     test('the next message takes a cancelled row\'s position', () async {
       sendText('one');
-      outbox.cancel('c1', 'cm1');
+      outbox.cancel(const ChatId('c1'), const ClientMessageId('cm1'));
 
       final two = sendText('two');
 
@@ -187,17 +200,27 @@ void main() {
       final diagnostics = RecordingDiagnostics.install();
       sendAlbum(['a', 'b']);
       await pumpEventQueue();
-      final job = jobOf('cm1');
+      final job = jobOf(const ClientMessageId('cm1'));
 
       expect(
-        outbox.cancelItem('c1', 'cm1', const MediaItemId('cm1:1')),
+        outbox.cancelItem(
+          const ChatId('c1'),
+          const ClientMessageId('cm1'),
+          const MediaItemId('cm1:1'),
+        ),
         OutgoingCancelOutcome.itemDropped,
       );
 
       expect(transfers.removedItems, [(job, 'item:cm1:1')]);
       expect(
         [
-          for (final item in outbox.byClientMessageId('c1', 'cm1')!.items)
+          for (final item
+              in outbox
+                  .byClientMessageId(
+                    const ChatId('c1'),
+                    const ClientMessageId('cm1'),
+                  )!
+                  .items)
             '${item.id}',
         ],
         ['item:cm1:0'],
@@ -224,7 +247,7 @@ void main() {
           },
         ),
       ]);
-      expect(outbox.debugSnapshot('c1').counters.itemsDropped, 1);
+      expect(outbox.debugSnapshot(const ChatId('c1')).counters.itemsDropped, 1);
 
       outbox.registerSender(sender);
       transfers.setState(job, const PublishJobState.publishing());
@@ -235,7 +258,12 @@ void main() {
         ['item:cm1:0'],
       );
       expect(
-        outbox.byClientMessageId('c1', 'cm1')!.status,
+        outbox
+            .byClientMessageId(
+              const ChatId('c1'),
+              const ClientMessageId('cm1'),
+            )!
+            .status,
         const OutgoingStatus.sent(),
       );
     });
@@ -246,17 +274,27 @@ void main() {
         final diagnostics = RecordingDiagnostics.install();
         sendPhoto('a');
         await pumpEventQueue();
-        final job = jobOf('cm1');
+        final job = jobOf(const ClientMessageId('cm1'));
 
         expect(
-          outbox.cancelItem('c1', 'cm1', const MediaItemId('cm1:0')),
+          outbox.cancelItem(
+            const ChatId('c1'),
+            const ClientMessageId('cm1'),
+            const MediaItemId('cm1:0'),
+          ),
           OutgoingCancelOutcome.cancelled,
         );
 
         expect(transfers.cancelled, [job]);
         expect(transfers.removedItems, isEmpty);
         expect(dropped, isEmpty);
-        expect(outbox.byClientMessageId('c1', 'cm1'), isNull);
+        expect(
+          outbox.byClientMessageId(
+            const ChatId('c1'),
+            const ClientMessageId('cm1'),
+          ),
+          isNull,
+        );
         expect(tail.provisional, isEmpty);
         expect(
           diagnostics.whereOp(OutboxOp.cancelled).single.fields['trigger'],
@@ -270,14 +308,28 @@ void main() {
       final diagnostics = RecordingDiagnostics.install();
       sendAlbum(['a', 'b']);
       await pumpEventQueue();
-      final job = jobOf('cm1');
+      final job = jobOf(const ClientMessageId('cm1'));
 
-      outbox.cancelItem('c1', 'cm1', const MediaItemId('cm1:0'));
-      final last = outbox.cancelItem('c1', 'cm1', const MediaItemId('cm1:1'));
+      outbox.cancelItem(
+        const ChatId('c1'),
+        const ClientMessageId('cm1'),
+        const MediaItemId('cm1:0'),
+      );
+      final last = outbox.cancelItem(
+        const ChatId('c1'),
+        const ClientMessageId('cm1'),
+        const MediaItemId('cm1:1'),
+      );
 
       expect(last, OutgoingCancelOutcome.cancelled);
       expect(transfers.cancelled, [job]);
-      expect(outbox.byClientMessageId('c1', 'cm1'), isNull);
+      expect(
+        outbox.byClientMessageId(
+          const ChatId('c1'),
+          const ClientMessageId('cm1'),
+        ),
+        isNull,
+      );
       expect(cancelled.single.message.clientMessageId, 'cm1');
       expect(
         diagnostics.whereOp(OutboxOp.cancelled).single.fields['trigger'],
@@ -291,17 +343,29 @@ void main() {
       sendPhoto('a', caption: 'look');
       sendText('two');
       await pumpEventQueue();
-      final job = jobOf('cm1');
+      final job = jobOf(const ClientMessageId('cm1'));
       expect(tail.provisional, ['cm1', 'cm2']);
 
       expect(
-        outbox.cancelItem('c1', 'cm1', const MediaItemId('cm1:0')),
+        outbox.cancelItem(
+          const ChatId('c1'),
+          const ClientMessageId('cm1'),
+          const MediaItemId('cm1:0'),
+        ),
         OutgoingCancelOutcome.itemDropped,
       );
 
       expect(transfers.committed, [job]);
       expect(transfers.cancelled, isEmpty);
-      expect(outbox.byClientMessageId('c1', 'cm1')!.items, isEmpty);
+      expect(
+        outbox
+            .byClientMessageId(
+              const ChatId('c1'),
+              const ClientMessageId('cm1'),
+            )!
+            .items,
+        isEmpty,
+      );
       // The job joined the end of its ordering group: so does its row.
       expect(tail.provisional, ['cm2', 'cm1']);
       expect(diagnostics.whereOp(OutboxOp.awaitingOwner), [
@@ -324,7 +388,12 @@ void main() {
       );
       expect(request.items, isEmpty);
       expect(
-        outbox.byClientMessageId('c1', 'cm1')!.status,
+        outbox
+            .byClientMessageId(
+              const ChatId('c1'),
+              const ClientMessageId('cm1'),
+            )!
+            .status,
         const OutgoingStatus.sent(),
       );
     });
@@ -335,7 +404,11 @@ void main() {
 
       final outcomes = [
         for (var i = 0; i < 10; i++)
-          outbox.cancelItem('c1', 'cm1', const MediaItemId('cm1:1')),
+          outbox.cancelItem(
+            const ChatId('c1'),
+            const ClientMessageId('cm1'),
+            const MediaItemId('cm1:1'),
+          ),
       ];
 
       expect(outcomes.first, OutgoingCancelOutcome.itemDropped);
@@ -351,7 +424,7 @@ void main() {
         final diagnostics = RecordingDiagnostics.install();
         sendAlbum(['a', 'b']);
         await pumpEventQueue();
-        final job = jobOf('cm1');
+        final job = jobOf(const ClientMessageId('cm1'));
 
         transfers.cancelUpload(job, 'item:cm1:0');
         await pumpEventQueue();
@@ -359,7 +432,13 @@ void main() {
         expect(transfers.removedItems, isEmpty);
         expect(
           [
-            for (final item in outbox.byClientMessageId('c1', 'cm1')!.items)
+            for (final item
+                in outbox
+                    .byClientMessageId(
+                      const ChatId('c1'),
+                      const ClientMessageId('cm1'),
+                    )!
+                    .items)
               '${item.id}',
           ],
           ['item:cm1:1'],
@@ -381,13 +460,19 @@ void main() {
       sendPhoto('a');
       sendText('two');
       await pumpEventQueue();
-      final job = jobOf('cm1');
+      final job = jobOf(const ClientMessageId('cm1'));
 
       transfers.cancelUpload(job, 'item:cm1:0');
       await pumpEventQueue();
 
       expect(transfers.cancelled, [job]);
-      expect(outbox.byClientMessageId('c1', 'cm1'), isNull);
+      expect(
+        outbox.byClientMessageId(
+          const ChatId('c1'),
+          const ClientMessageId('cm1'),
+        ),
+        isNull,
+      );
       expect(tail.provisional, ['cm2']);
       expect(dropped, isEmpty);
       expect(cancelled.single.message.clientMessageId, 'cm1');
@@ -407,7 +492,7 @@ void main() {
       () async {
         sendPhoto('a', caption: 'look');
         await pumpEventQueue();
-        final job = jobOf('cm1');
+        final job = jobOf(const ClientMessageId('cm1'));
 
         transfers.cancelUpload(job, 'item:cm1:0');
         await pumpEventQueue();
@@ -415,7 +500,15 @@ void main() {
         expect(transfers.committed, [job]);
         expect(transfers.cancelled, isEmpty);
         expect('${dropped.single.item.id}', 'item:cm1:0');
-        expect(outbox.byClientMessageId('c1', 'cm1')!.items, isEmpty);
+        expect(
+          outbox
+              .byClientMessageId(
+                const ChatId('c1'),
+                const ClientMessageId('cm1'),
+              )!
+              .items,
+          isEmpty,
+        );
       },
     );
   });
@@ -431,13 +524,24 @@ void main() {
       await pumpEventQueue();
       expect(sender.requests, hasLength(1));
 
-      expect(outbox.cancel('c1', 'cm1'), OutgoingCancelOutcome.pending);
-      expect(outbox.cancel('c1', 'cm1'), OutgoingCancelOutcome.dropped);
+      expect(
+        outbox.cancel(const ChatId('c1'), const ClientMessageId('cm1')),
+        OutgoingCancelOutcome.pending,
+      );
+      expect(
+        outbox.cancel(const ChatId('c1'), const ClientMessageId('cm1')),
+        OutgoingCancelOutcome.dropped,
+      );
       answer.complete(const OutgoingSendAnswer.sent(serverMessageId: 101));
       await pumpEventQueue();
 
       expect(
-        outbox.byClientMessageId('c1', 'cm1')!.status,
+        outbox
+            .byClientMessageId(
+              const ChatId('c1'),
+              const ClientMessageId('cm1'),
+            )!
+            .status,
         const OutgoingStatus.sent(),
       );
       expect(transfers.cancelled, isEmpty);
@@ -446,7 +550,10 @@ void main() {
       expect(diagnostics.whereOp(OutboxOp.cancelTooLate).single.fields, {
         'stage': 'publish',
       });
-      expect(outbox.debugSnapshot('c1').counters.cancelsTooLate, 1);
+      expect(
+        outbox.debugSnapshot(const ChatId('c1')).counters.cancelsTooLate,
+        1,
+      );
     });
 
     test('a cancel waiting for an answer that is not an accept cancels the '
@@ -456,9 +563,12 @@ void main() {
       outbox.registerSender(sender);
       sendText('one');
       await pumpEventQueue();
-      final job = jobOf('cm1');
+      final job = jobOf(const ClientMessageId('cm1'));
 
-      expect(outbox.cancel('c1', 'cm1'), OutgoingCancelOutcome.pending);
+      expect(
+        outbox.cancel(const ChatId('c1'), const ClientMessageId('cm1')),
+        OutgoingCancelOutcome.pending,
+      );
       expect(cancelled, isEmpty);
       answer.complete(
         const OutgoingSendAnswer.rejected('spam', retryable: true),
@@ -466,7 +576,13 @@ void main() {
       await pumpEventQueue();
 
       expect(transfers.cancelled, [job]);
-      expect(outbox.byClientMessageId('c1', 'cm1'), isNull);
+      expect(
+        outbox.byClientMessageId(
+          const ChatId('c1'),
+          const ClientMessageId('cm1'),
+        ),
+        isNull,
+      );
       expect(cancelled.single.message.clientMessageId, 'cm1');
       expect(tail.provisional, isEmpty);
     });
@@ -477,10 +593,18 @@ void main() {
       sendText('one');
       await pumpEventQueue();
 
-      expect(outbox.cancel('c1', 'cm1'), OutgoingCancelOutcome.tooLate);
+      expect(
+        outbox.cancel(const ChatId('c1'), const ClientMessageId('cm1')),
+        OutgoingCancelOutcome.tooLate,
+      );
 
       expect(
-        outbox.byClientMessageId('c1', 'cm1')!.status,
+        outbox
+            .byClientMessageId(
+              const ChatId('c1'),
+              const ClientMessageId('cm1'),
+            )!
+            .status,
         const OutgoingStatus.sent(),
       );
       expect(diagnostics.whereOp(OutboxOp.cancelTooLate).single.fields, {
@@ -497,13 +621,20 @@ void main() {
       expect(sender.requests, hasLength(1));
 
       expect(
-        outbox.cancelItem('c1', 'cm1', const MediaItemId('cm1:1')),
+        outbox.cancelItem(
+          const ChatId('c1'),
+          const ClientMessageId('cm1'),
+          const MediaItemId('cm1:1'),
+        ),
         OutgoingCancelOutcome.itemDropped,
       );
       answer.complete(const OutgoingSendAnswer.sent(serverMessageId: 101));
       await pumpEventQueue();
 
-      final message = outbox.byClientMessageId('c1', 'cm1')!;
+      final message = outbox.byClientMessageId(
+        const ChatId('c1'),
+        const ClientMessageId('cm1'),
+      )!;
       expect(message.status, const OutgoingStatus.sent());
       expect([for (final item in message.items) '${item.id}'], ['item:cm1:0']);
     });
@@ -513,7 +644,7 @@ void main() {
     final diagnostics = RecordingDiagnostics.install();
     sendPhoto('a');
     await pumpEventQueue();
-    final job = jobOf('cm1');
+    final job = jobOf(const ClientMessageId('cm1'));
     transfers.setState(
       job,
       const PublishJobState.failed(
@@ -524,7 +655,10 @@ void main() {
     );
     await pumpEventQueue();
 
-    expect(outbox.cancel('c1', 'cm1'), OutgoingCancelOutcome.cancelled);
+    expect(
+      outbox.cancel(const ChatId('c1'), const ClientMessageId('cm1')),
+      OutgoingCancelOutcome.cancelled,
+    );
 
     expect(transfers.cancelled, [job]);
     expect(diagnostics.whereOp(OutboxOp.cancelled).single.fields, {

@@ -1,4 +1,5 @@
 import 'package:chat_capabilities/chat_capabilities.dart';
+import 'package:chat_outbox/src/message/outgoing_ids.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:content_model/content_model.dart';
 import 'package:meta/meta.dart';
@@ -37,11 +38,11 @@ final class OutgoingSendRequest<M> {
   }) : items = Map.unmodifiable(items);
 
   /// The chat the message goes to.
-  final String chatId;
+  final ChatId chatId;
 
   /// The message's identity, and the idempotency key of every attempt: the
   /// server applies a message once per client message id.
-  final String clientMessageId;
+  final ClientMessageId clientMessageId;
 
   /// The host's message model, decoded from the job's payload.
   final M payload;
@@ -273,10 +274,10 @@ final class OutgoingSent<M> {
   }) : serverKeys = Map.unmodifiable(serverKeys);
 
   /// The chat.
-  final String chatId;
+  final ChatId chatId;
 
   /// The message's identity.
-  final String clientMessageId;
+  final ClientMessageId clientMessageId;
 
   /// The message's id in the chat from now on: the server's id under a
   /// strategy that proposes ids, the row's local id otherwise.

@@ -1,5 +1,6 @@
 import 'package:chat_outbox/src/ids/outgoing_id_strategy.dart';
 import 'package:chat_outbox/src/ids/provisional_tail_order.dart';
+import 'package:chat_outbox/src/message/outgoing_ids.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 
 /// The id strategy for a backend with global or UUID ids: the host numbers
@@ -21,7 +22,7 @@ import 'package:chat_scroll_view/chat_scroll_view.dart';
 final class LocalIds implements OutgoingIdStrategy {
   /// The strategy of [chatId], writing [tail].
   LocalIds({
-    required String chatId,
+    required ChatId chatId,
     required OutgoingTailTarget tail,
     this.appendIncoming = false,
   }) : _order = ProvisionalTailOrder(
@@ -54,17 +55,21 @@ final class LocalIds implements OutgoingIdStrategy {
       : _order.start;
 
   @override
-  List<String> get tail => _order.tail;
+  List<ClientMessageId> get tail => _order.tail;
 
   @override
   Map<String, int> get rebases => _order.rebaseCounts;
 
   @override
-  int? positionOf(String clientMessageId) => _order.positionOf(clientMessageId);
+  int? positionOf(ClientMessageId clientMessageId) =>
+      _order.positionOf(clientMessageId);
+
+  @override
+  void sync() => _order.sync();
 
   @override
   int allocate(
-    String clientMessageId,
+    ClientMessageId clientMessageId,
     IChatMessage Function(int position) row, {
     bool failed = false,
     bool restored = false,
@@ -79,22 +84,24 @@ final class LocalIds implements OutgoingIdStrategy {
   }
 
   @override
-  void publishStart(String clientMessageId) =>
+  void publishStart(ClientMessageId clientMessageId) =>
       _order.publishStart(clientMessageId);
 
   @override
-  void fail(String clientMessageId) => _order.fail(clientMessageId);
+  void fail(ClientMessageId clientMessageId) => _order.fail(clientMessageId);
 
   @override
-  void retry(String clientMessageId) => _order.retry(clientMessageId);
+  void retry(ClientMessageId clientMessageId) => _order.retry(clientMessageId);
 
   @override
-  bool remove(String clientMessageId) => _order.remove(clientMessageId);
+  bool remove(ClientMessageId clientMessageId) =>
+      _order.remove(clientMessageId);
 
   @override
-  Set<String> removeAll(List<String> clientMessageIds) =>
+  Set<ClientMessageId> removeAll(List<ClientMessageId> clientMessageIds) =>
       _order.removeAll(clientMessageIds);
 
   @override
-  int? confirm(String clientMessageId) => _order.confirm(clientMessageId);
+  int? confirm(ClientMessageId clientMessageId) =>
+      _order.confirm(clientMessageId);
 }

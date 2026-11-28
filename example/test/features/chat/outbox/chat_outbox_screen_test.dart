@@ -86,7 +86,10 @@ void main() {
 
   OutgoingMessage outgoing(AppServices services) {
     final id = transfers.requests.last.idempotencyKey!;
-    return services.outbox.outbox.byClientMessageId(chat, id)!;
+    return services.outbox.outbox.byClientMessageId(
+      const ChatId(chat),
+      ClientMessageId(id),
+    )!;
   }
 
   // A message's body is painted, not a text widget: its bubble is found by
@@ -230,8 +233,8 @@ void main() {
     final services = await pumpApp(tester);
 
     final restored = services.outbox.outbox.byClientMessageId(
-      chat,
-      clientMessageId,
+      const ChatId(chat),
+      ClientMessageId(clientMessageId),
     )!;
     expect(restored.status, const OutgoingStatus.uploading());
     expect(restored.position, history);

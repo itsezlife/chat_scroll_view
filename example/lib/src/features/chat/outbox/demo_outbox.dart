@@ -95,7 +95,7 @@ final class DemoOutbox {
 
   /// The binding of [chatId], made on first use and kept for the app's run.
   DemoOutboxChat chat(String chatId) =>
-      _$chats.putIfAbsent(chatId, () => DemoOutboxChat._(this, chatId));
+      _$chats.putIfAbsent(chatId, () => DemoOutboxChat._(this, ChatId(chatId)));
 
   /// The local content key a send item's [mediaKey] is cached under: the
   /// content key the media key names (`content_assets`' mapping), so a
@@ -174,7 +174,7 @@ final class DemoOutboxChat {
   final DemoOutbox _owner;
 
   /// The chat.
-  final String chatId;
+  final ChatId chatId;
 
   ChatDataSource? _$source;
   StreamSubscription<DemoServerMessage>? _$deliveries;
@@ -205,11 +205,11 @@ final class DemoOutboxChat {
 
   /// Which client message id each sent row had, by its server id: "logs of
   /// this message" follows a sent message by it.
-  final Map<int, String> _$sentClientIds = {};
+  final Map<int, ClientMessageId> _$sentClientIds = {};
 
   /// The outgoing rows, by the row objects the outbox built: a moved row
   /// keeps its object, so its identity follows it.
-  final Expando<String> _$identities = Expando('clientMessageId');
+  final Expando<ClientMessageId> _$identities = Expando('clientMessageId');
 
   ChatOutbox<DemoOutgoingPayload> get _outbox => _owner.outbox;
 
@@ -432,7 +432,7 @@ final class DemoOutboxChat {
   /// accepted retry as well. A retry the outbox accepts announces the
   /// send's start again.
   Future<OutgoingRetryOutcome?> retry(
-    String clientMessageId, {
+    ClientMessageId clientMessageId, {
     Future<SourceBytes?> Function(MediaItemId item)? askForSource,
   }) async {
     if (!_$retrying.add(clientMessageId)) return OutgoingRetryOutcome.dropped;
@@ -540,17 +540,18 @@ final class DemoOutboxChat {
   };
 
   /// The client message id of the outgoing row at [id], or null.
-  String? _outgoingAt(int id) => switch (_$source?.getMessage(id)) {
+  ClientMessageId? _outgoingAt(int id) => switch (_$source?.getMessage(id)) {
     final row? => _$identities[row],
     null => null,
   };
 
   /// The client message id of the row at [id]: an outgoing row's, or a
   /// sent one's; null for any other message.
-  String? clientMessageIdAt(int id) => switch (_$source?.getMessage(id)) {
-    final message? => _$identities[message] ?? _$sentClientIds[id],
-    null => null,
-  };
+  ClientMessageId? clientMessageIdAt(int id) =>
+      switch (_$source?.getMessage(id)) {
+        final message? => _$identities[message] ?? _$sentClientIds[id],
+        null => null,
+      };
 
   // --- The outbox's hooks ---------------------------------------------------
 
@@ -704,7 +705,11 @@ final class DemoOutboxChat {
     if (source == null) return;
     // The echo of the user's own message: the outgoing row is its one row.
     if (message.clientMessageId case final clientMessageId?
-        when _outbox.byClientMessageId(chatId, clientMessageId) != null) {
+        when _outbox.byClientMessageId(
+              chatId,
+              ClientMessageId(clientMessageId),
+            ) !=
+            null) {
       return;
     }
     // Already placed: a conflict's or a replay's missing messages go in

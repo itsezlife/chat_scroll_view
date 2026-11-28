@@ -23,7 +23,7 @@ ChatOutbox<Note> outboxOver(
 
 /// A fresh fake id strategy for [chatId], over its own tail whose newest
 /// confirmed message is 100.
-OutgoingIdStrategy fakeIdStrategyOf(String chatId) =>
+OutgoingIdStrategy fakeIdStrategyOf(ChatId chatId) =>
     FakeOutgoingIdStrategy(chatId: chatId);
 
 /// The tests' outgoing row: the message's client message id at its position.
@@ -33,8 +33,8 @@ FakeTailMessage fakeRowOf(OutgoingMessage message, Note payload) =>
 /// An outgoing message of chat `c1` for the tests, its payload the [Note]
 /// [text] through [NotePayloadCodec].
 OutgoingMessage outgoingNote(
-  String clientMessageId, {
-  String chatId = 'c1',
+  ClientMessageId clientMessageId, {
+  ChatId chatId = const ChatId('c1'),
   int position = 101,
   String text = 'hello',
   OutgoingStatus status = const OutgoingStatus.uploading(),
@@ -49,7 +49,8 @@ OutgoingMessage outgoingNote(
 );
 
 /// The item `index` of [clientMessageId], keyed as the outbox issues ids.
-OutgoingItem outgoingItem(String clientMessageId, int index) => OutgoingItem(
-  id: MediaItemId('$clientMessageId:$index'),
-  localKey: ContentKey.document('local-$clientMessageId-$index'),
-);
+OutgoingItem outgoingItem(ClientMessageId clientMessageId, int index) =>
+    OutgoingItem(
+      id: MediaItemId('$clientMessageId:$index'),
+      localKey: ContentKey.document('local-$clientMessageId-$index'),
+    );

@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:chat_outbox/src/message/outgoing_ids.dart';
 import 'package:chat_outbox/src/message/outgoing_status.dart';
 import 'package:content_model/content_model.dart';
 import 'package:meta/meta.dart';
@@ -29,10 +30,10 @@ final class OutgoingMessage {
        payload = Uint8List.fromList(payload).asUnmodifiableView();
 
   /// The chat the message is sent to.
-  final String chatId;
+  final ChatId chatId;
 
   /// The message's identity, issued before its publish job and never reused.
-  final String clientMessageId;
+  final ClientMessageId clientMessageId;
 
   /// The row's current id in the chat's provisional tail: a position, not
   /// the message's identity. The chat's id strategy places the row when the

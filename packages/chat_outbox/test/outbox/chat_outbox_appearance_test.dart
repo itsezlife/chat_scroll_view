@@ -44,7 +44,7 @@ void main() {
 
   OutgoingMessage sendPhoto(ChatOutbox<Note> outbox, {Rect? from}) =>
       outbox.send(
-        'c1',
+        const ChatId('c1'),
         PlannedSend.single(photo('a'), form: SendForm.media),
         payload: const Note(text: 'one'),
         origins: [from],
@@ -70,7 +70,7 @@ void main() {
 
     expect(
       outbox.appearanceOf(
-        'c1',
+        const ChatId('c1'),
         message.clientMessageId,
         atBottom: true,
         reduceMotion: false,
@@ -79,7 +79,7 @@ void main() {
     );
     expect(
       outbox.appearanceOf(
-        'c1',
+        const ChatId('c1'),
         message.clientMessageId,
         atBottom: true,
         reduceMotion: false,
@@ -87,9 +87,17 @@ void main() {
       isNull,
     );
     // Asking shares isFreshOutgoing's one-shot.
-    expect(outbox.isFreshOutgoing('c1', message.clientMessageId), isFalse);
     expect(
-      outbox.appearanceOf('c1', 'never', atBottom: true, reduceMotion: false),
+      outbox.isFreshOutgoing(const ChatId('c1'), message.clientMessageId),
+      isFalse,
+    );
+    expect(
+      outbox.appearanceOf(
+        const ChatId('c1'),
+        const ClientMessageId('never'),
+        atBottom: true,
+        reduceMotion: false,
+      ),
       isNull,
     );
   });
@@ -102,7 +110,7 @@ void main() {
 
     expect(
       outbox.appearanceOf(
-        'c1',
+        const ChatId('c1'),
         wide.clientMessageId,
         atBottom: true,
         reduceMotion: false,
@@ -111,7 +119,7 @@ void main() {
     );
     expect(
       outbox.appearanceOf(
-        'c1',
+        const ChatId('c1'),
         narrowed.clientMessageId,
         atBottom: true,
         reduceMotion: false,
@@ -128,7 +136,7 @@ void main() {
 
     expect(
       outbox.appearanceOf(
-        'c1',
+        const ChatId('c1'),
         flown.clientMessageId,
         atBottom: true,
         reduceMotion: false,
@@ -137,7 +145,7 @@ void main() {
     );
     expect(
       outbox.appearanceOf(
-        'c1',
+        const ChatId('c1'),
         plain.clientMessageId,
         atBottom: false,
         reduceMotion: false,
@@ -151,7 +159,7 @@ void main() {
     final message = sendPhoto(outbox, from: origin);
 
     outbox.appearanceOf(
-      'c1',
+      const ChatId('c1'),
       message.clientMessageId,
       atBottom: true,
       reduceMotion: false,
@@ -167,7 +175,7 @@ void main() {
 
     expect(
       outbox.appearanceOf(
-        'c1',
+        const ChatId('c1'),
         message.clientMessageId,
         atBottom: true,
         reduceMotion: false,
@@ -179,14 +187,14 @@ void main() {
   test('a text message appears as media does, with no flight', () {
     final outbox = outboxOf(const OutgoingAppearancePolicy.ios());
     final message = outbox.sendText(
-      'c1',
+      const ChatId('c1'),
       const RichText.plain('hi'),
       payload: const Note(text: 'hi'),
     )!;
 
     expect(
       outbox.appearanceOf(
-        'c1',
+        const ChatId('c1'),
         message.clientMessageId,
         atBottom: true,
         reduceMotion: false,
@@ -201,14 +209,17 @@ void main() {
 
     expect(
       outbox.appearanceOf(
-        'c1',
+        const ChatId('c1'),
         message.clientMessageId,
         atBottom: true,
         reduceMotion: true,
       ),
       isA<OutgoingAppearance$None>(),
     );
-    expect(outbox.isFreshOutgoing('c1', message.clientMessageId), isFalse);
+    expect(
+      outbox.isFreshOutgoing(const ChatId('c1'), message.clientMessageId),
+      isFalse,
+    );
   });
 
   test('reports rowAppeared with the form, at bottom and reduce motion', () {
@@ -220,26 +231,26 @@ void main() {
 
     outbox
       ..appearanceOf(
-        'c1',
+        const ChatId('c1'),
         flown.clientMessageId,
         atBottom: true,
         reduceMotion: false,
       )
       ..appearanceOf(
-        'c1',
+        const ChatId('c1'),
         faded.clientMessageId,
         atBottom: false,
         reduceMotion: false,
       )
       ..appearanceOf(
-        'c1',
+        const ChatId('c1'),
         reduced.clientMessageId,
         atBottom: true,
         reduceMotion: true,
       )
       // Not fresh any more: no row appears, no event.
       ..appearanceOf(
-        'c1',
+        const ChatId('c1'),
         flown.clientMessageId,
         atBottom: true,
         reduceMotion: false,

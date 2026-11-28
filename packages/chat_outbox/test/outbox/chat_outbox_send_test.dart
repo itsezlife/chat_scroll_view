@@ -35,7 +35,7 @@ void main() {
   group('the publish request', () {
     test('of a single item', () {
       outbox.send(
-        'c1',
+        const ChatId('c1'),
         PlannedSend.single(photo('a'), form: SendForm.media),
         payload: const Note(text: 'look'),
       );
@@ -68,7 +68,7 @@ void main() {
 
     test('of an album keeps the items in order', () {
       outbox.send(
-        'c1',
+        const ChatId('c1'),
         PlannedSend.group([photo('a'), video('b')], form: SendForm.media),
         payload: const Note(text: 'two'),
       );
@@ -95,7 +95,7 @@ void main() {
 
     test('of an item the server already has sends it as remote', () {
       outbox.send(
-        'c1',
+        const ChatId('c1'),
         PlannedSend.single(photo('remote-a'), form: SendForm.media),
         payload: const Note(text: 'again'),
       );
@@ -108,7 +108,7 @@ void main() {
 
     test('of a text has no items', () {
       outbox.sendText(
-        'c1',
+        const ChatId('c1'),
         const RichText.plain('hello'),
         payload: const Note(text: 'hello'),
       );
@@ -128,12 +128,12 @@ void main() {
     test('each send is its own job under a new client message id', () {
       outbox
         ..sendText(
-          'c1',
+          const ChatId('c1'),
           const RichText.plain('a'),
           payload: const Note(text: 'a'),
         )
         ..sendText(
-          'c2',
+          const ChatId('c2'),
           const RichText.plain('b'),
           payload: const Note(text: 'b'),
         );
@@ -152,7 +152,7 @@ void main() {
   group('media item ids', () {
     test('are issued from the client message id and the item index', () {
       final message = outbox.send(
-        'c1',
+        const ChatId('c1'),
         PlannedSend.group([photo('a'), photo('b')], form: SendForm.media),
         payload: const Note(text: 'two'),
       );
@@ -165,7 +165,7 @@ void main() {
 
     test('the host issues are kept', () {
       final message = outbox.send(
-        'c1',
+        const ChatId('c1'),
         PlannedSend.group([photo('a'), photo('b')], form: SendForm.media),
         payload: const Note(text: 'two'),
         itemIds: const [MediaItemId('h-a'), MediaItemId('h-b')],
@@ -185,7 +185,7 @@ void main() {
   group('the accepted message', () {
     test('is the outgoing message the lookup answers, fresh', () {
       final message = outbox.send(
-        'c1',
+        const ChatId('c1'),
         PlannedSend.single(photo('a'), form: SendForm.media),
         payload: const Note(text: 'look'),
       );
@@ -196,13 +196,25 @@ void main() {
       // Before the job's first snapshot: its first stage, preparing.
       expect(message.status, const OutgoingStatus.preparing());
       expect(message.payload, bytesOf(const Note(text: 'look')));
-      expect(outbox.byClientMessageId('c1', 'cm1'), message);
-      expect(outbox.isFreshOutgoing('c1', 'cm1'), isTrue);
+      expect(
+        outbox.byClientMessageId(
+          const ChatId('c1'),
+          const ClientMessageId('cm1'),
+        ),
+        message,
+      );
+      expect(
+        outbox.isFreshOutgoing(
+          const ChatId('c1'),
+          const ClientMessageId('cm1'),
+        ),
+        isTrue,
+      );
     });
 
     test('of a text starts publishing', () {
       final message = outbox.sendText(
-        'c1',
+        const ChatId('c1'),
         const RichText.plain('hi'),
         payload: const Note(text: 'hi'),
       );
@@ -232,7 +244,7 @@ void main() {
 
     expect(
       () => outbox.sendText(
-        'c1',
+        const ChatId('c1'),
         const RichText.plain('one'),
         payload: const Note(text: 'one'),
       ),
@@ -240,13 +252,19 @@ void main() {
     );
     expect(transfers.cancelled, [const PublishJobId.parse('job-1')]);
     expect(transfers.jobs, isEmpty);
-    expect(outbox.byClientMessageId('c1', 'cm1'), isNull);
+    expect(
+      outbox.byClientMessageId(
+        const ChatId('c1'),
+        const ClientMessageId('cm1'),
+      ),
+      isNull,
+    );
 
     failRow = false;
     outbox
       ..registerSender(sender)
       ..sendText(
-        'c1',
+        const ChatId('c1'),
         const RichText.plain('two'),
         payload: const Note(text: 'two'),
       );
@@ -254,7 +272,9 @@ void main() {
 
     expect([for (final r in sender.requests) r.clientMessageId], ['cm2']);
     expect(
-      outbox.byClientMessageId('c1', 'cm2')!.status,
+      outbox
+          .byClientMessageId(const ChatId('c1'), const ClientMessageId('cm2'))!
+          .status,
       const OutgoingStatus.sent(),
     );
   });

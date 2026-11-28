@@ -130,7 +130,7 @@ void main() {
     await settle(tester);
     expect(
       services.outbox.outbox
-          .byClientMessageId(chat, message.clientMessageId)
+          .byClientMessageId(const ChatId(chat), message.clientMessageId)
           ?.status,
       const OutgoingStatus.sent(),
     );

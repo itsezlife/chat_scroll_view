@@ -124,7 +124,7 @@ class _OutboxDebugPanelState extends State<OutboxDebugPanel> {
   static const List<int> _latencies = [0, 300, 1000, 3000];
 
   OutboxDebugSnapshot _readOutbox() =>
-      widget.outbox.outbox.debugSnapshot(widget.chatId);
+      widget.outbox.outbox.debugSnapshot(ChatId(widget.chatId));
 
   @override
   void initState() {

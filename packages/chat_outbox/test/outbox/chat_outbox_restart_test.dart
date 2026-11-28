@@ -53,8 +53,8 @@ void main() {
   /// Seeds the journal with the job of message [clientMessageId] of
   /// [chatId], as an earlier run made it.
   PublishJobId seed(
-    String clientMessageId, {
-    String chatId = 'c1',
+    ClientMessageId clientMessageId, {
+    ChatId chatId = const ChatId('c1'),
     String text = 'hello',
     List<String> items = const [],
     PublishJobState? state,
@@ -91,12 +91,15 @@ void main() {
 
   test('pendingFor gives the messages with their status at fresh '
       'positions: sending ones in creation order, failed ones below', () async {
-    seed('a', state: const PublishJobState.uploading());
-    seed('b', state: failedNetwork);
-    seed('c', state: const PublishJobState.awaitingPublisher());
-    seed('d', state: failedRejected);
+    seed(const ClientMessageId('a'), state: const PublishJobState.uploading());
+    seed(const ClientMessageId('b'), state: failedNetwork);
+    seed(
+      const ClientMessageId('c'),
+      state: const PublishJobState.awaitingPublisher(),
+    );
+    seed(const ClientMessageId('d'), state: failedRejected);
 
-    final pending = await outbox.pendingFor('c1');
+    final pending = await outbox.pendingFor(const ChatId('c1'));
 
     expect(
       [
@@ -115,25 +118,33 @@ void main() {
       ],
     );
     expect(tail.provisional, ['a', 'c', 'b', 'd']);
-    expect(outbox.byClientMessageId('c1', 'b')?.position, 103);
+    expect(
+      outbox
+          .byClientMessageId(const ChatId('c1'), const ClientMessageId('b'))
+          ?.position,
+      103,
+    );
   });
 
   test(
     'a completed job is not pending, and another chat is not read',
     () async {
-      seed('a', state: PublishJobState.completed(Uint8List(0)));
-      seed('x', chatId: 'c2');
-      seed('y', chatId: 'c12');
+      seed(
+        const ClientMessageId('a'),
+        state: PublishJobState.completed(Uint8List(0)),
+      );
+      seed(const ClientMessageId('x'), chatId: const ChatId('c2'));
+      seed(const ClientMessageId('y'), chatId: const ChatId('c12'));
 
-      expect(await outbox.pendingFor('c1'), isEmpty);
+      expect(await outbox.pendingFor(const ChatId('c1')), isEmpty);
       expect(tail.inserted, isEmpty);
     },
   );
 
   test('a restored message keeps its payload and its items', () async {
-    seed('a', text: 'hi', items: ['p1', 'p2']);
+    seed(const ClientMessageId('a'), text: 'hi', items: ['p1', 'p2']);
 
-    final message = (await outbox.pendingFor('c1')).single;
+    final message = (await outbox.pendingFor(const ChatId('c1'))).single;
 
     expect(
       const NotePayloadCodec().decode(message.payload),
@@ -152,32 +163,40 @@ void main() {
   });
 
   test('a restored row is not fresh', () async {
-    seed('a');
+    seed(const ClientMessageId('a'));
 
-    await outbox.pendingFor('c1');
+    await outbox.pendingFor(const ChatId('c1'));
 
-    expect(outbox.isFreshOutgoing('c1', 'a'), isFalse);
+    expect(
+      outbox.isFreshOutgoing(const ChatId('c1'), const ClientMessageId('a')),
+      isFalse,
+    );
   });
 
   test('pendingFor again places nothing twice', () async {
-    seed('a');
-    await outbox.pendingFor('c1');
+    seed(const ClientMessageId('a'));
+    await outbox.pendingFor(const ChatId('c1'));
 
-    final again = await outbox.pendingFor('c1');
+    final again = await outbox.pendingFor(const ChatId('c1'));
 
     expect([for (final message in again) message.clientMessageId], ['a']);
     expect(tail.inserted, hasLength(1));
   });
 
   test('a restored message follows its job', () async {
-    final job = seed('a', state: const PublishJobState.uploading());
-    await outbox.pendingFor('c1');
+    final job = seed(
+      const ClientMessageId('a'),
+      state: const PublishJobState.uploading(),
+    );
+    await outbox.pendingFor(const ChatId('c1'));
 
     transfers.setState(job, failedNetwork);
     await pumpEventQueue();
 
     expect(
-      outbox.byClientMessageId('c1', 'a')?.status,
+      outbox
+          .byClientMessageId(const ChatId('c1'), const ClientMessageId('a'))
+          ?.status,
       const OutgoingStatus.failed(OutgoingFailure.network()),
     );
     expect(tail.provisional, ['a']);
@@ -186,11 +205,11 @@ void main() {
   test('registering the sender releases the jobs awaiting it', () async {
     final diagnostics = RecordingDiagnostics.install();
     final job = seed(
-      'a',
+      const ClientMessageId('a'),
       text: 'one',
       state: const PublishJobState.awaitingPublisher(),
     );
-    await outbox.pendingFor('c1');
+    await outbox.pendingFor(const ChatId('c1'));
 
     outbox.registerSender(sender);
     await pumpEventQueue();
@@ -204,7 +223,9 @@ void main() {
       isA<PublishJobState$Completed>(),
     );
     expect(
-      outbox.byClientMessageId('c1', 'a')?.status,
+      outbox
+          .byClientMessageId(const ChatId('c1'), const ClientMessageId('a'))
+          ?.status,
       const OutgoingStatus.sent(),
     );
     expect(diagnostics.whereOp(OutboxOp.publisherRegistered).single.fields, {
@@ -215,12 +236,15 @@ void main() {
   test('a job the sender reaches before its chat is restored waits for '
       'the restore, then publishes', () async {
     final diagnostics = RecordingDiagnostics.install();
-    final job = seed('a', state: const PublishJobState.awaitingPublisher());
+    final job = seed(
+      const ClientMessageId('a'),
+      state: const PublishJobState.awaitingPublisher(),
+    );
     outbox.registerSender(sender);
     await pumpEventQueue();
     expect(sender.requests, isEmpty);
 
-    await outbox.pendingFor('c1');
+    await outbox.pendingFor(const ChatId('c1'));
     await pumpEventQueue();
 
     expect(sender.requests.single.clientMessageId, 'a');
@@ -234,7 +258,10 @@ void main() {
   test('a job still waiting for its restore when the outbox is disposed '
       "fails as the publisher's error", () async {
     final diagnostics = RecordingDiagnostics.install();
-    final job = seed('a', state: const PublishJobState.awaitingPublisher());
+    final job = seed(
+      const ClientMessageId('a'),
+      state: const PublishJobState.awaitingPublisher(),
+    );
     outbox.registerSender(sender);
     await pumpEventQueue();
 
@@ -265,15 +292,21 @@ void main() {
       'is failed(unknown) at the bottom, reported without its bytes',
       () async {
         final diagnostics = RecordingDiagnostics.install();
-        seed('a', state: const PublishJobState.uploading());
+        seed(
+          const ClientMessageId('a'),
+          state: const PublishJobState.uploading(),
+        );
         final job = seed(
-          'b',
+          const ClientMessageId('b'),
           payload: garbage,
           state: const PublishJobState.uploading(),
         );
-        seed('c', state: const PublishJobState.uploading());
+        seed(
+          const ClientMessageId('c'),
+          state: const PublishJobState.uploading(),
+        );
 
-        final pending = await outbox.pendingFor('c1');
+        final pending = await outbox.pendingFor(const ChatId('c1'));
 
         expect(
           [
@@ -308,17 +341,19 @@ void main() {
 
     test('stays failed(unknown) while its job moves on', () async {
       final job = seed(
-        'b',
+        const ClientMessageId('b'),
         payload: garbage,
         state: const PublishJobState.uploading(),
       );
-      await outbox.pendingFor('c1');
+      await outbox.pendingFor(const ChatId('c1'));
 
       transfers.setState(job, const PublishJobState.publishing());
       await pumpEventQueue();
 
       expect(
-        outbox.byClientMessageId('c1', 'b')?.status,
+        outbox
+            .byClientMessageId(const ChatId('c1'), const ClientMessageId('b'))
+            ?.status,
         const OutgoingStatus.failed(OutgoingFailure.unknown()),
       );
     });
@@ -326,9 +361,9 @@ void main() {
     test('without a row for it, is not placed', () async {
       final diagnostics = RecordingDiagnostics.install();
       final plain = restartedOutbox();
-      seed('b', payload: garbage);
+      seed(const ClientMessageId('b'), payload: garbage);
 
-      expect(await plain.pendingFor('c1'), isEmpty);
+      expect(await plain.pendingFor(const ChatId('c1')), isEmpty);
       expect(tail.inserted, isEmpty);
       expect(diagnostics.whereOp(OutboxOp.payloadDecodeFailed), hasLength(1));
     });
@@ -345,10 +380,10 @@ void main() {
         publisher: ChatOutbox.publisherId,
       ),
     );
-    seed('a');
+    seed(const ClientMessageId('a'));
 
-    final pending = await outbox.pendingFor('c1');
-    await outbox.pendingFor('c1');
+    final pending = await outbox.pendingFor(const ChatId('c1'));
+    await outbox.pendingFor(const ChatId('c1'));
     transfers.setState(empty, const PublishJobState.uploading());
     await pumpEventQueue();
 
@@ -380,7 +415,7 @@ void main() {
     );
     final badItem = transfers.seed(
       PublishRequest(
-        tag: ChatOutbox.tagOf('c1', 'z'),
+        tag: ChatOutbox.tagOf(const ChatId('c1'), const ClientMessageId('z')),
         items: [
           PublishItem(
             itemId: 'not-a-media-item-id',
@@ -393,7 +428,7 @@ void main() {
       ),
     );
 
-    expect(await outbox.pendingFor('c1'), isEmpty);
+    expect(await outbox.pendingFor(const ChatId('c1')), isEmpty);
 
     expect(
       [
@@ -407,11 +442,14 @@ void main() {
   test('restored reports the counts; each row is allocated after a '
       'restart', () async {
     final diagnostics = RecordingDiagnostics.install();
-    seed('a', state: const PublishJobState.uploading());
-    seed('b', state: failedNetwork);
-    seed('c', state: const PublishJobState.awaitingPublisher());
+    seed(const ClientMessageId('a'), state: const PublishJobState.uploading());
+    seed(const ClientMessageId('b'), state: failedNetwork);
+    seed(
+      const ClientMessageId('c'),
+      state: const PublishJobState.awaitingPublisher(),
+    );
 
-    await outbox.pendingFor('c1');
+    await outbox.pendingFor(const ChatId('c1'));
 
     expect(diagnostics.whereOp(OutboxOp.restored), [
       isChatEvent(
@@ -432,11 +470,14 @@ void main() {
   test(
     'the snapshot counts the restores and shows the restored jobs',
     () async {
-      final a = seed('a', state: const PublishJobState.uploading());
-      final b = seed('b', state: failedNetwork);
+      final a = seed(
+        const ClientMessageId('a'),
+        state: const PublishJobState.uploading(),
+      );
+      final b = seed(const ClientMessageId('b'), state: failedNetwork);
 
-      await outbox.pendingFor('c1');
-      final snapshot = outbox.debugSnapshot('c1');
+      await outbox.pendingFor(const ChatId('c1'));
+      final snapshot = outbox.debugSnapshot(const ChatId('c1'));
 
       expect(snapshot.counters.restores, 2);
       expect(
@@ -451,11 +492,11 @@ void main() {
 
   test('a restore after the restart sends on with new messages after the '
       'restored ones', () async {
-    seed('a', state: const PublishJobState.uploading());
-    await outbox.pendingFor('c1');
+    seed(const ClientMessageId('a'), state: const PublishJobState.uploading());
+    await outbox.pendingFor(const ChatId('c1'));
 
     final sent = outbox.sendText(
-      'c1',
+      const ChatId('c1'),
       const RichText.plain('new'),
       payload: const Note(text: 'new'),
     )!;
@@ -468,11 +509,14 @@ void main() {
       'scrolled up is not pulled down; a new send still is', () async {
     final answer = Completer<OutgoingSendAnswer<Note>>();
     sender.answerBy((_) => answer.future);
-    seed('a', state: const PublishJobState.awaitingPublisher());
-    seed('b', state: failedNetwork);
+    seed(
+      const ClientMessageId('a'),
+      state: const PublishJobState.awaitingPublisher(),
+    );
+    seed(const ClientMessageId('b'), state: failedNetwork);
     outbox.registerSender(sender);
 
-    await outbox.pendingFor('c1');
+    await outbox.pendingFor(const ChatId('c1'));
     await pumpEventQueue();
     // The restored job publishes, its answer still out.
     expect(sender.requests.single.clientMessageId, 'a');
@@ -481,7 +525,7 @@ void main() {
     expect(tail.insertedWithoutFollow, [101, 102]);
 
     outbox.sendText(
-      'c1',
+      const ChatId('c1'),
       const RichText.plain('new'),
       payload: const Note(text: 'new'),
     );
@@ -491,7 +535,9 @@ void main() {
     answer.complete(const OutgoingSendAnswer.sent(serverMessageId: 101));
     await pumpEventQueue();
     expect(
-      outbox.byClientMessageId('c1', 'a')?.status,
+      outbox
+          .byClientMessageId(const ChatId('c1'), const ClientMessageId('a'))
+          ?.status,
       const OutgoingStatus.sent(),
     );
   });
@@ -520,24 +566,42 @@ void main() {
       addTearDown(outbox.dispose);
       // The journal still has the job publishing: the app died after the
       // server stored the message at 100, before the job completed.
-      seed('a', state: const PublishJobState.publishing());
-      seed('b', state: const PublishJobState.uploading());
+      seed(
+        const ClientMessageId('a'),
+        state: const PublishJobState.publishing(),
+      );
+      seed(
+        const ClientMessageId('b'),
+        state: const PublishJobState.uploading(),
+      );
       outbox.registerSender(sender);
-      await outbox.pendingFor('c1');
+      await outbox.pendingFor(const ChatId('c1'));
       await pumpEventQueue();
       expect(tail.provisional, ['a', 'b']);
       expect(sender.requests.single.clientMessageId, 'a');
 
       // The chat's history (the tip, 100) is the server's copy of 'a'.
-      final settled = outbox.settleFromHistory('c1', 'a', serverId: 100);
+      final settled = outbox.settleFromHistory(
+        const ChatId('c1'),
+        const ClientMessageId('a'),
+        serverId: 100,
+      );
 
       expect(settled?.status, const OutgoingStatus.sent());
       expect(settled?.position, 100);
       expect(tail.provisional, ['b']);
       expect(tail.identityAt(101), 'b');
-      expect(outbox.byClientMessageId('c1', 'a')?.position, 100);
+      expect(
+        outbox
+            .byClientMessageId(const ChatId('c1'), const ClientMessageId('a'))
+            ?.position,
+        100,
+      );
       expect(statuses, [const OutgoingStatus.sent()]);
-      expect(outbox.cancel('c1', 'a'), OutgoingCancelOutcome.tooLate);
+      expect(
+        outbox.cancel(const ChatId('c1'), const ClientMessageId('a')),
+        OutgoingCancelOutcome.tooLate,
+      );
       expect(
         diagnostics.whereOp(OutboxOp.tailRebased).last.fields,
         containsPair('reason', 'removed'),
@@ -548,7 +612,9 @@ void main() {
       await pumpEventQueue();
       expect(tail.provisional, ['b']);
       expect(
-        outbox.byClientMessageId('c1', 'a')?.status,
+        outbox
+            .byClientMessageId(const ChatId('c1'), const ClientMessageId('a'))
+            ?.status,
         const OutgoingStatus.sent(),
       );
       expect(statuses, [const OutgoingStatus.sent()]);
@@ -557,7 +623,14 @@ void main() {
 
   test('settleFromHistory answers null for a message the outbox does not '
       'hold', () async {
-    await outbox.pendingFor('c1');
-    expect(outbox.settleFromHistory('c1', 'nope', serverId: 100), isNull);
+    await outbox.pendingFor(const ChatId('c1'));
+    expect(
+      outbox.settleFromHistory(
+        const ChatId('c1'),
+        const ClientMessageId('nope'),
+        serverId: 100,
+      ),
+      isNull,
+    );
   });
 }

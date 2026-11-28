@@ -39,11 +39,14 @@ void main() {
     addTearDown(outbox.dispose);
   });
 
-  OutgoingMessage? sendText(String text, {String chatId = 'c1'}) =>
+  OutgoingMessage? sendText(
+    String text, {
+    ChatId chatId = const ChatId('c1'),
+  }) =>
       outbox.sendText(chatId, RichText.plain(text), payload: Note(text: text));
 
   OutgoingMessage? sendAlbum(List<AttachItem> items) => outbox.send(
-    'c1',
+    const ChatId('c1'),
     PlannedSend.group(items, form: SendForm.media),
     payload: const Note(text: 'album'),
   );
@@ -69,7 +72,13 @@ void main() {
           ),
         ),
       ]);
-      expect(outbox.byClientMessageId('c1', 'cm1'), isNull);
+      expect(
+        outbox.byClientMessageId(
+          const ChatId('c1'),
+          const ClientMessageId('cm1'),
+        ),
+        isNull,
+      );
     });
 
     group('a retry', () {
@@ -85,7 +94,12 @@ void main() {
         transfers.setState(transfers.jobs.first.id, failed);
         await pumpEventQueue();
         expect(
-          outbox.byClientMessageId('c1', 'cm1')?.status,
+          outbox
+              .byClientMessageId(
+                const ChatId('c1'),
+                const ClientMessageId('cm1'),
+              )
+              ?.status,
           isA<OutgoingStatus$Failed>(),
         );
       }
@@ -100,7 +114,10 @@ void main() {
           ),
         );
 
-        expect(outbox.retry('c1', 'cm1'), OutgoingRetryOutcome.refused);
+        expect(
+          outbox.retry(const ChatId('c1'), const ClientMessageId('cm1')),
+          OutgoingRetryOutcome.refused,
+        );
         expect(transfers.retried, isEmpty);
         expect(feedback.denials, [
           (
@@ -111,7 +128,12 @@ void main() {
           ),
         ]);
         expect(
-          outbox.byClientMessageId('c1', 'cm1')?.status,
+          outbox
+              .byClientMessageId(
+                const ChatId('c1'),
+                const ClientMessageId('cm1'),
+              )
+              ?.status,
           isA<OutgoingStatus$Failed>(),
         );
       });
@@ -124,7 +146,10 @@ void main() {
           slowMode: SlowMode.active(interval: Duration(seconds: 30)),
         );
 
-        expect(outbox.retry('c1', 'cm1'), OutgoingRetryOutcome.refused);
+        expect(
+          outbox.retry(const ChatId('c1'), const ClientMessageId('cm1')),
+          OutgoingRetryOutcome.refused,
+        );
         expect(
           feedback.denials.single.reason,
           const DenialReason.sendPending(),
@@ -134,7 +159,10 @@ void main() {
 
       test('with slow mode off goes', () async {
         await failFirst();
-        expect(outbox.retry('c1', 'cm1'), OutgoingRetryOutcome.retried);
+        expect(
+          outbox.retry(const ChatId('c1'), const ClientMessageId('cm1')),
+          OutgoingRetryOutcome.retried,
+        );
         expect(feedback.denials, isEmpty);
       });
     });
@@ -188,8 +216,8 @@ void main() {
     });
 
     test('a chat without capabilities is unrestricted', () {
-      expect(sendText('hi', chatId: 'c2'), isNotNull);
-      expect(sendText('again', chatId: 'c2'), isNotNull);
+      expect(sendText('hi', chatId: const ChatId('c2')), isNotNull);
+      expect(sendText('again', chatId: const ChatId('c2')), isNotNull);
     });
   });
 
@@ -234,7 +262,7 @@ void main() {
       );
 
       final message = outbox.send(
-        'c1',
+        const ChatId('c1'),
         PlannedSend.single(
           video('a'),
           form: SendForm.media,
@@ -258,7 +286,7 @@ void main() {
       );
 
       final message = outbox.send(
-        'c1',
+        const ChatId('c1'),
         PlannedSend.single(photo('a', byteSize: 101), form: SendForm.file),
         payload: const Note(text: 'file'),
       );
@@ -314,7 +342,7 @@ void main() {
 
   group('send in flight', () {
     test('is on while a job runs and off once it settles', () async {
-      final inFlight = outbox.sendInFlight('c1');
+      final inFlight = outbox.sendInFlight(const ChatId('c1'));
       final seen = <bool>[];
       inFlight.addListener(() => seen.add(inFlight.value));
       expect(inFlight.value, isFalse);
@@ -345,16 +373,19 @@ void main() {
       );
       await pumpEventQueue();
 
-      expect(outbox.sendInFlight('c1').value, isFalse);
+      expect(outbox.sendInFlight(const ChatId('c1')).value, isFalse);
     });
 
     test('is per chat and the same listenable on each call', () {
-      sendText('hi', chatId: 'c2');
+      sendText('hi', chatId: const ChatId('c2'));
 
-      expect(outbox.sendInFlight('c1').value, isFalse);
-      expect(outbox.sendInFlight('c2').value, isTrue);
+      expect(outbox.sendInFlight(const ChatId('c1')).value, isFalse);
+      expect(outbox.sendInFlight(const ChatId('c2')).value, isTrue);
       expect(
-        identical(outbox.sendInFlight('c2'), outbox.sendInFlight('c2')),
+        identical(
+          outbox.sendInFlight(const ChatId('c2')),
+          outbox.sendInFlight(const ChatId('c2')),
+        ),
         isTrue,
       );
     });

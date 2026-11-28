@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   OutgoingIdStrategyContract.run(
-    (tail) => SequentialServerIds(chatId: 'c1', tail: tail),
+    (tail) => SequentialServerIds(chatId: const ChatId('c1'), tail: tail),
   );
 
   late FakeOutgoingTail tail;
@@ -14,12 +14,12 @@ void main() {
 
   setUp(() {
     tail = FakeOutgoingTail();
-    strategy = SequentialServerIds(chatId: 'c1', tail: tail);
+    strategy = SequentialServerIds(chatId: const ChatId('c1'), tail: tail);
   });
 
   void allocate(String id, {bool failed = false, bool restored = false}) =>
       strategy.allocate(
-        id,
+        ClientMessageId(id),
         (position) => FakeTailMessage(position, id),
         failed: failed,
         restored: restored,
@@ -33,10 +33,13 @@ void main() {
     test('is tip+1, the publishing row\'s position', () {
       allocate('a');
       allocate('b');
-      strategy.publishStart('b');
+      strategy.publishStart(const ClientMessageId('b'));
 
       expect(strategy.proposedId, 101);
-      expect(strategy.positionOf('b'), strategy.proposedId);
+      expect(
+        strategy.positionOf(const ClientMessageId('b')),
+        strategy.proposedId,
+      );
     });
 
     test('is read at publish time: tip+1 after an incoming message', () {
@@ -45,20 +48,20 @@ void main() {
 
       strategy
         ..incoming([FakeTailMessage(101)])
-        ..publishStart('a');
+        ..publishStart(const ClientMessageId('a'));
 
       expect(atCreation, 101);
       expect(strategy.proposedId, 102);
-      expect(strategy.positionOf('a'), 102);
+      expect(strategy.positionOf(const ClientMessageId('a')), 102);
     });
 
     test('is the accepted id once confirmed', () {
       allocate('a');
       allocate('b');
-      strategy.publishStart('b');
+      strategy.publishStart(const ClientMessageId('b'));
       final proposed = strategy.proposedId;
 
-      expect(strategy.confirm('b'), proposed);
+      expect(strategy.confirm(const ClientMessageId('b')), proposed);
     });
   });
 
@@ -104,7 +107,7 @@ void main() {
 
     test('positionAllocated reports the position after failed rows sink', () {
       allocate('a');
-      strategy.fail('a');
+      strategy.fail(const ClientMessageId('a'));
       final diagnostics = RecordingDiagnostics.install();
 
       allocate('b');
@@ -125,7 +128,7 @@ void main() {
       allocate('c');
       final diagnostics = RecordingDiagnostics.install();
 
-      strategy.publishStart('c');
+      strategy.publishStart(const ClientMessageId('c'));
 
       expect(diagnostics.whereOp(OutboxOp.tailRebased), [
         for (final (id, from, to) in [
@@ -181,7 +184,7 @@ void main() {
       allocate('b');
       final diagnostics = RecordingDiagnostics.install();
 
-      strategy.remove('a');
+      strategy.remove(const ClientMessageId('a'));
 
       expect(diagnostics.whereOp(OutboxOp.tailRebased), [
         isChatEvent(
@@ -209,9 +212,9 @@ void main() {
       final diagnostics = RecordingDiagnostics.install();
 
       strategy
-        ..fail('a')
-        ..fail('b')
-        ..retry('b');
+        ..fail(const ClientMessageId('a'))
+        ..fail(const ClientMessageId('b'))
+        ..retry(const ClientMessageId('b'));
       allocate('c', failed: true);
       allocate('d', restored: true);
       allocate('e');

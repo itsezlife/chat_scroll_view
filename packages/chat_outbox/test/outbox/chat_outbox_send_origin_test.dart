@@ -46,7 +46,7 @@ void main() {
       PlannedSend.group([photo('a'), photo('b')], form: SendForm.media);
 
   void sendAlbum({List<Rect?> origins = const [first, second]}) => outbox.send(
-    'c1',
+    const ChatId('c1'),
     album(),
     payload: const Note(text: 'two'),
     origins: origins,
@@ -70,7 +70,7 @@ void main() {
 
     test('are re-keyed to the ids the host issues', () {
       outbox.send(
-        'c1',
+        const ChatId('c1'),
         album(),
         payload: const Note(text: 'two'),
         itemIds: const [MediaItemId('host-a'), MediaItemId('host-b')],
@@ -119,7 +119,7 @@ void main() {
       final diagnostics = RecordingDiagnostics.install();
 
       final sent = outbox.send(
-        'c1',
+        const ChatId('c1'),
         album(),
         payload: const Note(text: 'two'),
         origins: const [first, second],
@@ -184,7 +184,10 @@ void main() {
     test('when its message is cancelled', () {
       final diagnostics = RecordingDiagnostics.install();
       sendAlbum();
-      final message = outbox.byClientMessageId('c1', 'cm1')!;
+      final message = outbox.byClientMessageId(
+        const ChatId('c1'),
+        const ClientMessageId('cm1'),
+      )!;
 
       projection.put(message.withStatus(const OutgoingStatus.cancelled()));
 
@@ -200,7 +203,7 @@ void main() {
       final diagnostics = RecordingDiagnostics.install();
       sendAlbum();
 
-      projection.remove('c1', 'cm1');
+      projection.remove(const ChatId('c1'), const ClientMessageId('cm1'));
 
       expect(outbox.takeSendOrigin(b), isNull);
       expect(
@@ -261,13 +264,16 @@ void main() {
       clock = clock.add(const Duration(minutes: 1));
 
       outbox.send(
-        'c1',
+        const ChatId('c1'),
         PlannedSend.single(photo('c'), form: SendForm.media),
         payload: const Note(text: 'one'),
         origins: const [first],
       );
 
-      final items = outbox.debugSnapshot('c1').tail.expand((row) => row.items);
+      final items = outbox
+          .debugSnapshot(const ChatId('c1'))
+          .tail
+          .expand((row) => row.items);
       expect(
         {for (final item in items) item.mediaItemId: item.sendOriginHeld},
         {'item:cm1:0': false, 'item:cm1:1': false, 'item:cm2:0': true},
@@ -297,7 +303,11 @@ void main() {
     test('a send without origins stores nothing and reports nothing', () {
       final diagnostics = RecordingDiagnostics.install();
 
-      outbox.send('c1', album(), payload: const Note(text: 'two'));
+      outbox.send(
+        const ChatId('c1'),
+        album(),
+        payload: const Note(text: 'two'),
+      );
 
       expect(diagnostics.whereOp(OutboxOp.sendOriginStored), isEmpty);
       expect(outbox.takeSendOrigin(a), isNull);
@@ -340,7 +350,7 @@ void main() {
     sendAlbum(origins: const [first, null]);
     expect(
       outbox
-          .debugSnapshot('c1')
+          .debugSnapshot(const ChatId('c1'))
           .tail
           .single
           .items
@@ -352,7 +362,7 @@ void main() {
 
     expect(
       outbox
-          .debugSnapshot('c1')
+          .debugSnapshot(const ChatId('c1'))
           .tail
           .single
           .items

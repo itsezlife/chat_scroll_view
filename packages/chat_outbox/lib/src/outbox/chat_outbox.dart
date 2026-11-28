@@ -9,6 +9,7 @@ import 'package:chat_outbox/src/diagnostics/outbox_debug_snapshot.dart';
 import 'package:chat_outbox/src/diagnostics/outbox_op.dart';
 import 'package:chat_outbox/src/diagnostics/outbox_trace.dart';
 import 'package:chat_outbox/src/ids/outgoing_id_strategy.dart';
+import 'package:chat_outbox/src/message/outgoing_ids.dart';
 import 'package:chat_outbox/src/message/outgoing_message.dart';
 import 'package:chat_outbox/src/message/outgoing_payload_codec.dart';
 import 'package:chat_outbox/src/message/outgoing_status.dart';
@@ -111,12 +112,12 @@ final class ChatOutbox<M> {
     required OutboxTransfers transfers,
     required OutgoingPayloadCodec<M> codec,
     required OutgoingSendItemResolver itemOf,
-    required OutgoingIdStrategy Function(String chatId) idStrategyOf,
+    required OutgoingIdStrategy Function(ChatId chatId) idStrategyOf,
     required OutgoingRowBuilder<M> rowOf,
     required void Function(OutgoingSent<M> sent) onSent,
-    ValueListenable<ChatCapabilities>? Function(String chatId)? capabilitiesOf,
+    ValueListenable<ChatCapabilities>? Function(ChatId chatId)? capabilitiesOf,
     CapabilityFeedback feedback = CapabilityFeedback.none,
-    String Function()? clientMessageIds,
+    ClientMessageId Function()? clientMessageIds,
     DateTime Function() now = DateTime.now,
     void Function(OutgoingCancelled cancelled)? onCancelled,
     void Function(OutgoingItemDropped dropped)? onItemDropped,
@@ -153,12 +154,12 @@ final class ChatOutbox<M> {
     required OutboxTransfers transfers,
     required OutgoingPayloadCodec<M> codec,
     required OutgoingSendItemResolver itemOf,
-    required OutgoingIdStrategy Function(String chatId) idStrategyOf,
+    required OutgoingIdStrategy Function(ChatId chatId) idStrategyOf,
     required OutgoingRowBuilder<M> rowOf,
     required void Function(OutgoingSent<M> sent) onSent,
-    ValueListenable<ChatCapabilities>? Function(String chatId)? capabilitiesOf,
+    ValueListenable<ChatCapabilities>? Function(ChatId chatId)? capabilitiesOf,
     CapabilityFeedback feedback = CapabilityFeedback.none,
-    String Function()? clientMessageIds,
+    ClientMessageId Function()? clientMessageIds,
     DateTime Function() now = DateTime.now,
     void Function(OutgoingCancelled cancelled)? onCancelled,
     void Function(OutgoingItemDropped dropped)? onItemDropped,
@@ -182,7 +183,13 @@ final class ChatOutbox<M> {
        _feedback = feedback,
        _issueClientMessageId = clientMessageIds ?? _$randomClientMessageId,
        _now = now,
-       _onSent = onSent;
+       _onSent = onSent {
+    // One truth for a row's position: the strategy that moves it. The
+    // projection reads it there on every lookup, so no stored position goes
+    // stale after a move.
+    _projection.positionOf = (chatId, clientMessageId) =>
+        _$strategies[chatId]?.positionOf(clientMessageId);
+  }
 
   /// The publisher id the outbox's jobs name: the host's sender, registered
   /// by the outbox.
@@ -198,11 +205,11 @@ final class ChatOutbox<M> {
   static const Duration sendOriginLifetime = Duration(seconds: 5);
 
   /// The tag of the publish job of message [clientMessageId] of [chatId].
-  static String tagOf(String chatId, String clientMessageId) =>
+  static String tagOf(ChatId chatId, ClientMessageId clientMessageId) =>
       '${tagPrefixOf(chatId)}$clientMessageId';
 
   /// The tag prefix every publish job of [chatId] starts with.
-  static String tagPrefixOf(String chatId) => 'chat:$chatId:';
+  static String tagPrefixOf(ChatId chatId) => 'chat:$chatId:';
 
   /// Whether a message whose job the system's end of the transfer envelope
   /// paused is deleted rather than kept sending; see [ChatOutbox.new].
@@ -216,15 +223,15 @@ final class ChatOutbox<M> {
   final OutboxTransfers _transfers;
   final OutgoingPayloadCodec<M> _codec;
   final OutgoingSendItemResolver _itemOf;
-  final OutgoingIdStrategy Function(String chatId) _makeIdStrategy;
+  final OutgoingIdStrategy Function(ChatId chatId) _makeIdStrategy;
   final OutgoingRowBuilder<M> _rowOf;
 
   /// Each chat's id strategy, made on its first use.
-  final Map<String, OutgoingIdStrategy> _$strategies = {};
-  final ValueListenable<ChatCapabilities>? Function(String chatId)?
+  final Map<ChatId, OutgoingIdStrategy> _$strategies = {};
+  final ValueListenable<ChatCapabilities>? Function(ChatId chatId)?
   _capabilitiesOf;
   final CapabilityFeedback _feedback;
-  final String Function() _issueClientMessageId;
+  final ClientMessageId Function() _issueClientMessageId;
   final DateTime Function() _now;
   final void Function(OutgoingSent<M> sent) _onSent;
   final void Function(OutgoingCancelled cancelled)? _onCancelled;
@@ -234,11 +241,11 @@ final class ChatOutbox<M> {
   /// The cancels accepted so far, by (chat id, client message id, item id or
   /// null for the whole message), with when: the input guard drops a repeat,
   /// and an id issued again after its message was cancelled is refused.
-  final Map<(String, String, String?), DateTime> _$cancelsAccepted = {};
+  final Map<(OutgoingRef, MediaItemId?), DateTime> _$cancelsAccepted = {};
 
   /// Messages that lost an item already: the last one going then is
   /// `lastItemNoText`, not `onlyItem`.
-  final Set<(String, String)> _$itemsDropped = {};
+  final Set<OutgoingRef> _$itemsDropped = {};
 
   /// Jobs the outbox committed after they lost their last item, so a late
   /// snapshot of them waiting for their owner is not decided twice.
@@ -247,7 +254,7 @@ final class ChatOutbox<M> {
   /// The retries accepted since each message last failed, by (chat id,
   /// client message id), with when: the input guard drops a repeat until
   /// the message fails again.
-  final Map<(String, String), DateTime> _$retriesAccepted = {};
+  final Map<OutgoingRef, DateTime> _$retriesAccepted = {};
 
   int _$retries = 0;
   int _$cancels = 0;
@@ -262,23 +269,23 @@ final class ChatOutbox<M> {
   bool _$senderRegistered = false;
 
   /// The chats whose jobs the outbox watches, with their subscription.
-  final Map<String, StreamSubscription<List<PublishJobSnapshot>>> _$watches =
+  final Map<ChatId, StreamSubscription<List<PublishJobSnapshot>>> _$watches =
       {};
 
   /// Whether each chat has a send in flight, as last reported.
-  final Map<String, bool> _$inFlight = {};
+  final Map<ChatId, bool> _$inFlight = {};
 
   /// The listenables handed out by [sendInFlight].
-  final Map<String, ValueNotifier<bool>> _$inFlightNotifiers = {};
+  final Map<ChatId, ValueNotifier<bool>> _$inFlightNotifiers = {};
 
   int _$accepted = 0;
 
   /// Each chat's restore, run once: [pendingFor] awaits it.
-  final Map<String, Future<void>> _$restores = {};
+  final Map<ChatId, Future<void>> _$restores = {};
 
   /// The publisher's calls waiting for their message's restore, by client
   /// message id.
-  final Map<String, Completer<OutgoingMessage?>> _$restoreWaiters = {};
+  final Map<ClientMessageId, Completer<OutgoingMessage?>> _$restoreWaiters = {};
 
   int _$restored = 0;
 
@@ -290,7 +297,7 @@ final class ChatOutbox<M> {
   /// its owner cancelling it) or that leave as their job paused, by chat
   /// and client message id, with what made them go: deleted together once
   /// the engine's burst of snapshots is read ([_leaveSoon]).
-  final Map<String, Map<String, _Trigger>> _$leaving = {};
+  final Map<ChatId, Map<ClientMessageId, _Trigger>> _$leaving = {};
   Timer? _$leavingFlush;
 
   bool _$disposed = false;
@@ -329,7 +336,7 @@ final class ChatOutbox<M> {
   /// builder throws, after which neither the outbox nor the engine holds
   /// anything of the send (the job made for it is cancelled).
   OutgoingMessage? send(
-    String chatId,
+    ChatId chatId,
     PlannedSend send, {
     required M payload,
     List<MediaItemId>? itemIds,
@@ -357,7 +364,7 @@ final class ChatOutbox<M> {
       );
     }
     final clientMessageId = _issueClientMessageId();
-    if (_$cancelsAccepted.containsKey((chatId, clientMessageId, null))) {
+    if (_$cancelsAccepted.containsKey(((chatId, clientMessageId), null))) {
       // A cancelled message's id stays its own: reusing it would match the
       // server's late echo of the old message to the new one.
       throw StateError(
@@ -463,7 +470,7 @@ final class ChatOutbox<M> {
   /// Sends [text] to [chatId] as a text message carrying [payload]: a job
   /// with no items, checked against the message length. See [send].
   OutgoingMessage? sendText(
-    String chatId,
+    ChatId chatId,
     RichText text, {
     required M payload,
   }) => send(chatId, PlannedSend.text(text), payload: payload);
@@ -477,7 +484,7 @@ final class ChatOutbox<M> {
   /// The outbox's own check reads it without waiting for that.
   ///
   /// The same listenable on every call for one chat, until [dispose].
-  ValueListenable<bool> sendInFlight(String chatId) => _$inFlightNotifiers
+  ValueListenable<bool> sendInFlight(ChatId chatId) => _$inFlightNotifiers
       .putIfAbsent(chatId, () => ValueNotifier(_$inFlight[chatId] ?? false));
 
   /// The send origin of item [id]: the global rect its thumbnail had in the
@@ -547,21 +554,10 @@ final class ChatOutbox<M> {
   /// The host's duty: hand it the incoming messages that land inside the
   /// provisional tail (`OutgoingIdStrategy.incoming`) instead of inserting
   /// them, so they take their positions before the outgoing rows.
-  OutgoingIdStrategy idStrategy(String chatId) =>
+  OutgoingIdStrategy idStrategy(ChatId chatId) =>
       _$strategies.putIfAbsent(chatId, () => _makeIdStrategy(chatId));
 
-  /// [message] at the position its chat's strategy holds for it now; the
-  /// stored one when the strategy no longer moves it.
-  OutgoingMessage _current(OutgoingMessage message) =>
-      switch (_$strategies[message.chatId]?.positionOf(
-        message.clientMessageId,
-      )) {
-        final position? when position != message.position =>
-          message.withPosition(position),
-        _ => message,
-      };
-
-  SendRefusal? _refusalOf(String chatId, PlannedSend send) {
+  SendRefusal? _refusalOf(ChatId chatId, PlannedSend send) {
     final capabilities = _capabilitiesOf?.call(chatId)?.value;
     if (capabilities == null) return null;
     return SendCheck.of(
@@ -691,9 +687,12 @@ final class ChatOutbox<M> {
       final waiting = _projection
           .tailOf(chatId)
           .where(
-            (message) =>
-                _projection.jobOf(chatId, message.clientMessageId)?.state ==
-                'awaitingPublisher',
+            (message) => switch (_projection
+                .jobOf(chatId, message.clientMessageId)
+                ?.state) {
+              PublishJobState$AwaitingPublisher() => true,
+              _ => false,
+            },
           )
           .length;
       _reportRegistered(ChatCorrelation(chatId: chatId), waiting);
@@ -729,7 +728,7 @@ final class ChatOutbox<M> {
   /// another one changes nothing ([OutgoingCancelOutcome.dropped]).
   /// Reports `cancelled` (trigger `menu`), `cancelTooLate` or
   /// `actionDropped`.
-  OutgoingCancelOutcome cancel(String chatId, String clientMessageId) {
+  OutgoingCancelOutcome cancel(ChatId chatId, ClientMessageId clientMessageId) {
     _checkNotDisposed();
     return _cancelMessage(chatId, clientMessageId, trigger: _Trigger.menu);
   }
@@ -756,19 +755,17 @@ final class ChatOutbox<M> {
   /// `cross`), `awaitingOwner`, `cancelled` (trigger `onlyItem` or
   /// `lastItemNoText`), `cancelTooLate` or `actionDropped`.
   OutgoingCancelOutcome cancelItem(
-    String chatId,
-    String clientMessageId,
+    ChatId chatId,
+    ClientMessageId clientMessageId,
     MediaItemId itemId,
   ) {
     _checkNotDisposed();
+    _sync(chatId);
     if (_repeated(chatId, clientMessageId, null) ||
-        _repeated(chatId, clientMessageId, '$itemId')) {
+        _repeated(chatId, clientMessageId, itemId)) {
       return OutgoingCancelOutcome.dropped;
     }
-    final message = switch (_projection.lookup(chatId, clientMessageId)) {
-      final message? => _current(message),
-      null => null,
-    };
+    final message = _projection.lookup(chatId, clientMessageId);
     final index = message?.items.indexWhere((item) => item.id == itemId) ?? -1;
     if (message == null || index < 0) return OutgoingCancelOutcome.unknown;
     if (_tooLate(message)) return OutgoingCancelOutcome.tooLate;
@@ -787,15 +784,15 @@ final class ChatOutbox<M> {
     if (job == null || !_transfers.removeItem(job.id, '$itemId')) {
       return OutgoingCancelOutcome.unknown;
     }
-    _$cancelsAccepted[(chatId, clientMessageId, '$itemId')] = _now();
+    _$cancelsAccepted[((chatId, clientMessageId), itemId)] = _now();
     final left = _dropItem(message, index, trigger: _Trigger.cross);
     if (left.items.isEmpty) _awaitingOwner(left, job.id);
     return OutgoingCancelOutcome.itemDropped;
   }
 
   OutgoingCancelOutcome _cancelMessage(
-    String chatId,
-    String clientMessageId, {
+    ChatId chatId,
+    ClientMessageId clientMessageId, {
     required _Trigger trigger,
   }) {
     final (outcome, now) = _admitCancel(chatId, clientMessageId, trigger);
@@ -808,10 +805,11 @@ final class ChatOutbox<M> {
   /// [OutgoingCancelOutcome.cancelled]. A message whose server answer is in
   /// flight is cancelled once it comes, unless it is an accept.
   (OutgoingCancelOutcome, OutgoingMessage?) _admitCancel(
-    String chatId,
-    String clientMessageId,
+    ChatId chatId,
+    ClientMessageId clientMessageId,
     _Trigger trigger,
   ) {
+    _sync(chatId);
     if (_repeated(
       chatId,
       clientMessageId,
@@ -820,34 +818,31 @@ final class ChatOutbox<M> {
     )) {
       return (OutgoingCancelOutcome.dropped, null);
     }
-    final message = switch (_projection.lookup(chatId, clientMessageId)) {
-      final message? => _current(message),
-      null => null,
-    };
+    final message = _projection.lookup(chatId, clientMessageId);
     if (message == null) return (OutgoingCancelOutcome.unknown, null);
     if (_tooLate(message)) return (OutgoingCancelOutcome.tooLate, null);
-    _$cancelsAccepted[(chatId, clientMessageId, null)] = _now();
-    final key = (chatId, clientMessageId);
-    if (_projection.sending.contains(key)) {
-      // The server may be accepting it now: the publisher runs the cancel
-      // once it answers, unless the answer is an accept.
-      _projection.cancelRequests[key] = () {
-        if (_projection.lookup(chatId, clientMessageId) case final message?) {
-          _cancelNow([_current(message)], trigger);
-        }
-      };
-      return (OutgoingCancelOutcome.pending, null);
-    }
+    _$cancelsAccepted[((chatId, clientMessageId), null)] = _now();
+    // The server may be accepting it now: the publisher runs the cancel
+    // once it answers, unless the answer is an accept.
+    final waits = _projection.awaitAnswer(chatId, clientMessageId, () {
+      if (_projection.lookup(chatId, clientMessageId) case final message?) {
+        _cancelNow([message], trigger);
+      }
+    });
+    if (waits) return (OutgoingCancelOutcome.pending, null);
     return (OutgoingCancelOutcome.cancelled, message);
   }
 
   /// Whether [message] is past cancelling, the server having accepted it;
   /// reports `cancelTooLate` when it is.
   bool _tooLate(OutgoingMessage message) {
-    final accepted = _projection.accepted.contains((
+    final accepted = switch (_projection.phaseOf(
       message.chatId,
       message.clientMessageId,
-    ));
+    )) {
+      SendPhase$Accepted() => true,
+      SendPhase$Idle() || SendPhase$Sending() => false,
+    };
     final sent = message.status is OutgoingStatus$Sent;
     if (!accepted && !sent) return false;
     _$tooLate++;
@@ -869,21 +864,21 @@ final class ChatOutbox<M> {
   /// ([itemId] null) or of its item [itemId] was accepted already; reports
   /// `actionDropped` when it was.
   bool _repeated(
-    String chatId,
-    String clientMessageId,
-    String? itemId, {
+    ChatId chatId,
+    ClientMessageId clientMessageId,
+    MediaItemId? itemId, {
     String action = 'cancel',
   }) {
-    final accepted = _$cancelsAccepted[(chatId, clientMessageId, itemId)];
+    final accepted = _$cancelsAccepted[((chatId, clientMessageId), itemId)];
     if (accepted == null) return false;
     _reportDropped(chatId, clientMessageId, itemId, action, accepted);
     return true;
   }
 
   void _reportDropped(
-    String chatId,
-    String clientMessageId,
-    String? itemId,
+    ChatId chatId,
+    ClientMessageId clientMessageId,
+    MediaItemId? itemId,
     String action,
     DateTime accepted,
   ) => ChatDiagnostics.current.emit(
@@ -893,7 +888,7 @@ final class ChatOutbox<M> {
     correlation: ChatCorrelation(
       chatId: chatId,
       clientMessageId: clientMessageId,
-      mediaItemId: itemId,
+      mediaItemId: itemId?.toString(),
     ),
     fields: () => {
       'action': action,
@@ -928,7 +923,7 @@ final class ChatOutbox<M> {
       if (job != null) _$interrupted.remove(job.id);
       _$itemsDropped.remove((chatId, clientMessageId));
       _$retriesAccepted.remove((chatId, clientMessageId));
-      _$cancelsAccepted[(chatId, clientMessageId, null)] ??= _now();
+      _$cancelsAccepted[((chatId, clientMessageId), null)] ??= _now();
       _$cancels++;
       ChatDiagnostics.current.emit(
         ChatEventLevel.info,
@@ -1039,7 +1034,10 @@ final class ChatOutbox<M> {
     final hasText = _projection.hasText(chatId, clientMessageId);
     // While the publisher's call is in flight the job is the server's
     // answer's to end: committing it then would publish it twice.
-    final inFlight = _projection.sending.contains((chatId, clientMessageId));
+    final inFlight = switch (_projection.phaseOf(chatId, clientMessageId)) {
+      SendPhase$Sending() => true,
+      SendPhase$Idle() || SendPhase$Accepted() => false,
+    };
     final action = switch ((hasText, inFlight)) {
       (_, true) => _OwnerAction.none,
       (true, false) => _OwnerAction.commit,
@@ -1106,20 +1104,18 @@ final class ChatOutbox<M> {
   /// Reports `retried`, `tailRebased` (reason `retry`), `refusedBeforeJob`
   /// (with `retry`) or `actionDropped`.
   OutgoingRetryOutcome retry(
-    String chatId,
-    String clientMessageId, {
+    ChatId chatId,
+    ClientMessageId clientMessageId, {
     Map<MediaItemId, SourceBytes> sources = const {},
   }) {
     _checkNotDisposed();
+    _sync(chatId);
     final key = (chatId, clientMessageId);
     if (_$retriesAccepted[key] case final accepted?) {
       _reportDropped(chatId, clientMessageId, null, 'retry', accepted);
       return OutgoingRetryOutcome.dropped;
     }
-    final message = switch (_projection.lookup(chatId, clientMessageId)) {
-      final message? => _current(message),
-      null => null,
-    };
+    final message = _projection.lookup(chatId, clientMessageId);
     if (message == null) return OutgoingRetryOutcome.unknown;
     if (_projection.isUndecodable(chatId, clientMessageId)) {
       return OutgoingRetryOutcome.undecodable;
@@ -1186,7 +1182,7 @@ final class ChatOutbox<M> {
       },
     );
     _syncInFlight(chatId);
-    _onStatusChanged?.call(_current(retried));
+    _onStatusChanged?.call(retried);
     return OutgoingRetryOutcome.retried;
   }
 
@@ -1200,7 +1196,7 @@ final class ChatOutbox<M> {
   ///
   /// Guarded against a burst as [cancel] is. Reports `cancelled` (trigger
   /// `delete`) and `deleted`, or `cancelTooLate` or `actionDropped`.
-  OutgoingCancelOutcome delete(String chatId, String clientMessageId) {
+  OutgoingCancelOutcome delete(ChatId chatId, ClientMessageId clientMessageId) {
     _checkNotDisposed();
     return _cancelMessage(chatId, clientMessageId, trigger: _Trigger.delete);
   }
@@ -1233,7 +1229,7 @@ final class ChatOutbox<M> {
   /// `positionAllocated` per message, `payloadDecodeFailed` and
   /// `foreignJob`. Throws a [StateError] when a restored message has items
   /// and the outbox was made without `localKeyOf`.
-  Future<List<OutgoingMessage>> pendingFor(String chatId) async {
+  Future<List<OutgoingMessage>> pendingFor(ChatId chatId) async {
     _checkNotDisposed();
     final restore = _$restores[chatId] ??= _restore(chatId);
     try {
@@ -1245,10 +1241,11 @@ final class ChatOutbox<M> {
       }
       rethrow;
     }
+    _sync(chatId);
     return [
       for (final message in _projection.tailOf(chatId))
-        if (_isPending(message.status)) _current(message),
-    ]..sort((a, b) => a.position.compareTo(b.position));
+        if (_isPending(message.status)) message,
+    ];
   }
 
   static bool _isPending(OutgoingStatus status) => switch (status) {
@@ -1259,7 +1256,7 @@ final class ChatOutbox<M> {
     OutgoingStatus$Sent() || OutgoingStatus$Cancelled() => false,
   };
 
-  Future<void> _restore(String chatId) async {
+  Future<void> _restore(ChatId chatId) async {
     final jobs = await _transfers
         .watchJobs(
           PublishJobFilter(
@@ -1276,7 +1273,7 @@ final class ChatOutbox<M> {
     for (final job in [...jobs]..sort(_byCreation)) {
       final tag = job.tag;
       if (tag == null || !tag.startsWith(prefix)) continue;
-      final clientMessageId = tag.substring(prefix.length);
+      final clientMessageId = ClientMessageId(tag.substring(prefix.length));
       if (clientMessageId.isEmpty || clientMessageId.contains(':')) {
         _reportForeign(
           chatId,
@@ -1355,8 +1352,8 @@ final class ChatOutbox<M> {
   /// The message of [job] as its journal holds it, its payload decoded; null
   /// when the engine no longer has the job.
   _Restored<M>? _restoredOf(
-    String chatId,
-    String clientMessageId,
+    ChatId chatId,
+    ClientMessageId clientMessageId,
     PublishJobSnapshot job,
   ) {
     final payload = _transfers.payloadOf(job.id);
@@ -1411,12 +1408,12 @@ final class ChatOutbox<M> {
         items: items,
       ),
       model: model,
-      job: OutboxJobView(job.id, state: job.state.name, stage: stage),
+      job: OutboxJobView(job.id, state: job.state, stage: stage),
     );
   }
 
   static void _reportForeign(
-    String chatId,
+    ChatId chatId,
     PublishJobId jobId, {
     required String why,
   }) => ChatDiagnostics.current.emit(
@@ -1430,7 +1427,7 @@ final class ChatOutbox<M> {
   /// The message [clientMessageId] once a restore places it, for the
   /// publisher's call of a job from an earlier run; null when this run will
   /// not hold it (the outbox was disposed, or its restore left it out).
-  Future<OutgoingMessage?> _restoredMessage(String clientMessageId) {
+  Future<OutgoingMessage?> _restoredMessage(ClientMessageId clientMessageId) {
     if (_projection.find(clientMessageId) case final message?) {
       return Future.value(message);
     }
@@ -1440,7 +1437,7 @@ final class ChatOutbox<M> {
 
   // --- Status projection -----------------------------------------------------
 
-  void _watch(String chatId) {
+  void _watch(ChatId chatId) {
     if (_$watches.containsKey(chatId)) return;
     _$watches[chatId] = _transfers
         .watchJobs(
@@ -1452,15 +1449,16 @@ final class ChatOutbox<M> {
         .listen((jobs) => _project(chatId, jobs));
   }
 
-  void _project(String chatId, List<PublishJobSnapshot> jobs) {
+  void _project(ChatId chatId, List<PublishJobSnapshot> jobs) {
     if (_$disposed) return;
+    _sync(chatId);
     _projection.origins.expire(_now());
     OutboxTrace.project.run(() {
       final prefix = tagPrefixOf(chatId);
       for (final job in jobs) {
         final clientMessageId = switch (job.tag) {
-          final tag? when tag.startsWith(prefix) => tag.substring(
-            prefix.length,
+          final tag? when tag.startsWith(prefix) => ClientMessageId(
+            tag.substring(prefix.length),
           ),
           _ => null,
         };
@@ -1484,7 +1482,7 @@ final class ChatOutbox<M> {
   /// engine sent before a new job was made may arrive after the send, and
   /// it would read as the new job's removal. A sent message stays sent
   /// when its job leaves (the engine forgets a completed job after a while).
-  void _projectRemovals(String chatId, List<PublishJobSnapshot> jobs) {
+  void _projectRemovals(ChatId chatId, List<PublishJobSnapshot> jobs) {
     final present = {for (final job in jobs) job.id};
     for (final message in _projection.tailOf(chatId)) {
       if (message.status is OutgoingStatus$Sent) continue;
@@ -1560,7 +1558,11 @@ final class ChatOutbox<M> {
   /// The engine sends that burst within one turn of the event loop, its
   /// snapshots delivered as microtasks; a zero timer runs after all of
   /// them, where a microtask would run between two.
-  void _leaveSoon(String chatId, String clientMessageId, _Trigger trigger) {
+  void _leaveSoon(
+    ChatId chatId,
+    ClientMessageId clientMessageId,
+    _Trigger trigger,
+  ) {
     (_$leaving[chatId] ??= {})[clientMessageId] ??= trigger;
     _$leavingFlush ??= Timer(Duration.zero, _leave);
   }
@@ -1601,14 +1603,11 @@ final class ChatOutbox<M> {
   }
 
   void _projectJob(
-    String chatId,
-    String clientMessageId,
+    ChatId chatId,
+    ClientMessageId clientMessageId,
     PublishJobSnapshot job,
   ) {
-    final message = switch (_projection.lookup(chatId, clientMessageId)) {
-      final message? => _current(message),
-      null => null,
-    };
+    final message = _projection.lookup(chatId, clientMessageId);
     // A job this outbox did not make in this run (a restart's) is not
     // projected here.
     if (message == null ||
@@ -1658,8 +1657,8 @@ final class ChatOutbox<M> {
   }
 
   void _projectStatus(
-    String chatId,
-    String clientMessageId,
+    ChatId chatId,
+    ClientMessageId clientMessageId,
     OutgoingMessage message,
     PublishJobSnapshot job,
   ) {
@@ -1676,7 +1675,7 @@ final class ChatOutbox<M> {
     final changed = status != message.status;
     _projection.put(
       changed ? message.withStatus(status) : message,
-      job: OutboxJobView(job.id, state: job.state.name, stage: stage),
+      job: OutboxJobView(job.id, state: job.state, stage: stage),
     );
     if (!changed) return;
     ChatDiagnostics.current.emit(
@@ -1706,7 +1705,7 @@ final class ChatOutbox<M> {
       _failed(message, failure, stage, job);
     }
     if (_projection.lookup(chatId, clientMessageId) case final current?) {
-      _onStatusChanged?.call(_current(current));
+      _onStatusChanged?.call(current);
     }
   }
 
@@ -1741,7 +1740,7 @@ final class ChatOutbox<M> {
     );
   }
 
-  void _syncInFlight(String chatId) {
+  void _syncInFlight(ChatId chatId) {
     final inFlight = _projection.hasInFlight(chatId);
     if ((_$inFlight[chatId] ?? false) == inFlight) return;
     _$inFlight[chatId] = inFlight;
@@ -1763,11 +1762,12 @@ final class ChatOutbox<M> {
   /// The host calls it when the server's echo of a message arrives: a match
   /// is the host's own message, which it settles in place instead of
   /// inserting a twin row. Reports `echoMatched`.
-  OutgoingMessage? byClientMessageId(String chatId, String clientMessageId) {
-    final message = switch (_projection.lookup(chatId, clientMessageId)) {
-      final message? => _current(message),
-      null => null,
-    };
+  OutgoingMessage? byClientMessageId(
+    ChatId chatId,
+    ClientMessageId clientMessageId,
+  ) {
+    _sync(chatId);
+    final message = _projection.lookup(chatId, clientMessageId);
     ChatDiagnostics.current.emit(
       ChatEventLevel.debug,
       ChatEventCategory.outbox,
@@ -1805,14 +1805,15 @@ final class ChatOutbox<M> {
   /// [byClientMessageId] answers for here instead of keeping both. Reports
   /// `statusChanged` (`source: history`).
   OutgoingMessage? settleFromHistory(
-    String chatId,
-    String clientMessageId, {
+    ChatId chatId,
+    ClientMessageId clientMessageId, {
     required int serverId,
   }) {
     _checkNotDisposed();
+    _sync(chatId);
     final held = _projection.lookup(chatId, clientMessageId);
     if (held == null || held.status is OutgoingStatus$Sent) return null;
-    _projection.accepted.add((chatId, clientMessageId));
+    _projection.accept(chatId, clientMessageId);
     _$strategies[chatId]?.remove(clientMessageId);
     final settled = held
         .withStatus(const OutgoingStatus.sent())
@@ -1845,7 +1846,7 @@ final class ChatOutbox<M> {
   ///
   /// The whole-row animation is the host's, since it owns the row. Reports
   /// `freshOutgoingTaken`.
-  bool isFreshOutgoing(String chatId, String clientMessageId) {
+  bool isFreshOutgoing(ChatId chatId, ClientMessageId clientMessageId) {
     final fresh = _projection.takeFresh(chatId, clientMessageId);
     ChatDiagnostics.current.emit(
       ChatEventLevel.trace,
@@ -1875,12 +1876,13 @@ final class ChatOutbox<M> {
   /// host's is live (the web's, by the window and input as they are now),
   /// [appearance] unless given. Reports `rowAppeared`.
   OutgoingAppearance? appearanceOf(
-    String chatId,
-    String clientMessageId, {
+    ChatId chatId,
+    ClientMessageId clientMessageId, {
     required bool atBottom,
     required bool reduceMotion,
     OutgoingAppearancePolicy? policy,
   }) {
+    _sync(chatId);
     if (!isFreshOutgoing(chatId, clientMessageId)) return null;
     final message = _projection.lookup(chatId, clientMessageId);
     final items = message?.items ?? const <OutgoingItem>[];
@@ -1915,16 +1917,15 @@ final class ChatOutbox<M> {
   /// What the outbox holds for [chatId] right now, without user content;
   /// see [OutboxDebugSnapshot].
   ///
-  /// Reading it changes nothing: a row's fresh flag stays unread, a
-  /// chat with no strategy yet gets none, and an origin it shows as
-  /// held is still there to take (it drops the expired ones first, as
-  /// every call does).
-  OutboxDebugSnapshot debugSnapshot(String chatId) {
+  /// Reading it changes nothing of the messages: a row's fresh flag stays
+  /// unread, a chat with no strategy yet gets none, and an origin it shows
+  /// as held is still there to take (it drops the expired ones first, and
+  /// brings the strategy up to its rows, as every call does).
+  OutboxDebugSnapshot debugSnapshot(ChatId chatId) {
+    _sync(chatId);
     _projection.origins.expire(_now());
     final strategy = _$strategies[chatId];
-    final messages = [
-      for (final message in _projection.tailOf(chatId)) _current(message),
-    ]..sort((a, b) => a.position.compareTo(b.position));
+    final messages = _projection.tailOf(chatId);
     return OutboxDebugSnapshot(
       chatId: chatId,
       strategy: strategy?.name,
@@ -1981,16 +1982,23 @@ final class ChatOutbox<M> {
     await Future.wait([for (final watch in watches) watch.cancel()]);
   }
 
+  /// Brings [chatId]'s strategy up to its rows before the outbox reads a
+  /// position: a range fetch may have moved the tail
+  /// (`OutgoingIdStrategy.sync`).
+  void _sync(ChatId chatId) => _$strategies[chatId]?.sync();
+
   void _checkNotDisposed() {
     if (_$disposed) throw StateError('The outbox was disposed.');
   }
 
   static final Random _$random = Random.secure();
 
-  static String _$randomClientMessageId() => [
-    for (var i = 0; i < 16; i++)
-      _$random.nextInt(256).toRadixString(16).padLeft(2, '0'),
-  ].join();
+  static ClientMessageId _$randomClientMessageId() => ClientMessageId(
+    [
+      for (var i = 0; i < 16; i++)
+        _$random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+    ].join(),
+  );
 }
 
 /// Who asked for a cancel: the `trigger` of a `cancelled` or `itemDropped`
