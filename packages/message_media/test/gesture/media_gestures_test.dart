@@ -129,6 +129,7 @@ void main() {
     ChatSelectionPolicy selectionPolicy = const ChatSelectionPolicy.mobile(),
     List<MediaItem> Function(int id)? itemsOf,
     void Function(MediaHitPart part, Rect rect)? onItemMenu,
+    MediaChromeHitTest? chromeHitAt,
   }) async {
     media = policy;
     selection = ChatSelectionController(
@@ -171,6 +172,7 @@ void main() {
                           messageId: id,
                           onOpenViewer: opened.add,
                           onItemMenu: onItemMenu,
+                          chromeHitAt: chromeHitAt,
                           correlation: ChatCorrelation(
                             chatId: 'chat-1',
                             scrollId: '$id',
@@ -278,6 +280,41 @@ void main() {
       expect((options.partId as MediaHitPart).part, MediaPart.options);
       expect(options.role, ChatBodyPartRole.menu);
       expect(options.rect, affordance.hitRect.shift(viewOrigin));
+    });
+
+    testWidgets('the host chrome over the media answers ahead of its parts', (
+      tester,
+    ) async {
+      // A badge of the host's over the album's first cell, as an error
+      // badge beside the time pill sits over the media.
+      Rect? badge;
+      const badgePart = 'badge';
+      await pump(
+        tester,
+        chromeHitAt: (global) => switch (badge) {
+          final rect? when rect.contains(global) => ChatInlineHit.bodyPart(
+            messageId: _last,
+            partId: badgePart,
+            role: ChatBodyPartRole.menu,
+            rect: rect,
+          ),
+          _ => null,
+        },
+      );
+      badge = Rect.fromCenter(
+        center: contentAt(tester, '$_last-a'),
+        width: 24,
+        height: 24,
+      );
+
+      final onBadge = hitAt(tester, _last, contentAt(tester, '$_last-a'));
+      expect(onBadge.partId, badgePart);
+      expect(onBadge.role, ChatBodyPartRole.menu);
+      expect(onBadge.rect, badge);
+
+      // Elsewhere the media's own parts answer.
+      final content = hitAt(tester, _last, contentAt(tester, '$_last-b'));
+      expect((content.partId as MediaHitPart).part, MediaPart.content);
     });
 
     testWidgets('a status control showing nothing is content', (tester) async {

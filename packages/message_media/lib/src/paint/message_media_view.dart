@@ -123,6 +123,7 @@ class MessageMediaView extends StatelessWidget {
     this.leavingCardOpacity = 0,
     this.sendState = MediaSendState.none,
     this.onItemCancelled,
+    this.chromeHitAt,
     super.key,
   }) : assert(
          selection == null || messageId != null,
@@ -208,6 +209,11 @@ class MessageMediaView extends StatelessWidget {
   /// tells no one.
   final ValueChanged<MediaItemId>? onItemCancelled;
 
+  /// The hit of the host's chrome drawn over the media (an error badge by
+  /// the time pill), asked before the media's own parts so the chrome takes
+  /// its taps within the media's one registration; null has none.
+  final MediaChromeHitTest? chromeHitAt;
+
   @override
   Widget build(BuildContext context) => SizedBox.fromSize(
     size: layout.size,
@@ -234,6 +240,7 @@ class MessageMediaView extends StatelessWidget {
         correlation: correlation,
         sendState: sendState,
         onItemCancelled: onItemCancelled,
+        chromeHitAt: chromeHitAt,
       ),
     ),
   );

@@ -11,7 +11,7 @@ import 'package:message_media/src/message_media_hit_part.dart';
 import 'package:message_media/src/outgoing/media_send_state.dart';
 import 'package:message_media/src/paint/link_preview_card_view.dart';
 import 'package:message_media/src/paint/message_media_body.dart'
-    show LinkPreviewActivated;
+    show LinkPreviewActivated, MediaChromeHitTest;
 import 'package:message_media/src/paint/message_media_view.dart';
 import 'package:message_media/src/policy/message_media_policy.dart';
 import 'package:message_media/src/transition/media_layout_transition.dart';
@@ -77,6 +77,7 @@ class MessageMediaTransition extends StatefulWidget {
     this.linkPreviewColors,
     this.sendState = MediaSendState.none,
     this.onItemCancelled,
+    this.chromeHitAt,
     super.key,
   });
 
@@ -142,6 +143,9 @@ class MessageMediaTransition extends StatefulWidget {
 
   /// See `MessageMediaView.onItemCancelled`.
   final ValueChanged<MediaItemId>? onItemCancelled;
+
+  /// See `MessageMediaView.chromeHitAt`.
+  final MediaChromeHitTest? chromeHitAt;
 
   @override
   State<MessageMediaTransition> createState() => _MessageMediaTransitionState();
@@ -294,6 +298,7 @@ class _MessageMediaTransitionState extends State<MessageMediaTransition>
       linkPreviewColors: widget.linkPreviewColors,
       sendState: widget.sendState,
       onItemCancelled: widget.onItemCancelled,
+      chromeHitAt: widget.chromeHitAt,
       cardOpacity: frame.cardOpacity,
       leavingCard: frame.leavingCard,
       leavingCardOpacity: frame.leavingCardOpacity,
