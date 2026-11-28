@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mpx_transfer/mpx_transfer.dart';
 
 import '../support/note_payload_codec.dart';
+import '../support/outgoing_messages.dart';
 import '../support/sends.dart';
 
 void main() {
@@ -19,6 +20,8 @@ void main() {
       transfers: transfers,
       codec: const NotePayloadCodec(),
       itemOf: sendItemOf,
+      idStrategyOf: fakeIdStrategyOf,
+      rowOf: fakeRowOf,
       clientMessageIds: clientMessageIdsFrom(),
     );
     addTearDown(outbox.dispose);
@@ -275,7 +278,12 @@ void main() {
             chatId: 'c1',
             clientMessageId: 'cm1',
           ),
-          fields: {'kind': 'group', 'items': 2, 'idsIssuedBy': 'outbox'},
+          fields: {
+            'kind': 'group',
+            'items': 2,
+            'idsIssuedBy': 'outbox',
+            'strategy': 'fake',
+          },
         ),
       ]);
       expect(diagnostics.whereOp(OutboxOp.jobCreated), [
@@ -318,6 +326,7 @@ void main() {
         'kind': 'single',
         'items': 1,
         'idsIssuedBy': 'host',
+        'strategy': 'fake',
       });
     });
 
@@ -344,6 +353,7 @@ void main() {
         chatId: 'c1',
         clientMessageId: 'cm1',
         jobId: 'job-1',
+        scrollId: '101',
       );
       expect(diagnostics.whereOp(OutboxOp.statusChanged), [
         isChatEvent(

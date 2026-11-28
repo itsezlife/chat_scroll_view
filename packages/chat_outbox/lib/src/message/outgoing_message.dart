@@ -10,7 +10,7 @@ import 'package:meta/meta.dart';
 /// Its identity is [clientMessageId], never its [position]: the position is
 /// the row's id in the chat's provisional tail, after the newest server
 /// message, and it moves when an incoming message takes it or the tail is
-/// reordered; it is null while no id strategy has placed the row. The host matches the server's echo of the message by
+/// reordered. The host matches the server's echo of the message by
 /// [clientMessageId], never by slot.
 ///
 /// Equal by value, [payload] compared byte by byte.
@@ -20,9 +20,9 @@ final class OutgoingMessage {
   OutgoingMessage({
     required this.chatId,
     required this.clientMessageId,
+    required this.position,
     required this.status,
     required Uint8List payload,
-    this.position,
     List<OutgoingItem> items = const [],
   }) : assert(clientMessageId != '', 'A clientMessageId must not be empty.'),
        items = List.unmodifiable(items),
@@ -35,10 +35,9 @@ final class OutgoingMessage {
   final String clientMessageId;
 
   /// The row's current id in the chat's provisional tail: a position, not
-  /// the message's identity. Null while no id strategy has placed the row:
-  /// the outbox then holds the message and its job, and the host has no row
-  /// id for it yet.
-  final int? position;
+  /// the message's identity. The chat's id strategy places the row when the
+  /// outbox accepts the send and moves it with the tail.
+  final int position;
 
   /// The message's media items in order; empty for a text message.
   final List<OutgoingItem> items;
@@ -53,6 +52,16 @@ final class OutgoingMessage {
 
   /// This message with [status] in place of its own.
   OutgoingMessage withStatus(OutgoingStatus status) => OutgoingMessage(
+    chatId: chatId,
+    clientMessageId: clientMessageId,
+    position: position,
+    status: status,
+    payload: payload,
+    items: items,
+  );
+
+  /// This message at [position] in place of its own.
+  OutgoingMessage withPosition(int position) => OutgoingMessage(
     chatId: chatId,
     clientMessageId: clientMessageId,
     position: position,
@@ -86,7 +95,7 @@ final class OutgoingMessage {
   // The payload stays out: it is the host's message.
   @override
   String toString() =>
-      'OutgoingMessage($chatId, $clientMessageId at ${position ?? 'no position'}, '
+      'OutgoingMessage($chatId, $clientMessageId at $position, '
       '$status, '
       '${items.length} items, ${payload.length} payload bytes)';
 

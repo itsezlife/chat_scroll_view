@@ -28,6 +28,10 @@ abstract interface class OutgoingIdStrategy {
   /// position first.
   List<String> get tail;
 
+  /// The moves of the tail so far by reason (`incoming`, `publishStart`,
+  /// `failedSink`, `retry`, `restart`, `removed`), for the debug snapshot.
+  Map<String, int> get rebases;
+
   /// The current position of the row [clientMessageId], or null when the
   /// strategy holds no such row.
   ///

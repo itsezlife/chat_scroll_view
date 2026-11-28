@@ -84,6 +84,11 @@ final class ProvisionalTailOrder {
   /// The client message ids in order.
   List<String> get tail => [for (final row in _$rows) row.id];
 
+  /// [rebases] by reason name.
+  Map<String, int> get rebaseCounts => {
+    for (final MapEntry(:key, :value) in rebases.entries) key.name: value,
+  };
+
   /// The row's position; see [OutgoingIdStrategy.positionOf].
   int? positionOf(String clientMessageId) {
     final index = _indexOf(clientMessageId);

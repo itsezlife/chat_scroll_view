@@ -53,6 +53,9 @@ final class LocalIds implements OutgoingIdStrategy {
   List<String> get tail => _order.tail;
 
   @override
+  Map<String, int> get rebases => _order.rebaseCounts;
+
+  @override
   int? positionOf(String clientMessageId) => _order.positionOf(clientMessageId);
 
   @override

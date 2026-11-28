@@ -39,9 +39,25 @@ this package is pre-1.0.
   `statusChanged`, `sendInFlight`.
 - The package now depends on `attach_model`, `listen`, `mpx_core` and
   `mpx_transfer`.
+- Id strategies: the `OutgoingIdStrategy` seam (`allocate`, `incoming`,
+  `publishStart`, `fail`, `retry`, `remove`, `confirm`) over
+  `OutgoingTailTarget` (`OutgoingTailTarget.of` a `ChatDataSource`), with
+  `SequentialServerIds` (`proposedId`, `tip+1` at publish) and `LocalIds`
+  (`nextIncomingId`, `appendIncoming`). Each move is one `rebaseTail`.
+- `ChatOutbox.idStrategy(chatId)`; an accepted send places its row through
+  the chat's strategy, and lookups and the snapshot read the row's current
+  position. The snapshot holds the strategy, the tip and the rebase counts
+  by reason.
+- `OutboxOp`: `positionAllocated`, `tailRebased`, `incomingAppended`;
+  `accepted` names the strategy.
+- `testing.dart`: `OutgoingIdStrategyContract`, `FakeOutgoingTail` and
+  `FakeOutgoingIdStrategy`.
+- The package now depends on the root `chat_scroll_view`, and on
+  `flutter_test` for `testing.dart`.
 
 ### Changed
 
-- `OutgoingMessage.position` (and the snapshot row's) is null until an id
-  strategy places the row; `ChatOutbox` takes the transfer seam, the
-  payload codec and the item resolver.
+- `ChatOutbox` takes the transfer seam, the payload codec, the item
+  resolver, the chat's id strategy (`idStrategyOf`) and the host's row
+  builder (`rowOf`). `OutgoingMessage.position` is required: every
+  accepted message has its row.
