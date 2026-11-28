@@ -53,6 +53,7 @@ import 'preview/content_preview_gifs_test.dart' as content_preview_gifs_test;
 import 'preview/content_preview_layout_test.dart'
     as content_preview_layout_test;
 import 'preview/content_preview_menu_test.dart' as content_preview_menu_test;
+import 'preview/content_preview_scrim_test.dart' as content_preview_scrim_test;
 import 'preview/content_preview_stickers_test.dart'
     as content_preview_stickers_test;
 import 'scroll/page_scroll_reporter_test.dart' as page_scroll_reporter_test;
@@ -147,6 +148,10 @@ void main() {
   group(
     'preview/content_preview_menu_test.dart',
     content_preview_menu_test.main,
+  );
+  group(
+    'preview/content_preview_scrim_test.dart',
+    content_preview_scrim_test.main,
   );
   group(
     'preview/content_preview_stickers_test.dart',

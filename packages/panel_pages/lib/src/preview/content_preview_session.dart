@@ -17,6 +17,7 @@ import 'package:panel_pages/src/policy/catalog_page_policy.dart';
 import 'package:panel_pages/src/preview/content_preview_item.dart';
 import 'package:panel_pages/src/preview/content_preview_layout.dart';
 import 'package:panel_pages/src/preview/content_preview_menu.dart';
+import 'package:panel_pages/src/preview/content_preview_op.dart';
 import 'package:panel_pages/src/theme/chrome_catalog_theme.dart';
 import 'package:panel_shell/panel_shell.dart';
 
@@ -158,9 +159,9 @@ final class ContentPreviewSession implements CatalogLongPressSession {
     required this.keyboardHeight,
     required ContentPreviewItem? Function(Offset globalPosition)? itemAt,
     required PanelPageHold? hold,
-    required BackdropSnapshot? backdrop,
+    required ChromeScrimController scrim,
   }) : _item = ValueNotifier(item),
-       _backdrop = backdrop,
+       _scrim = scrim,
        _itemAt = itemAt,
        _hold = hold,
        _background = assets.holdBackground();
@@ -201,14 +202,24 @@ final class ContentPreviewSession implements CatalogLongPressSession {
     final scopes = ChromeOverlayScopes.capture(context);
     // The menu comes up after a hold: its icons are decoded by then.
     CatalogMenuIcons.warm();
-    // The still under the menu is taken now, between frames, before the
-    // preview paints, and long before the menu: the window it shows is held
-    // from here on. A mouse gets no menu, and so no still.
+    // The scrim takes its still now, between frames, before the preview
+    // paints, and long before the menu: the window it shows is held from
+    // here on. A mouse gets no menu, and so no still.
     final blurs = controller?.blursBackground ?? true;
-    final backdrop = blurs && (kind != PointerDeviceKind.mouse || openMenu)
-        ? _captureBackdrop(context)
-        : null;
-    final session = ContentPreviewSession._(
+    final preset = _scrimPreset(
+      pointer: kind == PointerDeviceKind.mouse,
+      still: blurs && (kind != PointerDeviceKind.mouse || openMenu),
+    );
+    late final ContentPreviewSession session;
+    final scrim = ChromeScrimController(
+      context,
+      preset: preset,
+      // The still comes in with the menu, on its own clock.
+      showStill: false,
+      onPhase: (phase) => _reportScrim(phase, preset),
+      onDismiss: (_) => session.close(),
+    );
+    session = ContentPreviewSession._(
       item: item,
       assets: assets,
       actions: actions,
@@ -217,7 +228,7 @@ final class ContentPreviewSession implements CatalogLongPressSession {
       keyboardHeight: keyboardHeight,
       itemAt: itemAt,
       hold: hold,
-      backdrop: backdrop,
+      scrim: scrim,
     );
     session._entry = OverlayEntry(
       // In the text fields' tap group: a press that closes the preview is not
@@ -297,6 +308,10 @@ final class ContentPreviewSession implements CatalogLongPressSession {
   /// Only its opacity animates, over [showDuration], as the menu comes and
   /// goes. The menu never waits for it: until the still is made, the menu is
   /// over the dim alone.
+  ///
+  /// These values, with the dim's and the fades', are those of
+  /// [ChromeScrimPreset.contentPreview], the scrim the preview is drawn
+  /// over.
   static const double backdropDownscale = 15;
 
   /// The stack blur's radius, in the captured pixels: 15.
@@ -316,23 +331,102 @@ final class ContentPreviewSession implements CatalogLongPressSession {
     brightness: -0.07,
   );
 
-  static BackdropSnapshot? _captureBackdrop(BuildContext context) {
-    final palette = ChromeThemeScope.paletteOf(context);
-    final tone = palette.brightness == Brightness.dark
-        ? backdropToneDark
-        : backdropToneLight;
-    return BackdropSnapshot.capture(
-      context,
-      downscale: backdropDownscale,
-      blurRadius: backdropBlurRadius,
-      // Where the window painted nothing: its base fill.
-      background: palette.surface,
-      tone: BackdropSnapshot.toneMatrix(
-        saturation: tone.saturation,
-        brightness: tone.brightness,
-      ),
+  // The content preview's scrim: a mouse's dim fades over the mouse's show,
+  // its still (when there is one) over the touch's 120 ms all the same.
+  // With no still wanted the preset is a dim alone, so nothing is captured.
+  static ChromeScrimPreset _scrimPreset({
+    required bool pointer,
+    required bool still,
+  }) {
+    var preset = ChromeScrimPreset.contentPreview;
+    if (pointer) {
+      preset = preset.copyWith(
+        dimFade: ScrimMotion.contentPreviewPointer,
+        stillFade: ScrimMotion.contentPreview,
+      );
+    }
+    if (still) return preset;
+    return ChromeScrimPreset(
+      name: preset.name,
+      dimDark: preset.dimDark,
+      dimLight: preset.dimLight,
+      dimOpacity: preset.dimOpacity,
+      dimFade: preset.dimFade,
+      stillFade: preset.stillFade,
+      closeOn: preset.closeOn,
+      closesOnEscape: preset.closesOnEscape,
     );
   }
+
+  // The scrim reports and never logs: its phases become the preview's
+  // overlay events, with no id (a preview knows no chat).
+  static void _reportScrim(ChromeScrimPhase phase, ChromeScrimPreset preset) {
+    final diagnostics = ChatDiagnostics.current;
+    void emit(
+      ChatEventLevel level,
+      ContentPreviewOp op, [
+      Map<String, Object> Function()? fields,
+      Object? error,
+    ]) => diagnostics.emit(
+      level,
+      ChatEventCategory.overlay,
+      op,
+      fields: () => {'owner': _owner, ...?fields?.call()},
+      error: error,
+    );
+    switch (phase) {
+      case ChromeScrimPhase$Captured(:final captureTime, :final stillSize):
+        emit(
+          ChatEventLevel.trace,
+          ContentPreviewOp.scrimCaptured,
+          () => {
+            'preset': preset.name,
+            'captureUs': captureTime.inMicroseconds,
+            'stillWidth': stillSize.width.round(),
+            'stillHeight': stillSize.height.round(),
+          },
+        );
+      case ChromeScrimPhase$StillReady(:final makeTime):
+        emit(
+          ChatEventLevel.trace,
+          ContentPreviewOp.scrimStillReady,
+          () => {
+            'preset': preset.name,
+            'cpuMs': makeTime.inMilliseconds,
+            'glassSource': false,
+          },
+        );
+      case ChromeScrimPhase$StillSkipped(:final why):
+        emit(
+          ChatEventLevel.debug,
+          ContentPreviewOp.scrimStillSkipped,
+          () => {'why': why},
+        );
+      case ChromeScrimPhase$Dismissed(:final by, :final closeOn):
+        emit(
+          ChatEventLevel.debug,
+          ContentPreviewOp.scrimDismissed,
+          () => {'by': by, 'closeOn': closeOn},
+        );
+      case ChromeScrimPhase$Cancelled():
+        emit(ChatEventLevel.debug, ContentPreviewOp.scrimCancelled);
+      case ChromeScrimPhase$Disposed(:final stills):
+        emit(
+          ChatEventLevel.trace,
+          ContentPreviewOp.scrimDisposed,
+          () => {'stills': stills},
+        );
+      case ChromeScrimPhase$CaptureFailed(:final error):
+        emit(
+          ChatEventLevel.error,
+          ContentPreviewOp.scrimCaptureFailed,
+          () => {'errorType': ChatEvent.clip('${error.runtimeType}')},
+          error,
+        );
+    }
+  }
+
+  static const _owner = 'contentPreview';
 
   /// The draws the content is resized from: the cache's.
   final ContentAssetScope assets;
@@ -353,8 +447,8 @@ final class ContentPreviewSession implements CatalogLongPressSession {
   final ContentPreviewItem? Function(Offset globalPosition)? _itemAt;
   final PanelPageHold? _hold;
   final AssetBackgroundHold _background;
-  // The still under the menu, or null; let go as the overlay goes.
-  final BackdropSnapshot? _backdrop;
+  // The backdrop: the still under the menu and the dim. It owns the still.
+  final ChromeScrimController _scrim;
   final _open = listen.ValueNotifier<bool>(true);
   // The menu's items while it is up, or null.
   final _menu = ValueNotifier<List<ContentPreviewAction>?>(null);
@@ -439,7 +533,9 @@ final class ContentPreviewSession implements CatalogLongPressSession {
 
   @override
   void cancel() {
-    if (_entry != null) _finish();
+    if (_entry == null) return;
+    _scrim.cancel();
+    _finish();
   }
 
   // --- The menu -------------------------------------------------------------
@@ -490,6 +586,7 @@ final class ContentPreviewSession implements CatalogLongPressSession {
     _menuTimer?.cancel();
     _hold?.release();
     _background.release();
+    _scrim.close();
     _open.value = false;
   }
 
@@ -502,8 +599,9 @@ final class ContentPreviewSession implements CatalogLongPressSession {
     if (_open.value) _open.value = false;
     _entry?.remove();
     _entry?.dispose();
+    // Removing the entry removes the scrim, which lets go of its still if
+    // its fade out has not already.
     _entry = null;
-    _backdrop?.dispose();
   }
 }
 
@@ -523,11 +621,6 @@ class _PreviewOverlayState extends State<_PreviewOverlay>
     duration: _pointer
         ? ContentPreviewSession.pointerShowDuration
         : ContentPreviewSession.showDuration,
-  );
-  // The opacity of the blurred still under the menu, over the show's 120 ms.
-  late final AnimationController _blur = AnimationController(
-    vsync: this,
-    duration: ContentPreviewSession.showDuration,
   );
   // A dragged GIF going back to rest once its menu is up: its offset from
   // where the drag left it to 0.
@@ -558,7 +651,6 @@ class _PreviewOverlayState extends State<_PreviewOverlay>
     _session._open.removeListener(_onOpenChanged);
     _session._menu.removeListener(_onMenuChanged);
     _show.dispose();
-    _blur.dispose();
     _settle.dispose();
     super.dispose();
   }
@@ -571,7 +663,6 @@ class _PreviewOverlayState extends State<_PreviewOverlay>
   void _onOpenChanged() {
     if (_session._open.value) return;
     setState(() => _menuGone = _session._menu.value == null);
-    unawaited(_blur.reverse());
     _show.reverse().whenComplete(() {
       _previewGone = true;
       _finishWhenGone();
@@ -589,10 +680,10 @@ class _PreviewOverlayState extends State<_PreviewOverlay>
 
   void _onMenuChanged() {
     if (_session._menu.value != null) {
-      unawaited(_blur.forward());
+      _session._scrim.showStill();
       _settleSwipe();
     } else {
-      unawaited(_blur.reverse());
+      _session._scrim.hideStill();
     }
   }
 
@@ -618,16 +709,12 @@ class _PreviewOverlayState extends State<_PreviewOverlay>
     final session = _session;
     final palette = ChromeThemeScope.paletteOf(context);
     final media = MediaQuery.maybeOf(context);
-    final dim = palette.brightness == Brightness.dark
-        ? ContentPreviewSession.dimDark
-        : ContentPreviewSession.dimLight;
     return IgnorePointer(
       ignoring: !session._open.value,
       child: LayoutBuilder(
         builder: (context, constraints) => AnimatedBuilder(
           animation: Listenable.merge([
             _show,
-            _blur,
             session._item,
             session._swipe,
             session._menu,
@@ -646,23 +733,17 @@ class _PreviewOverlayState extends State<_PreviewOverlay>
               pointer: _pointer,
             );
             final shown = _show.value;
-            final blur = _blur.value;
             final menu = session._menu.value;
             return Stack(
               fit: StackFit.expand,
               children: [
-                if (session._backdrop case final backdrop? when blur > 0)
-                  BackdropSnapshotView(snapshot: backdrop, opacity: _blur),
-                ColoredBox(
-                  color: dim.withAlpha(
-                    (dim.a * ContentPreviewSession.dimAlpha * shown).round(),
-                  ),
-                ),
-                // A press anywhere else closes the preview, and goes no
-                // further.
-                Listener(
-                  behavior: HitTestBehavior.opaque,
-                  onPointerDown: (_) => session.close(),
+                // The still and the dim, each on its clock; a press
+                // anywhere else closes the preview, and goes no further. Under
+                // the preview, not around it: the menu's hide outlasts the
+                // scrim's fade, and a done scrim draws nothing over it.
+                ChromeScrim(
+                  controller: session._scrim,
+                  child: const SizedBox.shrink(),
                 ),
                 Positioned.fromRect(
                   rect: layout.content,

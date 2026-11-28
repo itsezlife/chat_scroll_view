@@ -464,6 +464,8 @@ class _ChromeScrimState extends State<ChromeScrim>
     } else {
       unawaited(_still.reverse());
     }
+    // The view stands while the still is wanted, made or not.
+    setState(() {});
   }
 
   void _onFaded(AnimationStatus _) {
@@ -514,10 +516,15 @@ class _ChromeScrimState extends State<ChromeScrim>
     Widget scrim = Stack(
       fit: StackFit.expand,
       children: [
+        // The view stands from the moment the still is wanted, before it
+        // is made: it draws nothing until then, and an owner finds the
+        // still it asked for in the tree at once.
         if (controller.still case final still?)
           AnimatedBuilder(
             animation: _still,
-            builder: (context, _) => _still.isDismissed
+            builder: (context, _) =>
+                _still.isDismissed &&
+                    !(controller.isStillShown && !controller.isClosing)
                 ? const SizedBox.expand()
                 : BackdropSnapshotView(snapshot: still, opacity: _stillEased),
           ),

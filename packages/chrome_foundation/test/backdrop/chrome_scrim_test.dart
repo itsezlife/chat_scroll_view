@@ -218,6 +218,29 @@ void main() {
     scrim.cancel();
   });
 
+  testWidgets('the still\'s view stands while the still is wanted, before '
+      'it is made, and goes once it is not', (tester) async {
+    final h = _Harness(tester);
+    await h.pump();
+    final scrim = h.open(showStill: false);
+    await tester.pump();
+    expect(find.byType(BackdropSnapshotView), findsNothing);
+    scrim.showStill();
+    await tester.pump();
+    expect(scrim.still!.image, isNull);
+    expect(
+      tester
+          .widget<BackdropSnapshotView>(find.byType(BackdropSnapshotView))
+          .snapshot,
+      same(scrim.still),
+    );
+    expect(find.byType(RawImage), findsNothing, reason: 'nothing to draw yet');
+    scrim.hideStill();
+    await tester.pump();
+    expect(find.byType(BackdropSnapshotView), findsNothing);
+    scrim.cancel();
+  });
+
   testWidgets('the dim fades in and out over the preset\'s fade', (
     tester,
   ) async {
