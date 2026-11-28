@@ -1361,6 +1361,36 @@ class ChatAnimator implements ChatScrollAnimator {
     return false;
   }
 
+  /// Carries the Message highlight across a provisional tail move: an armed
+  /// or pending target at a key of [moved] goes to its value, and one at
+  /// [removed] clears (its message left the list). Returns whether a target
+  /// moved.
+  ///
+  /// Without it the wash stays on the slot and lands on the message that
+  /// takes it.
+  bool carryHighlight(Map<int, int> moved, Iterable<int> removed) {
+    _controller.carryHighlightRequest(moved);
+    final armed = highlightTargetId;
+    final pending = pendingHighlightTargetId;
+    if (armed != null && removed.contains(armed) ||
+        pending != null && removed.contains(pending)) {
+      _controller.dropHighlightRequest();
+      clearHighlight();
+      return false;
+    }
+    var carried = false;
+    if (moved[armed] case final to?) {
+      highlightTargetId = to;
+      carried = true;
+      _markNeedsPaint();
+    }
+    if (moved[pending] case final to?) {
+      pendingHighlightTargetId = to;
+      carried = true;
+    }
+    return carried;
+  }
+
   /// Drop highlight state.
   ///
   /// [animated] true → [beginHighlightFade] (user drag / interrupt).

@@ -88,6 +88,12 @@ class ChatScrollElement extends RenderObjectElement
   final Map<int, ChatSelectionAllowed> _builtSelectionAllowed =
       <int, ChatSelectionAllowed>{};
 
+  /// The widget key of each row a provisional tail move carried, by its
+  /// current position. A row is keyed by the position it was first built at;
+  /// a carried row keeps that key at its new position so the next build
+  /// updates its element instead of replacing it ([carryChildren]).
+  final Map<int, Key> _carriedKeys = <int, Key>{};
+
   /// chunkIndex -> chunk-error tile element, sorted ascending. Empty unless
   /// the host widget supplies an `errorBuilder`.
   final SplayTreeMap<int, Element> _chunkErrors = SplayTreeMap<int, Element>();
@@ -181,6 +187,12 @@ class ChatScrollElement extends RenderObjectElement
     _builtUnreadSeparator.clear();
     _builtRunLayout.clear();
     _builtSelectionAllowed.clear();
+  }
+
+  /// Forgets everything recorded for the row at [id] when its child goes.
+  void _forgetRow(int id) {
+    _clearSkipCacheFor(id);
+    _carriedKeys.remove(id);
   }
 
   void _clearSkipCacheFor(int id) {
@@ -343,11 +355,12 @@ class ChatScrollElement extends RenderObjectElement
         hostOwnsSecondary: _widget.onSecondaryMessageTap != null,
         child: content,
       );
+      final key = _carriedKeys[id] ?? ValueKey<int>(id);
       if (!hasDateHeader && !hasUnreadSeparator) {
-        return RepaintBoundary(key: ValueKey<int>(id), child: content);
+        return RepaintBoundary(key: key, child: content);
       }
       return ChatRowChrome(
-        key: ValueKey<int>(id),
+        key: key,
         chrome: <ChatRowChromeItem>[
           if (hasDateHeader)
             ChatRowChromeItem(
@@ -425,7 +438,7 @@ class ChatScrollElement extends RenderObjectElement
           final removed = updateChild(existing, null, id);
           assert(removed == null, 'removed is not null');
           _children.remove(id);
-          _clearSkipCacheFor(id);
+          _forgetRow(id);
         });
       }
       return null;
@@ -474,7 +487,7 @@ class ChatScrollElement extends RenderObjectElement
         result = updated.renderObject as RenderBox?;
       } else {
         _children.remove(id);
-        _clearSkipCacheFor(id);
+        _forgetRow(id);
       }
     });
     return result;
@@ -489,9 +502,39 @@ class ChatScrollElement extends RenderObjectElement
         final removed = updateChild(_children[id], null, id);
         assert(removed == null, 'removed is not null');
         _children.remove(id);
-        _clearSkipCacheFor(id);
+        _forgetRow(id);
       }
     });
+  }
+
+  @override
+  int carryChildren(Map<int, int> moved, Iterable<int> removed) {
+    final carried = <int, Element>{
+      for (final from in moved.keys) from: ?_children.remove(from),
+    };
+    if (carried.isEmpty && removed.isEmpty) return 0;
+    final keys = <int, Key>{
+      for (final from in carried.keys)
+        from: _carriedKeys.remove(from) ?? ValueKey<int>(from),
+    };
+    carried.keys.forEach(_clearSkipCacheFor);
+    // Rows that left the tail, and anything still built where a carried row
+    // lands, go before the carried rows take their slots: the message that
+    // takes such a slot must not inherit their state.
+    for (final id in {...removed, ...moved.values}) {
+      if (_children.remove(id) case final child?) deactivateChild(child);
+      _forgetRow(id);
+    }
+    for (final MapEntry(key: from, value: child) in carried.entries) {
+      final to = moved[from]!;
+      _children[to] = child;
+      _carriedKeys[to] = keys[from]!;
+      // The skip cache stays empty for [to]: the carried child rebuilds at
+      // its new position, so the builder and the selection wrap see the new
+      // id.
+      updateSlotForChild(child, to);
+    }
+    return carried.length;
   }
 
   @override
@@ -636,7 +679,16 @@ class ChatScrollElement extends RenderObjectElement
     Object? oldSlot,
     Object? newSlot,
   ) {
-    assert(false, 'ChatScrollElement children never change slot');
+    // Only a provisional tail move re-slots a child ([carryChildren]).
+    assert(
+      oldSlot is int && newSlot is int,
+      'Only message children change slot',
+    );
+    renderObject.moveChild(
+      child as RenderBox,
+      oldSlot! as int,
+      newSlot! as int,
+    );
   }
 
   @override
@@ -666,7 +718,7 @@ class ChatScrollElement extends RenderObjectElement
       );
       final id = child.slot! as int;
       _children.remove(id);
-      _clearSkipCacheFor(id);
+      _forgetRow(id);
     }
     super.forgetChild(child);
   }
