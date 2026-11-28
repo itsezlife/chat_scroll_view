@@ -37,7 +37,7 @@ dev_dependencies:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_core
-      ref: a577316dd39ca36fb2130e755dd768f77016fd65
+      ref: 4e16cb38a7ff58cec67162640098df302f8efdb5
   # Golden baselines are the CI runner's: compared and regenerated there only.
   golden_baseline:
     path: ../golden_baseline

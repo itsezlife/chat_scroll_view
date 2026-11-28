@@ -12,6 +12,7 @@ import irondash_engine_context
 import mpx
 import mpx_capture
 import mpx_core
+import mpx_library
 import mpx_player
 import mpx_transfer
 import rich_clipboard
@@ -28,6 +29,7 @@ func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
   MpxPlugin.register(with: registry.registrar(forPlugin: "MpxPlugin"))
   MpxCapturePlugin.register(with: registry.registrar(forPlugin: "MpxCapturePlugin"))
   MpxCorePlugin.register(with: registry.registrar(forPlugin: "MpxCorePlugin"))
+  MpxLibraryPlugin.register(with: registry.registrar(forPlugin: "MpxLibraryPlugin"))
   MpxPlayerPlugin.register(with: registry.registrar(forPlugin: "MpxPlayerPlugin"))
   MpxTransferPlugin.register(with: registry.registrar(forPlugin: "MpxTransferPlugin"))
   RichClipboardPlugin.register(with: registry.registrar(forPlugin: "RichClipboardPlugin"))
