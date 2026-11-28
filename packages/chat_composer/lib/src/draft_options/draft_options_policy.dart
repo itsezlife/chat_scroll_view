@@ -1,4 +1,5 @@
 import 'package:chat_composer/src/draft_options/draft_link_page_policy.dart';
+import 'package:chat_composer/src/draft_options/draft_options_desktop_box.dart';
 import 'package:chat_composer/src/input/composer_keyboard_intent.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/foundation.dart';
@@ -172,6 +173,7 @@ sealed class DraftOptionsPolicy {
     DraftOptionsLinkChoice linkChoice,
     bool keepsChosenLinkSelected,
     DraftLinkPagePolicy linkPage,
+    DraftOptionsDesktopBox box,
   }) = DraftOptionsPolicy$Desktop;
 
   /// See [DraftOptionsPolicy$Web].
@@ -316,7 +318,9 @@ final class DraftOptionsPolicy$IOS extends DraftOptionsPolicy {
 
 /// The desktop form: a modal box under the desktop scrim, committed on save,
 /// opening only on a loaded page; pages link, reply, forward, a title when
-/// there is one part.
+/// there is one part. The box ([box]) takes keyboard focus on open, saves
+/// on Enter, discards on Escape and Cancel, and gives focus back to the
+/// composer's field on close.
 final class DraftOptionsPolicy$Desktop extends DraftOptionsPolicy {
   /// The desktop policy; every field is the platform's default unless given.
   const DraftOptionsPolicy$Desktop({
@@ -333,10 +337,14 @@ final class DraftOptionsPolicy$Desktop extends DraftOptionsPolicy {
     super.linkChoice = DraftOptionsLinkChoice.anyLink,
     super.keepsChosenLinkSelected = true,
     super.linkPage = DraftLinkPagePolicy.desktop,
+    this.box = DraftOptionsDesktopBox.standard,
   });
 
   @override
   final ChromeScrimPreset scrim;
+
+  /// The modal box: its size, title, buttons and motion.
+  final DraftOptionsDesktopBox box;
 
   @override
   DraftOptionsPresentation get presentation => DraftOptionsPresentation.desktop;

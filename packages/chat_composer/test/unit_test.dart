@@ -15,6 +15,10 @@ import 'draft_options/draft_link_page_test.dart'
     as draft_options_draft_link_page_test;
 import 'draft_options/draft_link_rows_test.dart'
     as draft_options_draft_link_rows_test;
+import 'draft_options/draft_options_desktop_golden_test.dart'
+    as draft_options_desktop_golden_test;
+import 'draft_options/draft_options_desktop_test.dart'
+    as draft_options_desktop_test;
 import 'draft_options/draft_options_keyboard_test.dart'
     as draft_options_keyboard_test;
 import 'draft_options/draft_options_overlay_test.dart'
@@ -123,6 +127,14 @@ void main() {
   group(
     'draft_options/draft_link_rows_test.dart',
     draft_options_draft_link_rows_test.main,
+  );
+  group(
+    'draft_options/draft_options_desktop_golden_test.dart',
+    draft_options_desktop_golden_test.main,
+  );
+  group(
+    'draft_options/draft_options_desktop_test.dart',
+    draft_options_desktop_test.main,
   );
   group(
     'draft_options/draft_options_keyboard_test.dart',

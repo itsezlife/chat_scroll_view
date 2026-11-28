@@ -84,6 +84,8 @@ abstract final class ChromeStringsSnapshot {
           composer.draftOptions.removePreview,
       'composer.draftOptions[chooseLinkHint]':
           composer.draftOptions.chooseLinkHint,
+      'composer.draftOptions[save]': composer.draftOptions.save,
+      'composer.draftOptions[cancel]': composer.draftOptions.cancel,
       // 90 s, spelled from a motion constant: only the motion directory
       // writes a literal duration.
       'composer.slowModeCountdown[90s]': composer.slowModeCountdown(

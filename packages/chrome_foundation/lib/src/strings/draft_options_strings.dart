@@ -18,6 +18,8 @@ final class DraftOptionsStrings {
     required this.doNotPreview,
     required this.removePreview,
     required this.chooseLinkHint,
+    required this.save,
+    required this.cancel,
   });
 
   /// Title of the link preview page.
@@ -61,4 +63,11 @@ final class DraftOptionsStrings {
   /// The divider text under the rows when the text has more than one link:
   /// a link in the preview can be chosen.
   final String chooseLinkHint;
+
+  /// The button that keeps the changes and closes, where changes wait for
+  /// it (a desktop box).
+  final String save;
+
+  /// The button that drops the changes and closes, beside [save].
+  final String cancel;
 }

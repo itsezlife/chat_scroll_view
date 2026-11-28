@@ -6,6 +6,11 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (draft options buttons, breaking)
+
+- `DraftOptionsStrings.save` and `.cancel`: the desktop box's buttons.
+  Required: a host that builds `DraftOptionsStrings` adds them.
+
 ### Added (keyboard timing)
 
 - `ChromeKeyboardTiming` (`heldReopen` 50 ms, `holdRelease` 15 ms): when a

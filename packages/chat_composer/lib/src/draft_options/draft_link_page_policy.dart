@@ -1,5 +1,6 @@
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart' show EdgeInsetsDirectional, TextAlign;
 
 /// When the link page's size row shows.
 enum DraftLinkSizeRow {
@@ -105,6 +106,10 @@ final class DraftLinkPagePolicy {
     required this.labelChange,
     required this.ink,
     this.rowGuard = ChromeTapTiming.repeatGuard,
+    this.linkHintPadding,
+    this.linkHintAlign = TextAlign.center,
+    this.keyboardFocus = false,
+    this.iconMorph = true,
   });
 
   /// The Android rows: position, size (always, inert at 50 % without
@@ -147,25 +152,39 @@ final class DraftLinkPagePolicy {
     ink: ChromeInkKind.highlight,
   );
 
-  /// The desktop rows: a 4 skip above, position (only with text), size (only
-  /// with shrinkable media), remove; no apply row (Save is a button); the
-  /// "click a link to choose" hint with more than one link; pointer presses;
-  /// the change is instant.
+  /// The desktop rows: a 4 skip above in the box's own colour, position
+  /// (only with text), size (only with shrinkable media), remove; no apply
+  /// row (Save is a button); the "click a link to choose" hint with more
+  /// than one link, under a skip, 22 / 8 / 22 / 16 at the start; pointer
+  /// presses; the change is instant, the icon's too. Rows 40 tall, the icon (24) 20 from the
+  /// start, the label (14) at 60, 82 beyond the widest label; each row takes
+  /// keyboard focus, and Enter or Space presses it.
   static const DraftLinkPagePolicy desktop = DraftLinkPagePolicy(
     sizeRow: DraftLinkSizeRow.whenShrinkable,
     inertOpacity: 0.5,
     positionNeedsText: true,
     separator: DraftLinkSeparator.skipAbove,
     separatorExtent: 4,
-    separatorOpacity: 0.06,
+    separatorOpacity: 0,
     applyRow: false,
     removeLabel: DraftLinkRemoveLabel.removePreview,
     removePressOpacity: 0.12,
     linkHint: true,
     removeFallsBackToNextLink: false,
-    rowMetrics: _rowMetrics,
+    rowMetrics: DraftLinkRowMetrics(
+      height: 40,
+      iconSize: 24,
+      iconStart: 20,
+      labelStart: 60,
+      fontSize: 14,
+      minWidthBeyondLabel: 82,
+    ),
     labelChange: ChromeMenuRowTiming.labelInstant,
     ink: ChromeInkKind.pointer,
+    linkHintPadding: EdgeInsetsDirectional.fromSTEB(22, 8, 22, 16),
+    linkHintAlign: TextAlign.start,
+    keyboardFocus: true,
+    iconMorph: false,
   );
 
   /// The web's menu rows: the iOS rows with no apply row, since each choice
@@ -187,8 +206,8 @@ final class DraftLinkPagePolicy {
     ink: ChromeInkKind.highlight,
   );
 
-  // The Android anatomy; the other families keep it until their
-  // presentation sets their own.
+  // The Android anatomy; the mobile families and the web keep it until
+  // their presentation sets their own.
   static const _rowMetrics = DraftLinkRowMetrics(
     height: 48,
     iconSize: 24,
@@ -247,6 +266,21 @@ final class DraftLinkPagePolicy {
   /// Within this of an accepted tap on a row, another tap is dropped.
   final Duration rowGuard;
 
+  /// The room around the link hint; null for the row's icon inset at either
+  /// side and the separator's height above and below.
+  final EdgeInsetsDirectional? linkHintPadding;
+
+  /// How the link hint is aligned.
+  final TextAlign linkHintAlign;
+
+  /// Whether each row takes keyboard focus, in the order shown, and is
+  /// pressed by Enter or Space while focused.
+  final bool keyboardFocus;
+
+  /// Whether a row's icon morphs to its next state through the chrome icon
+  /// morph; false swaps it at once, with the rest of the row.
+  final bool iconMorph;
+
   /// This policy with the fields given replaced.
   DraftLinkPagePolicy copyWith({
     DraftLinkSizeRow? sizeRow,
@@ -264,6 +298,10 @@ final class DraftLinkPagePolicy {
     MotionSpec? labelChange,
     ChromeInkKind? ink,
     Duration? rowGuard,
+    EdgeInsetsDirectional? linkHintPadding,
+    TextAlign? linkHintAlign,
+    bool? keyboardFocus,
+    bool? iconMorph,
   }) => DraftLinkPagePolicy(
     sizeRow: sizeRow ?? this.sizeRow,
     inertOpacity: inertOpacity ?? this.inertOpacity,
@@ -281,6 +319,10 @@ final class DraftLinkPagePolicy {
     labelChange: labelChange ?? this.labelChange,
     ink: ink ?? this.ink,
     rowGuard: rowGuard ?? this.rowGuard,
+    linkHintPadding: linkHintPadding ?? this.linkHintPadding,
+    linkHintAlign: linkHintAlign ?? this.linkHintAlign,
+    keyboardFocus: keyboardFocus ?? this.keyboardFocus,
+    iconMorph: iconMorph ?? this.iconMorph,
   );
 
   @override
@@ -300,10 +342,14 @@ final class DraftLinkPagePolicy {
       other.rowMetrics == rowMetrics &&
       other.labelChange == labelChange &&
       other.ink == ink &&
-      other.rowGuard == rowGuard;
+      other.rowGuard == rowGuard &&
+      other.linkHintPadding == linkHintPadding &&
+      other.linkHintAlign == linkHintAlign &&
+      other.keyboardFocus == keyboardFocus &&
+      other.iconMorph == iconMorph;
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     sizeRow,
     inertOpacity,
     positionNeedsText,
@@ -319,5 +365,9 @@ final class DraftLinkPagePolicy {
     labelChange,
     ink,
     rowGuard,
-  );
+    linkHintPadding,
+    linkHintAlign,
+    keyboardFocus,
+    iconMorph,
+  ]);
 }

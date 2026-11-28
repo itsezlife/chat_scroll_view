@@ -1,4 +1,6 @@
 import 'package:chat_composer/src/draft_options/draft_link_part.dart';
+import 'package:chrome_foundation/chrome_foundation.dart'
+    show ChromeMenuRowTiming, MotionSpec;
 import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart' hide RichText;
 import 'package:listen/listen.dart' as listen;
@@ -40,6 +42,8 @@ final class DraftOptionsPreview {
     required this.page,
     required this.onLinkTap,
     this.selectable = false,
+    this.linkCursor = MouseCursor.defer,
+    this.change = ChromeMenuRowTiming.labelInstant,
   });
 
   /// The draft's text.
@@ -60,6 +64,16 @@ final class DraftOptionsPreview {
   /// Whether the message's and the card's text may be selected: false in
   /// the preview, where a press on text is a link choice or nothing.
   final bool selectable;
+
+  /// The cursor the bubble sets over a link of its text, where a mouse
+  /// points (the click cursor in a desktop box); [MouseCursor.defer] leaves
+  /// the bubble's own.
+  final MouseCursor linkCursor;
+
+  /// How the bubble's layout moves from the previous preview to this one,
+  /// the presentation's option change: at once for a zero duration. The
+  /// builder hands it to its media layout's transition.
+  final MotionSpec change;
 }
 
 /// Builds the live preview of the draft as the real message bubble, the way

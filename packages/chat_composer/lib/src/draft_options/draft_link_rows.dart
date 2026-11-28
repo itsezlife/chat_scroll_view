@@ -1,5 +1,6 @@
 import 'package:chat_composer/src/draft_options/draft_link_page.dart';
 import 'package:chat_composer/src/draft_options/draft_link_page_policy.dart';
+import 'package:chat_composer/src/draft_options/draft_options_key_focus.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/widgets.dart';
 
@@ -56,15 +57,17 @@ class DraftLinkRows extends StatelessWidget {
         ],
         if (page.showsLinkHint)
           Padding(
-            padding: EdgeInsetsDirectional.only(
-              start: metrics.iconStart,
-              end: metrics.iconStart,
-              top: policy.separatorExtent,
-              bottom: policy.separatorExtent,
-            ),
+            padding:
+                policy.linkHintPadding ??
+                EdgeInsetsDirectional.only(
+                  start: metrics.iconStart,
+                  end: metrics.iconStart,
+                  top: policy.separatorExtent,
+                  bottom: policy.separatorExtent,
+                ),
             child: Text(
               strings.chooseLinkHint,
-              textAlign: TextAlign.center,
+              textAlign: policy.linkHintAlign,
               style: ChromeTypography.of(
                 context,
               ).copyWith(color: palette.onSurfaceMuted),
@@ -111,9 +114,11 @@ class DraftLinkRows extends StatelessWidget {
 /// label after it, pressed with the policy's ink; an inert row is faded and
 /// takes its touch without feedback.
 ///
-/// The icon animates a change of state through the chrome icon morph; the
-/// label cross-fades over the policy's label change, or changes at once.
-/// In a right-to-left text the icon stands at the end.
+/// The icon animates a change of state through the chrome icon morph where
+/// the policy has it; the label cross-fades over the policy's label change,
+/// or changes at once.
+/// In a right-to-left text the icon stands at the end. Under the policy's
+/// keyboard focus the row takes focus and Enter or Space presses it.
 class DraftLinkRowView extends StatelessWidget {
   /// A row showing [state] as [label].
   const DraftLinkRowView({
@@ -175,11 +180,17 @@ class DraftLinkRowView extends StatelessWidget {
           PositionedDirectional(
             start: metrics.iconStart,
             top: (metrics.height - metrics.iconSize) / 2,
-            child: AnimatedChromeIcon(
-              state.icon,
-              size: metrics.iconSize,
-              color: iconColor,
-            ),
+            child: policy.iconMorph
+                ? AnimatedChromeIcon(
+                    state.icon,
+                    size: metrics.iconSize,
+                    color: iconColor,
+                  )
+                : ChromeIcon(
+                    state.icon,
+                    size: metrics.iconSize,
+                    color: iconColor,
+                  ),
           ),
           PositionedDirectional(
             start: metrics.labelStart,
@@ -219,7 +230,13 @@ class DraftLinkRowView extends StatelessWidget {
       label: label,
       excludeSemantics: true,
       onTap: state.inert ? null : onTap,
-      child: pressable,
+      child: policy.keyboardFocus
+          ? DraftOptionsKeyFocus(
+              enabled: !state.inert,
+              onPressed: onTap,
+              child: pressable,
+            )
+          : pressable,
     );
   }
 }
