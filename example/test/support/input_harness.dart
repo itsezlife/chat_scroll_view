@@ -3,7 +3,12 @@ import 'dart:async';
 import 'package:bulletins/bulletins.dart';
 import 'package:chat_capabilities/chat_capabilities.dart';
 import 'package:chat_composer/chat_composer.dart'
-    show LinkPreviewDismissalPolicy;
+    show
+        ComposerClock,
+        ComposerTimer,
+        DraftOptionsBubbleBuilder,
+        DraftOptionsPolicy,
+        LinkPreviewDismissalPolicy;
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/app/app_chrome.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
@@ -46,6 +51,8 @@ final class InputRig {
   LinkPreviewResolver? _linkPreviewResolver;
   LinkPreviewDismissalPolicy? _linkPreviewDismissal;
   listen.ValueListenable<ChatCapabilities>? _capabilities;
+  DraftOptionsPolicy? _draftOptionsPolicy;
+  DraftOptionsBubbleBuilder? _draftBubble;
 
   /// Bodies sent.
   final List<String> sent = <String>[];
@@ -91,7 +98,9 @@ final class InputRig {
   /// Link previews are looked up through [linkPreviewResolver] (the
   /// address alone by default) under [linkPreviewDismissal] (the
   /// platform's), for the chat `rig-chat`, whose rights are [capabilities]
-  /// (none: everything allowed).
+  /// (none: everything allowed). The strip opens the draft options of
+  /// [draftOptionsPolicy] (the platform's), drawing the live preview with
+  /// [draftBubble] (none: the set's stand-in).
   static Future<InputRig> pump(
     WidgetTester tester, {
     required AppServices services,
@@ -105,6 +114,8 @@ final class InputRig {
     LinkPreviewResolver? linkPreviewResolver,
     LinkPreviewDismissalPolicy? linkPreviewDismissal,
     listen.ValueListenable<ChatCapabilities>? capabilities,
+    DraftOptionsPolicy? draftOptionsPolicy,
+    DraftOptionsBubbleBuilder? draftBubble,
   }) async {
     final rig =
         InputRig._(
@@ -115,7 +126,9 @@ final class InputRig {
           .._failSends = failSends
           .._linkPreviewResolver = linkPreviewResolver
           .._linkPreviewDismissal = linkPreviewDismissal
-          .._capabilities = capabilities;
+          .._capabilities = capabilities
+          .._draftOptionsPolicy = draftOptionsPolicy
+          .._draftBubble = draftBubble;
     addTearDown(() async {
       rig.selection.dispose();
       await rig.keyboard.dispose();
@@ -254,6 +267,9 @@ class _ScreenState extends State<_Screen> {
           _rig._linkPreviewResolver ?? const AddressLinkPreviewResolver(),
       linkPreviewDismissal: _rig._linkPreviewDismissal,
       capabilities: _rig._capabilities,
+      draftOptionsPolicy: _rig._draftOptionsPolicy,
+      draftBubble: _rig._draftBubble,
+      draftOptionsClock: const _TestClock(),
     );
     _obstruction ??= input.insets.bottomPadding.map(
       (bottom) => EdgeInsets.only(bottom: bottom),
@@ -328,3 +344,25 @@ class _ScreenState extends State<_Screen> {
 
 /// A unicode emoji key.
 ContentKey$Unicode emojiKey(String glyph) => ContentKey$Unicode(glyph);
+
+/// The composer clock on the test's fake time: the guards of the draft
+/// options read the time, which `DateTime.now` would give from the wall.
+final class _TestClock implements ComposerClock {
+  const _TestClock();
+
+  @override
+  DateTime now() => TestWidgetsFlutterBinding.instance.clock.now();
+
+  @override
+  ComposerTimer after(Duration delay, void Function() callback) =>
+      _TestTimer(Timer(delay, callback));
+}
+
+final class _TestTimer implements ComposerTimer {
+  _TestTimer(this._timer);
+
+  final Timer _timer;
+
+  @override
+  void cancel() => _timer.cancel();
+}
