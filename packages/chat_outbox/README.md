@@ -42,6 +42,7 @@ Decision: [ADR 048](../../docs/adr/048-outgoing-messages.md). Diagnostics:
 | Restore after a restart | `await pendingFor(chatId)` for each chat that may hold outgoing messages, before the chat's first send of the run: each message the engine still holds gets a fresh row (sending ones first, then failed ones, each in creation order). A job of an earlier run waits at its publish stage until its chat is restored. Pass `localKeyOf(mediaKey)` (the inverse of the media key `itemOf` gives) to restore media items, and `undecodableRowOf(message)` for the row of a message whose payload the codec cannot read: it reads as failed, and without that builder it is left out. |
 | Settle a sent row | `onSent(sent)` (a `ChatOutbox` argument) runs inside the publish call: replace the row at `sent.rowAt` with the confirmed message (`updateMessage`, a message `identityOf` answers null for), from `payloadAsStored` when given (the rich-text reconcile). With `rowAt` null the row has left; place the confirmed message at `sent.position` when the history reaches it. Address a provisional row by its current position (`positionOf`). |
 | Follow a cancel | `onCancelled(cancelled)`: the row has left the tail; when `rowRemoved` is false (a row an appended message settled), remove the row at `message.position`. `onItemDropped(dropped)`: drop the item from the row at `message.position`. Both fire for the status control's cancel too, which reaches the outbox through the jobs. |
+| Offer Retry and Delete | For a `failed` message the menu calls `retry(chatId, id)` and `delete(chatId, id)`. Whether a denial offers Retry is the host's per-platform choice; an `undecodable` answer means only Delete helps. For `failed(sourceLost)` ask the user for the file again and pass its bytes: `retry(chatId, id, sources: {itemId: SourceBytes.blob(file)})`. Delete is followed by `onCancelled`, as a cancel is. |
 | Answer the server | Return a conflict or a replay with the confirmed messages between the tip and the server's id in `missing` when you have them, so the row can move to the server's id; return a server denial as `denied(action, reason)`, not a rejection. |
 | Resolve attach items | `itemOf(item, form)` returns the item's keys (the media key through the content assets' key mapping) and its source: a preparation input with its intent, a prepared file, or `remote`. |
 | Pass the chat's capabilities | `capabilitiesOf(chatId)` returns the listenable the chat's other consumers read; the outbox checks slow mode and the limits against it before each job. |
@@ -100,6 +101,20 @@ host deletes it as any sent message. A repeated cancel of a message, or of
 one item, changes nothing (`dropped`). A cancelled message's
 `clientMessageId` is never issued again; under `SequentialServerIds` the
 next message may take its row's position.
+
+## Failed, retry, delete
+
+| Event | The outbox does |
+| --- | --- |
+| the job fails | status `failed(reason)`, the reason one of `network`, `rejected(code)`, `denied(action)`, `sourceLost`, `tooLarge`, `unknown`; any item's failure fails the message; the row sinks below every sending row, failed rows in creation order |
+| a later row publishes | it moves to `tip+1`, above the failed rows, and proposes `tip+1` |
+| `retry` after a prepare or upload failure | the failed items prepare or upload again, from the parts they journaled |
+| `retry` after a publish failure | publish again only, with the same client message id |
+| `retry` | the job joins the end of the chat's ordering group, and the row the end of the sending rows |
+| `delete` | cancels the job; the message is Absent and its row leaves the tail |
+
+A repeated retry changes nothing (`dropped`) until the message fails
+again; a repeated delete changes nothing either.
 
 ## Send origin
 

@@ -5,8 +5,8 @@ import 'package:mpx_transfer/mpx_transfer.dart';
 /// What the outbox uses of the transfer engine: making a publish job,
 /// watching a chat's jobs, registering the chat's publisher, and the owner's
 /// verbs on a job (cancel it, remove an item, commit it once it waits for
-/// its owner). The host passes [OutboxTransfers.of] its one `Transfers`
-/// facade.
+/// its owner, retry it after a failure). The host passes
+/// [OutboxTransfers.of] its one `Transfers` facade.
 ///
 /// The outbox reaches the engine through this seam rather than through
 /// `Transfers` itself because `Transfers` and its `PublishJob` handles are
@@ -51,6 +51,20 @@ abstract interface class OutboxTransfers {
   /// ordering group. Answers false for any other job.
   bool commit(PublishJobId id);
 
+  /// Retries job [id] after a failure, as `PublishJob.retry` does: only what
+  /// failed repeats (a finished preparation and every journaled upload are
+  /// kept; a job failed at publish publishes again, with the same
+  /// idempotency key, and uploads nothing), and a job of an ordering group
+  /// joins the end of its group. Answers false when there is nothing to
+  /// retry: an unknown or completed job, or one with no failure.
+  bool retry(PublishJobId id);
+
+  /// Retries item [itemId] of job [id] alone, as `PublishJob.retryItem`
+  /// does; with [source] the item's file uploads again from it, from zero
+  /// (the way back from a lost source). Answers false for an item that has
+  /// not failed, or a job that ended any other way than failed.
+  bool retryItem(PublishJobId id, String itemId, {SourceBytes? source});
+
   /// The payload job [id] was made with, as its journal holds it; null for
   /// a job the engine no longer has.
   ///
@@ -86,6 +100,13 @@ final class _OutboxTransfers$Engine implements OutboxTransfers {
 
   @override
   bool commit(PublishJobId id) => _transfers.publishJob(id)?.commit() ?? false;
+
+  @override
+  bool retry(PublishJobId id) => _transfers.publishJob(id)?.retry() ?? false;
+
+  @override
+  bool retryItem(PublishJobId id, String itemId, {SourceBytes? source}) =>
+      _transfers.publishJob(id)?.retryItem(itemId, source: source) ?? false;
 
   @override
   Uint8List? payloadOf(PublishJobId id) => _transfers.publishJob(id)?.payload;

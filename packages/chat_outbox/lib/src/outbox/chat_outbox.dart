@@ -15,6 +15,7 @@ import 'package:chat_outbox/src/outbox/chat_send_publisher.dart';
 import 'package:chat_outbox/src/outbox/job_projection.dart';
 import 'package:chat_outbox/src/outbox/outbox_projection.dart';
 import 'package:chat_outbox/src/outbox/outgoing_cancel.dart';
+import 'package:chat_outbox/src/outbox/outgoing_retry.dart';
 import 'package:chat_outbox/src/send/outgoing_message_sender.dart';
 import 'package:chat_outbox/src/send/outgoing_send_item.dart';
 import 'package:chat_outbox/src/send/send_check.dart';
@@ -36,6 +37,9 @@ import 'package:mpx_transfer/mpx_transfer.dart';
 /// through the host's [OutgoingPayloadCodec]. The chat's
 /// [OutgoingIdStrategy] places each accepted message's row in the
 /// provisional tail and moves it there.
+///
+/// A failed message's row sinks below the sending rows; [retry] repeats
+/// only what failed and [delete] makes it Absent.
 ///
 /// It keeps no store of its own; its view of each chat is a projection of
 /// the publish jobs, so a restart reads the same messages back. Every
@@ -195,6 +199,12 @@ final class ChatOutbox<M> {
   /// snapshot of them waiting for their owner is not decided twice.
   final Set<PublishJobId> _$committed = {};
 
+  /// The retries accepted since each message last failed, by (chat id,
+  /// client message id), with when: the input guard drops a repeat until
+  /// the message fails again.
+  final Map<(String, String), DateTime> _$retriesAccepted = {};
+
+  int _$retries = 0;
   int _$cancels = 0;
   int _$tooLate = 0;
   int _$droppedItems = 0;
@@ -713,7 +723,12 @@ final class ChatOutbox<M> {
     String clientMessageId, {
     required _Trigger trigger,
   }) {
-    if (_repeated(chatId, clientMessageId, null)) {
+    if (_repeated(
+      chatId,
+      clientMessageId,
+      null,
+      action: trigger == _Trigger.delete ? 'delete' : 'cancel',
+    )) {
       return OutgoingCancelOutcome.dropped;
     }
     final message = switch (_projection.lookup(chatId, clientMessageId)) {
@@ -762,27 +777,41 @@ final class ChatOutbox<M> {
     return true;
   }
 
-  /// Whether a cancel of the message ([itemId] null) or of its item
-  /// [itemId] was accepted already; reports `actionDropped` when it was.
-  bool _repeated(String chatId, String clientMessageId, String? itemId) {
+  /// Whether a cancel (or a delete, the [action] reported) of the message
+  /// ([itemId] null) or of its item [itemId] was accepted already; reports
+  /// `actionDropped` when it was.
+  bool _repeated(
+    String chatId,
+    String clientMessageId,
+    String? itemId, {
+    String action = 'cancel',
+  }) {
     final accepted = _$cancelsAccepted[(chatId, clientMessageId, itemId)];
     if (accepted == null) return false;
-    ChatDiagnostics.current.emit(
-      ChatEventLevel.debug,
-      ChatEventCategory.outbox,
-      OutboxOp.actionDropped,
-      correlation: ChatCorrelation(
-        chatId: chatId,
-        clientMessageId: clientMessageId,
-        mediaItemId: itemId,
-      ),
-      fields: () => {
-        'action': 'cancel',
-        'msSinceAccepted': _now().difference(accepted).inMilliseconds,
-      },
-    );
+    _reportDropped(chatId, clientMessageId, itemId, action, accepted);
     return true;
   }
+
+  void _reportDropped(
+    String chatId,
+    String clientMessageId,
+    String? itemId,
+    String action,
+    DateTime accepted,
+  ) => ChatDiagnostics.current.emit(
+    ChatEventLevel.debug,
+    ChatEventCategory.outbox,
+    OutboxOp.actionDropped,
+    correlation: ChatCorrelation(
+      chatId: chatId,
+      clientMessageId: clientMessageId,
+      mediaItemId: itemId,
+    ),
+    fields: () => {
+      'action': action,
+      'msSinceAccepted': _now().difference(accepted).inMilliseconds,
+    },
+  );
 
   /// Cancels [message]'s job and makes the message Absent, its row leaving
   /// the tail.
@@ -795,6 +824,7 @@ final class ChatOutbox<M> {
     final rowRemoved = _$strategies[chatId]?.remove(clientMessageId) ?? false;
     _projection.remove(chatId, clientMessageId);
     _$itemsDropped.remove((chatId, clientMessageId));
+    _$retriesAccepted.remove((chatId, clientMessageId));
     _$cancelsAccepted[(chatId, clientMessageId, null)] ??= _now();
     _$cancels++;
     ChatDiagnostics.current.emit(
@@ -816,6 +846,19 @@ final class ChatOutbox<M> {
         },
       },
     );
+    if (trigger == _Trigger.delete) {
+      ChatDiagnostics.current.emit(
+        ChatEventLevel.info,
+        ChatEventCategory.outbox,
+        OutboxOp.deleted,
+        correlation: ChatCorrelation(
+          chatId: chatId,
+          clientMessageId: clientMessageId,
+          jobId: job?.id,
+        ),
+        fields: () => {'status': message.status.name},
+      );
+    }
     _syncInFlight(chatId);
     _onCancelled?.call(
       OutgoingCancelled(
@@ -921,6 +964,118 @@ final class ChatOutbox<M> {
       case _OwnerAction.none:
         break;
     }
+  }
+
+  // --- Retry and delete ------------------------------------------------------
+
+  /// Retries the failed message [clientMessageId] of [chatId] (the message
+  /// menu's Retry): its job repeats only what failed, and its row joins the
+  /// end of the sending rows, above the rows still failed, as the job joins
+  /// the end of the chat's ordering group.
+  ///
+  /// | Failed at | Repeats |
+  /// | --- | --- |
+  /// | prepare | the preparation of each failed item |
+  /// | upload | each failed upload, from the parts it journaled |
+  /// | publish | the publish alone, with the same client message id; nothing uploads |
+  ///
+  /// A denied message retries as any other: the server answers again (a
+  /// host whose platform offers only Delete for a denial does not show
+  /// Retry). A message restored with a payload the codec cannot read is not
+  /// retried ([OutgoingRetryOutcome.undecodable]): only [delete] helps it.
+  ///
+  /// [sources] is the host's way back from a lost source
+  /// (`OutgoingFailure.sourceLost`, a web reload that kept no copy of a
+  /// file): the host asks the user for the file again and passes its bytes
+  /// by item id, and each such item uploads again from zero. Throws an
+  /// [ArgumentError] for an id that is not one of the message's items.
+  ///
+  /// Guarded against a burst: once a retry is accepted, another changes
+  /// nothing ([OutgoingRetryOutcome.dropped]) until the message fails again.
+  /// Reports `retried`, `tailRebased` (reason `retry`) or `actionDropped`.
+  OutgoingRetryOutcome retry(
+    String chatId,
+    String clientMessageId, {
+    Map<MediaItemId, SourceBytes> sources = const {},
+  }) {
+    _checkNotDisposed();
+    final key = (chatId, clientMessageId);
+    if (_$retriesAccepted[key] case final accepted?) {
+      _reportDropped(chatId, clientMessageId, null, 'retry', accepted);
+      return OutgoingRetryOutcome.dropped;
+    }
+    final message = switch (_projection.lookup(chatId, clientMessageId)) {
+      final message? => _current(message),
+      null => null,
+    };
+    if (message == null) return OutgoingRetryOutcome.unknown;
+    if (_projection.isUndecodable(chatId, clientMessageId)) {
+      return OutgoingRetryOutcome.undecodable;
+    }
+    if (message.status is! OutgoingStatus$Failed) {
+      return OutgoingRetryOutcome.notFailed;
+    }
+    for (final id in sources.keys) {
+      if (!message.items.any((item) => item.id == id)) {
+        throw ArgumentError.value(id, 'sources', 'Not an item of the message.');
+      }
+    }
+    final job = _projection.jobOf(chatId, clientMessageId);
+    if (job == null) return OutgoingRetryOutcome.unknown;
+    // The items given a source first, each from its new bytes; then whatever
+    // else failed, which a job failed by those items alone no longer has.
+    var reopened = false;
+    for (final MapEntry(key: id, value: source) in sources.entries) {
+      reopened =
+          _transfers.retryItem(job.id, '$id', source: source) || reopened;
+    }
+    reopened = _transfers.retry(job.id) || reopened;
+    if (!reopened) return OutgoingRetryOutcome.unknown;
+    _$retriesAccepted[key] = _now();
+    _$retries++;
+    final stage = job.stage ?? PublishStage.publish;
+    // The job's stage at once, not at its next snapshot: a repeat failure
+    // then reads as a new one, and the row sinks again.
+    _projection.put(
+      message.withStatus(switch (stage) {
+        PublishStage.prepare => const OutgoingStatus.preparing(),
+        PublishStage.upload => const OutgoingStatus.uploading(),
+        PublishStage.publish => const OutgoingStatus.publishing(),
+      }),
+    );
+    _$strategies[chatId]?.retry(clientMessageId);
+    ChatDiagnostics.current.emit(
+      ChatEventLevel.info,
+      ChatEventCategory.outbox,
+      OutboxOp.retried,
+      correlation: ChatCorrelation(
+        chatId: chatId,
+        clientMessageId: clientMessageId,
+        jobId: job.id,
+      ),
+      fields: () => {
+        'stage': stage.name,
+        'uploadsKept': sources.isEmpty,
+        'newSources': sources.length,
+      },
+    );
+    _syncInFlight(chatId);
+    return OutgoingRetryOutcome.retried;
+  }
+
+  /// Deletes the outgoing message [clientMessageId] of [chatId] (the
+  /// message menu's Delete, a failed message's way out): its job is
+  /// cancelled and the message becomes Absent, its row leaving the
+  /// provisional tail, as [cancel] does; the host's `onCancelled` hears of
+  /// it. A message the server accepted stays sent
+  /// ([OutgoingCancelOutcome.tooLate]), for the host to delete as any sent
+  /// message.
+  ///
+  /// Guarded against a burst as [cancel] is. Reports `cancelled` (trigger
+  /// `delete`) and `deleted`, or `cancelTooLate` or `actionDropped`.
+  OutgoingCancelOutcome delete(String chatId, String clientMessageId) {
+    _checkNotDisposed();
+    return _cancelMessage(chatId, clientMessageId, trigger: _Trigger.delete);
   }
 
   // --- Restart ---------------------------------------------------------------
@@ -1282,6 +1437,46 @@ final class ChatOutbox<M> {
         'stage': ?stage?.name,
       },
     );
+    if ((message.status, status, stage) case (
+      OutgoingStatus$Preparing() ||
+          OutgoingStatus$Uploading() ||
+          OutgoingStatus$Publishing(),
+      OutgoingStatus$Failed(:final failure),
+      final stage?,
+    )) {
+      _failed(message, failure, stage, job);
+    }
+  }
+
+  /// [message]'s job failed at [stage] for [failure]: its row sinks below
+  /// every sending row, and a retry of it may be accepted again. Reports
+  /// `failed`.
+  void _failed(
+    OutgoingMessage message,
+    OutgoingFailure failure,
+    PublishStage stage,
+    PublishJobSnapshot job,
+  ) {
+    final OutgoingMessage(:chatId, :clientMessageId) = message;
+    _$retriesAccepted.remove((chatId, clientMessageId));
+    _$strategies[chatId]?.fail(clientMessageId);
+    ChatDiagnostics.current.emit(
+      ChatEventLevel.warning,
+      ChatEventCategory.outbox,
+      OutboxOp.failed,
+      correlation: ChatCorrelation(
+        chatId: chatId,
+        clientMessageId: clientMessageId,
+        jobId: job.id,
+      ),
+      fields: () => {
+        'reason': failure.name,
+        'stage': stage.name,
+        'itemsFailed': job.items
+            .where((item) => item.state is PublishItemState$Failed)
+            .length,
+      },
+    );
   }
 
   void _syncInFlight(String chatId) {
@@ -1388,6 +1583,7 @@ final class ChatOutbox<M> {
         accepted: _$accepted,
         rebases: strategy?.rebases ?? const {},
         conflicts: _$publishCounters.conflicts,
+        retries: _$retries,
         cancels: _$cancels,
         itemsDropped: _$droppedItems,
         cancelsTooLate: _$tooLate + _$publishCounters.cancelsTooLate,
@@ -1447,6 +1643,9 @@ enum _Trigger {
   /// A cell's status control cancelled an item's upload, which the engine
   /// took out of the job.
   statusControl,
+
+  /// The message menu's delete (a failed message's way out).
+  delete,
 }
 
 /// What the outbox does with a job that lost its last item.

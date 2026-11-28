@@ -104,6 +104,22 @@ this package is pre-1.0.
 - `OutboxTransfers.payloadOf`, read from the engine's `PublishJob.payload`;
   `FakeOutboxTransfers.seed` for a job as the journal holds it.
 - The snapshot's restores count. `OutboxOp`: `restored`, `foreignJob`.
+- Failed messages: a job that fails sinks its row below every sending row
+  (`OutgoingIdStrategy.fail`), the failed rows in creation order, and
+  reports `failed` with the closed reason, the stage and the failed items.
+- `ChatOutbox.retry(chatId, id, {sources})`: the job repeats only what
+  failed (journaled uploads kept; a publish failure publishes again only)
+  and the row joins the end of the sending rows. `sources` gives a lost
+  source's bytes again. A denied message retries as any other; one whose
+  payload did not decode answers `undecodable`. Answers
+  `OutgoingRetryOutcome`; a burst retries once until the message fails
+  again.
+- `ChatOutbox.delete(chatId, id)`: cancels the job and makes the message
+  Absent, as `cancel` does, trigger `delete`; a burst deletes once.
+- `OutboxTransfers.retry` and `retryItem`; `FakeOutboxTransfers` records
+  them (`retried`, `retriedItems`).
+- The snapshot's `retries` counter. `OutboxOp`: `failed`, `retried`,
+  `deleted`; `actionDropped` takes `retry` and `delete`.
 
 ### Changed
 

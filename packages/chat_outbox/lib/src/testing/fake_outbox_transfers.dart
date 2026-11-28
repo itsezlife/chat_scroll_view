@@ -36,6 +36,12 @@ import 'package:mpx_transfer/mpx_transfer.dart';
 /// what it has left; each is recorded ([cancelled], [removedItems],
 /// [committed]). [cancelUpload] drops an item as the status control's
 /// cancel of its upload does, which the owner reads from the jobs.
+///
+/// [retry] takes a failed job back to the stage it failed at, its failed
+/// items `waiting` again and every other item as it was, so a job failed at
+/// publish publishes again (its publisher called once more, nothing
+/// uploaded); [retryItem] does so for one failed item, keeping the source
+/// it is given. Both are recorded ([retried], [retriedItems]).
 final class FakeOutboxTransfers implements OutboxTransfers {
   /// A fake with no jobs.
   FakeOutboxTransfers();
@@ -231,6 +237,69 @@ final class FakeOutboxTransfers implements OutboxTransfers {
     setState(id, const PublishJobState.publishing());
     return true;
   }
+
+  /// The jobs the owner retried through [retry], in order.
+  List<PublishJobId> get retried => List.unmodifiable(_$retried);
+
+  /// The items the owner retried through [retryItem], in order, as (job,
+  /// item id, the source given).
+  List<(PublishJobId, String, SourceBytes?)> get retriedItems =>
+      List.unmodifiable(_$retriedItems);
+
+  final List<PublishJobId> _$retried = [];
+  final List<(PublishJobId, String, SourceBytes?)> _$retriedItems = [];
+
+  @override
+  bool retry(PublishJobId id) {
+    final index = _jobs.indexWhere((job) => job.id == id);
+    if (index < 0) return false;
+    final job = _jobs[index];
+    final failedItems = {
+      for (final item in job.items)
+        if (item.state case PublishItemState$Failed()) item.itemId,
+    };
+    final stage = switch (job.state) {
+      PublishJobState$Failed(:final stage) => stage,
+      _ when failedItems.isNotEmpty => PublishStage.upload,
+      _ => null,
+    };
+    if (stage == null) return false;
+    _$retried.add(id);
+    _reopen(id, stage, failedItems);
+    return true;
+  }
+
+  @override
+  bool retryItem(PublishJobId id, String itemId, {SourceBytes? source}) {
+    final index = _jobs.indexWhere((job) => job.id == id);
+    if (index < 0) return false;
+    final job = _jobs[index];
+    if (job.state case PublishJobState$Completed()) return false;
+    final item = job.items.where((item) => item.itemId == itemId).firstOrNull;
+    final stage = switch (item?.state) {
+      PublishItemState$Failed(:final stage) => stage,
+      _ => null,
+    };
+    if (stage == null) return false;
+    _$retriedItems.add((id, itemId, source));
+    _reopen(id, stage, {itemId});
+    return true;
+  }
+
+  /// Takes job [id] back to [stage], items [itemIds] waiting again.
+  void _reopen(PublishJobId id, PublishStage stage, Set<String> itemIds) =>
+      setState(
+        id,
+        switch (stage) {
+          PublishStage.prepare => const PublishJobState.preparing(),
+          PublishStage.upload => const PublishJobState.uploading(),
+          PublishStage.publish => const PublishJobState.publishing(),
+        },
+        items: {
+          for (final itemId in itemIds)
+            itemId: const PublishItemState.waiting(),
+        },
+      );
 
   /// Takes item [itemId] out of job [id]: the last one leaves the job
   /// waiting for its owner, unless its publisher runs (the engine shows a

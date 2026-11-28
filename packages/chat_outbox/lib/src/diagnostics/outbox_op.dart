@@ -137,7 +137,8 @@ enum OutboxOp implements DiagnosticOp {
   /// (info): `trigger` (`menu`; `onlyItem`, the cross on its only item with
   /// no text; `lastItemNoText`, the cross on the last item left of an album
   /// with no text; `statusControl`, a cell's cancel of the last item's
-  /// upload with no text) and `stage`, the job's stage at the cancel
+  /// upload with no text; `delete`, the menu's delete, followed by
+  /// `deleted`) and `stage`, the job's stage at the cancel
   /// (`prepare`, `upload`, `publish`) or the status it read (`failed`).
   cancelled,
 
@@ -158,8 +159,8 @@ enum OutboxOp implements DiagnosticOp {
   awaitingOwner,
 
   /// An action on a message was dropped by its input guard (debug):
-  /// `action` (`cancel`), `msSinceAccepted`, the time since the one it
-  /// repeats was accepted.
+  /// `action` (`cancel`, `retry`, `delete`), `msSinceAccepted`, the time
+  /// since the one it repeats was accepted.
   actionDropped,
 
   /// A chat's outgoing messages were read back from the engine's jobs after
@@ -173,4 +174,22 @@ enum OutboxOp implements DiagnosticOp {
   /// holding `:`; `itemId`, an item id that is no media item id's string
   /// form); the job's id in the ids, never its tag.
   foreignJob,
+
+  /// An outgoing message's job failed, and its row sank below every sending
+  /// row (warning): `reason` (`network`, `rejected`, `denied`,
+  /// `sourceLost`, `tooLarge`, `unknown`; never a rejection's code),
+  /// `stage` (`prepare`, `upload`, `publish`) and `itemsFailed`, the job's
+  /// items that failed.
+  failed,
+
+  /// The user retried a failed message, and its row joined the end of the
+  /// sending rows (info): `stage` repeated (`prepare`, `upload`,
+  /// `publish`), `uploadsKept` (false when the host gave a source again)
+  /// and `newSources`, the items given one.
+  retried,
+
+  /// The user deleted an outgoing message, which is Absent (info): `status`
+  /// it had at the delete. The `cancelled` event of its job, trigger
+  /// `delete`, comes just before.
+  deleted,
 }

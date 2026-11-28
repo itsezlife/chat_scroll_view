@@ -169,7 +169,8 @@ sealed class OutgoingFailure {
       OutgoingFailure$Denied;
 
   /// A media source is gone (on the web, a file a reload could not keep);
-  /// the host may ask for the file again.
+  /// the host may ask the user for the file again and pass its bytes to the
+  /// outbox's retry (`ChatOutbox.retry(..., sources:)`).
   const factory OutgoingFailure.sourceLost() = OutgoingFailure$SourceLost;
 
   /// A media item is larger than the server takes.

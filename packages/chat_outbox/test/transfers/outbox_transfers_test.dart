@@ -244,6 +244,45 @@ void main() {
         expect(job.state, isA<PublishJobState$Completed>());
         expect(transfers.commit(id), isFalse);
       });
+
+      test('retry of a job failed at publish publishes again with the same '
+          'idempotency key, and answers false for a job not failed', () async {
+        final transfers = await open();
+        final publisher = FakePublisher()
+          ..answerWith(
+            const PublishOutcome.rejected(reason: 'busy', retryable: true),
+          );
+        transfers.registerPublisher(ChatOutbox.publisherId, publisher);
+        final id = transfers.publish(albumOf('chat:c1:a', ['a:0']));
+        expect(
+          (await settled(transfers, id)).state,
+          isA<PublishJobState$Failed>(),
+        );
+
+        expect(transfers.retry(id), isTrue);
+        final job = await settled(transfers, id);
+
+        expect(publisher.calls, hasLength(2));
+        expect(publisher.calls.last.idempotencyKey, 'chat:c1:a');
+        expect(job.state, isA<PublishJobState$Completed>());
+        expect(transfers.retry(id), isFalse);
+        expect(transfers.retry(const PublishJobId.parse('none')), isFalse);
+      });
+
+      test('retryItem answers false for an item that has not failed', () async {
+        final transfers = await open();
+        final id = transfers.publish(albumOf('chat:c1:a', ['a:0']));
+        await pumpEventQueue();
+
+        expect(
+          transfers.retryItem(
+            id,
+            'a:0',
+            source: SourceBytes.memory(Uint8List(1)),
+          ),
+          isFalse,
+        );
+      });
     });
   }
 }
