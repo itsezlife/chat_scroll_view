@@ -2,7 +2,7 @@ import 'package:http_bytes_cache/http_bytes_cache.dart';
 import 'package:mpx/mpx.dart';
 import 'package:mpx_capture/mpx_capture.dart';
 import 'package:mpx_core/mpx_core.dart';
-import 'package:mpx_player/native.dart';
+import 'package:mpx_player/mpx_player.dart';
 
 /// The camera's captures as media: each shot is kept in the capture
 /// cache's bytes store under its `MediaKey.local`, so the asset cache reads
