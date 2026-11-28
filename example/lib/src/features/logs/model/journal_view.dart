@@ -61,6 +61,14 @@ final class JournalFilter {
     ids: {JournalIdKind.scrollId: scrollId},
   );
 
+  /// The records of the outgoing message with [clientMessageId], every
+  /// level and category: "logs of this message" for a message the user
+  /// sent from this device, whose row moves between scroll ids.
+  factory JournalFilter.ofOutgoing(String clientMessageId) => JournalFilter(
+    levels: ChatEventLevel.values.toSet(),
+    ids: {JournalIdKind.clientMessageId: clientMessageId},
+  );
+
   /// Levels that pass.
   final Set<ChatEventLevel> levels;
 

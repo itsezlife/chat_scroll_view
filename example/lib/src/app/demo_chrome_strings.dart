@@ -355,3 +355,36 @@ const _months = [
   'Ноябрь',
   'Декабрь',
 ];
+
+/// The demo's strings for its outgoing messages' transfers: the system
+/// envelope's notification (`TransferEnvelopeConfig`) and the prompt that
+/// asks for a file whose upload source was lost.
+abstract final class DemoTransferStrings {
+  /// The envelope notification's title; it also names its channel.
+  static const String envelopeTitle = 'Отправка медиа';
+
+  /// The envelope notification's text.
+  static const String envelopeText = 'Отправка продолжится в фоне.';
+
+  /// The envelope's "cancel all" action.
+  static const String cancelAll = 'Отменить все';
+
+  /// The envelope's progress line: how many uploads are left.
+  static String uploadsLeft(int count) =>
+      'Осталось $count '
+      '${RussianPlural.wordOf(count, 'отправка', 'отправки', 'отправок')}';
+
+  /// The prompt's title when an upload's file is gone.
+  static const String sourceLostTitle = 'Файл недоступен';
+
+  /// The prompt's text.
+  static const String sourceLostMessage =
+      'Страница перезагрузилась, и файл больше недоступен. Выберите его '
+      'снова, чтобы отправить сообщение.';
+
+  /// The prompt's action that opens the file dialog.
+  static const String pickFile = 'Выбрать файл';
+
+  /// The prompt's cancel.
+  static const String cancel = 'Отмена';
+}

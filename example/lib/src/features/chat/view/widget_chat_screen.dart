@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer' as dev;
 
+import 'package:attach_model/attach_model.dart' show AttachItemId, PlannedSend;
 import 'package:attach_sheet/attach_sheet.dart' show AttachDropOverlay;
 import 'package:bulletins/bulletins.dart';
 import 'package:chat_capabilities/chat_capabilities.dart';
@@ -38,6 +39,8 @@ import 'package:chat_scroll_view_example/src/features/chat/input/chat_confirm_bo
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_outgoing_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_pack_sheets.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outbox.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/fake_server_script_sheet.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_bulletins.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart';
@@ -103,7 +106,7 @@ import 'package:http/http.dart' as http;
 import 'package:listen/listen.dart' as listen;
 import 'package:message_media/message_media.dart';
 import 'package:mpx_core/mpx_core.dart'
-    show MediaLoadingStyleScope, MediaStageStyle;
+    show MediaLoadingStyleScope, MediaStageStyle, PreparedMedia;
 import 'package:panel_presentation/panel_presentation.dart';
 import 'package:viewport_scroll/viewport_scroll.dart' show ViewportScrollRouter;
 
@@ -184,7 +187,16 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   /// What the chat's media items remember while it is open (a revealed
   /// spoiler, where each item is on screen): one per chat, above the list,
   /// so leaving the chat and coming back hides the spoilers again.
-  final MessageMediaState _mediaState = MessageMediaState();
+  /// Its outgoing items fly in from the picker's thumbnails: each origin
+  /// is the outbox's, taken once.
+  late final MessageMediaState _mediaState = MessageMediaState(
+    sendOrigin: widget.services.outbox.outbox.takeSendOrigin,
+  );
+
+  /// The chat's outbox binding: its sends, the server's messages delivered
+  /// into the chat, and the message source it keeps for the app's run.
+  /// Null for a chat whose own backend sends.
+  DemoOutboxChat? _outboxChat;
 
   /// The transport the link previews are fetched through; closed with the
   /// screen.
@@ -311,6 +323,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     composer: _input.composer,
     bulletins: _bulletins,
     send: _sendInChat,
+    sendPlanned: _sendPlanned,
     chatTitle: widget.title,
     capabilities: _rights.attach,
     yieldKeyboard: _input.yieldKeyboardToPanel,
@@ -770,13 +783,21 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     if (_dataSource case final BackendChatDataSource source) {
       source.removeReconnectGapListener(_onReconnectGap);
     }
-    _dataSource?.dispose();
+    _outboxChat?.detach();
+    _disposeOwnSource();
     _messageMenu = null;
     _bulletinObstruction?.dispose();
     _attach.dispose();
     _rights.dispose();
     _bulletins.dispose();
     super.dispose();
+  }
+
+  /// Frees the message source unless the outbox's binding keeps it.
+  void _disposeOwnSource() {
+    final source = _dataSource;
+    if (source == null || (_outboxChat?.holds(source) ?? false)) return;
+    source.dispose();
   }
 
   /// Makes the unread boundary pending where a realtime reconnect may have
@@ -797,18 +818,36 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       // final backend = await BackendChatDataSource.connect(
       //   client: Supabase.instance.client,
       // );
-      final backend = await (widget.dataSourceLoader ?? _loadDemoChat)();
+      // A chat the outbox sends for keeps its source in the outbox's binding
+      // across opens: its outgoing rows and sent messages are there.
+      final outboxChat = widget.services.outbox.chat(widget.chatId);
+      final backend =
+          outboxChat.source ??
+          await (widget.dataSourceLoader ?? _loadDemoChat)();
 
       // The screen may have been popped while `load()` was in flight. The
       // `dispose()` above already ran with `_dataSource == null`, so we
       // would otherwise assign the newly-loaded source into the dead State
       // and never free it.
       if (!mounted) {
-        backend.dispose();
+        if (!outboxChat.holds(backend)) backend.dispose();
         return;
       }
-      // Owned from here on: `dispose()` and the catch below free it.
+      // Owned from here on: `dispose()` and the catch below free it, unless
+      // the outbox's binding holds it.
       _dataSource = backend;
+      if (backend is! BackendChatDataSource) {
+        _outboxChat = outboxChat;
+        _rights.followSendInFlight(outboxChat.sendInFlight);
+        // Messages an earlier run left sending come back first.
+        await outboxChat.attach(
+          backend,
+          capabilities: _rights.capabilities,
+          denialText: _rights.denialText,
+          onDenied: _rights.showDenied,
+        );
+        if (!mounted) return;
+      }
       // An edit ends when its message is deleted.
       _input.bindMessages(backend);
       // The composer keeps this chat's unsent text; a chat that does not
@@ -943,7 +982,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       _unreadBoundary?.dispose();
       _unreadBoundary = null;
       _readingPositionKnown = false;
-      _dataSource?.dispose();
+      _disposeOwnSource();
       _dataSource = null;
       _messageMenu = null;
       _errorMessage = error.toString();
@@ -987,11 +1026,16 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
 
   /// Opens the Logs screen on the events of the message with [messageId],
   /// the chat's capabilities at its top.
+  /// An outgoing message's records follow its client message id, which
+  /// stays the same while its row moves.
   void _openMessageLogs(int messageId) => unawaited(
     Navigator.of(context).push(
       JournalPage.route(
         journal: widget.services.journal,
-        filter: JournalFilter.ofMessage('$messageId'),
+        filter: switch (_outboxChat?.clientMessageIdAt(messageId)) {
+          final clientMessageId? => JournalFilter.ofOutgoing(clientMessageId),
+          null => JournalFilter.ofMessage('$messageId'),
+        },
         capabilities: _rights.capabilities,
       ),
     ),
@@ -1069,10 +1113,52 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   /// Sends [text] as one send of the chat: in slow mode the next send waits
   /// an interval, and this one is pending until it lands. [payload] is the
   /// rest of the message (its link preview, `invertMedia`).
+  ///
+  /// A chat the outbox sends for sends through it: its row shows at once
+  /// and the outbox's own checks hold a send slow mode refuses.
   Future<void> _sendInChat(
     String text, {
     Map<String, Object?> payload = const {},
-  }) => _rights.send(() => _handleSendMessage(text, payload: payload));
+  }) async {
+    if (_outboxChat case final chat?) {
+      _sent(chat.sendText(text, extras: payload) != null);
+      return;
+    }
+    return _rights.send(() => _handleSendMessage(text, payload: payload));
+  }
+
+  /// Sends the attach sheet's plan through the outbox, or each text as a
+  /// message where the chat's backend sends.
+  void _sendPlanned(
+    List<PlannedSend> sends, {
+    required List<String> bodies,
+    required Map<AttachItemId, PreparedMedia> prepared,
+    required List<List<Rect?>> origins,
+  }) {
+    if (_outboxChat case final chat?) {
+      final messages = chat.sendPlanned(
+        sends,
+        bodies: bodies,
+        prepared: prepared,
+        origins: origins,
+      );
+      _sent(messages.any((message) => message != null));
+      return;
+    }
+    unawaited(() async {
+      for (final body in bodies) {
+        await _sendInChat(body);
+      }
+    }());
+  }
+
+  // A send the outbox accepted starts slow mode's wait and clears the unread
+  // boundary of the open it was sent from.
+  void _sent(bool accepted) {
+    if (!accepted) return;
+    _rights.startInterval();
+    _unreadBoundary?.clear();
+  }
 
   /// Sends what the composer produced: its body, and its link preview and
   /// `invertMedia` as the message's payload, which the demo sources keep
@@ -1080,19 +1166,17 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   Future<void> _sendComposed(ChatOutgoingMessage message) =>
       _sendInChat(message.body, payload: message.toJson()..remove('body'));
 
-  /// Sends [text] as the signed-in user. A send that succeeds clears the
-  /// unread boundary of the open it was sent from, whether or not the tail
-  /// holding the sent message is loaded. The backend keeps the body alone.
+  /// Sends [text] as the signed-in user through the chat's backend (the
+  /// other sources send through the outbox). A send that succeeds clears
+  /// the unread boundary of the open it was sent from, whether or not the
+  /// tail holding the sent message is loaded. The backend keeps the body
+  /// alone.
   Future<void> _handleSendMessage(
     String text, {
     Map<String, Object?> payload = const {},
   }) async {
     final boundary = _unreadBoundary;
     switch (_dataSource) {
-      case final CommentsDataSource ds:
-        ds.sendMessage(sender: _demoSender, content: text, payload: payload);
-      case final GeneratedChatDataSource ds:
-        ds.sendMessage(sender: _demoSender, content: text, payload: payload);
       case final BackendChatDataSource ds:
         try {
           await ds.sendMessage(text);
@@ -1806,6 +1890,21 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                       onPressed: _openNotes,
                       icon: const Icon(Icons.checklist, size: 20),
                     ),
+                    if (kDebugMode && _outboxChat != null) ...[
+                      const SizedBox(width: 4),
+                      IconButton.filledTonal(
+                        key: FakeServerScriptSheet.openKey,
+                        tooltip: 'Fake server',
+                        onPressed: () => unawaited(
+                          FakeServerScriptSheet.show(
+                            context,
+                            server: widget.services.outbox.server,
+                            chatId: widget.chatId,
+                          ),
+                        ),
+                        icon: const Icon(Icons.dns_outlined, size: 20),
+                      ),
+                    ],
                     if (kDebugMode) ...[
                       const SizedBox(width: 4),
                       IconButton.filledTonal(

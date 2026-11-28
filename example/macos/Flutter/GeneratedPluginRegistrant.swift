@@ -13,6 +13,7 @@ import mpx
 import mpx_capture
 import mpx_core
 import mpx_player
+import mpx_transfer
 import rich_clipboard
 import share_plus
 import shared_preferences_foundation
@@ -28,6 +29,7 @@ func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
   MpxCapturePlugin.register(with: registry.registrar(forPlugin: "MpxCapturePlugin"))
   MpxCorePlugin.register(with: registry.registrar(forPlugin: "MpxCorePlugin"))
   MpxPlayerPlugin.register(with: registry.registrar(forPlugin: "MpxPlayerPlugin"))
+  MpxTransferPlugin.register(with: registry.registrar(forPlugin: "MpxTransferPlugin"))
   RichClipboardPlugin.register(with: registry.registrar(forPlugin: "RichClipboardPlugin"))
   SharePlusMacosPlugin.register(with: registry.registrar(forPlugin: "SharePlusMacosPlugin"))
   SharedPreferencesPlugin.register(with: registry.registrar(forPlugin: "SharedPreferencesPlugin"))
