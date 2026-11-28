@@ -43,6 +43,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show BrowserContextMenu;
 import 'package:http_bytes_cache/http_bytes_cache.dart' show BytesDiagnostics;
 import 'package:l/l.dart';
+import 'package:mpx/mpx.dart' show CacheDiagnosticsBridge;
+import 'package:mpx_core/mpx_core.dart' show MpxDiagnostics;
 import 'package:mpx_ui/mpx_ui.dart'
     show ViewerBackdropScope, ViewerBackdropZoom;
 import 'package:panel_presentation/panel_presentation.dart';
@@ -111,11 +113,10 @@ Future<ChatDataSource> _loadCommentsWithShowcase() =>
     CommentsDataSource.load(tailBodies: ShowcaseBodies.all);
 
 // The diagnostics journal, first, so every later step's events are in it:
-// every chat package's events through `ChatDiagnostics.current`, the bytes
-// cache's through `BytesDiagnostics.current`. The media side's
-// `MpxDiagnostics` joins here once the mpx pin carries it (the mpx-transfers
-// MpxDiagnostics contract, issue 30), through a bridge into
-// `JournalSource.media` records. The journal lives as long as the process.
+// every chat package's events through `ChatDiagnostics.current`, the media
+// side's through `MpxDiagnostics.current` as `JournalSource.media` records,
+// and the bytes cache's bridged into the media side's (`CacheDiagnosticsBridge`,
+// category `cache`). The journal lives as long as the process.
 //
 // A store that cannot open leaves the journal in memory for this run: the
 // logs are a tool, and a full disk must not stop the app starting.
@@ -134,7 +135,8 @@ Future<DiagnosticsJournal> _openJournal() async {
   }
   final journal = DiagnosticsJournal(store: store);
   ChatDiagnostics.current = journal.chatDiagnostics;
-  BytesDiagnostics.current = journal.bytesDiagnostics;
+  MpxDiagnostics.current = journal.mediaDiagnostics;
+  BytesDiagnostics.current = CacheDiagnosticsBridge.policy;
   // Restored behind the boot: what arrives meanwhile goes after it.
   unawaited(journal.restore());
   return journal;

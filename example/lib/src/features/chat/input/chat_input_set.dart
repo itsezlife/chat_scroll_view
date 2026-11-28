@@ -18,12 +18,14 @@ import 'package:chat_scroll_view_example/src/common/ime_sample_feed.dart';
 import 'package:chat_scroll_view_example/src/common/lab_media_trace.dart';
 import 'package:chat_scroll_view_example/src/common/soft_keyboard_port.dart';
 import 'package:chat_scroll_view_example/src/features/chat/capabilities/chat_panel_availability.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/address_link_preview_resolver.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_draft_store.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_directory.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_draft_sync.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_format_offer.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_link_preview.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/chat_outgoing_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/composer_panel_field.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/emoji_panel_page.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/media_panel_pages.dart';
@@ -45,8 +47,9 @@ import 'package:listen/listen.dart' as listen;
 import 'package:panel_presentation/panel_presentation.dart';
 import 'package:panel_shell/panel_shell.dart';
 
-/// What the screen does with what the input set produces.
-typedef ChatBodySender = Future<void> Function(String body);
+/// What the screen does with what the input set produces: a message's body
+/// and, from the composer, its link preview fields.
+typedef ChatBodySender = Future<void> Function(ChatOutgoingMessage message);
 
 /// Saves the edited [body] of message [id].
 typedef ChatBodyEditor = Future<void> Function(int id, String body);
@@ -141,7 +144,10 @@ final class ChatInputSet {
   /// denials go to [capabilityFeedback] under [chatId]; with them the
   /// message length is the capabilities' unless [messageLengthLimit] names
   /// one, and the sticker and GIF pages follow them, their attempts going to
-  /// [panelFeedback] (the composer's feedback when null).
+  /// [panelFeedback] (the composer's feedback when null). Link previews
+  /// are looked up through [linkPreviewResolver] (the address alone by
+  /// default), dismissed under [linkPreviewDismissal] (the platform's
+  /// policy by default), and a tap on the strip goes to [onLinkPreviewOpen].
   factory ChatInputSet({
     required AppServices services,
     required FlutterView view,
@@ -161,6 +167,10 @@ final class ChatInputSet {
     CapabilityFeedback? panelFeedback,
     String? chatId,
     ComposerPanelActionResolver? accessAction,
+    LinkPreviewResolver linkPreviewResolver =
+        const AddressLinkPreviewResolver(),
+    LinkPreviewDismissalPolicy? linkPreviewDismissal,
+    ComposerLinkPreviewOpen? onLinkPreviewOpen,
   }) {
     // What has been made so far, to free in reverse if a later step throws
     // (a constructor assertion, a keyboard that cannot be read): a half-built
@@ -336,6 +346,15 @@ final class ChatInputSet {
         presentation: presentation,
         playbackHold: playbackHold,
         insets: insets,
+        chatId: chatId,
+        linkPreviewResolver: linkPreviewResolver,
+        linkPreviewDismissal:
+            linkPreviewDismissal ??
+            LinkPreviewDismissalPolicy.forPlatform(
+              defaultTargetPlatform,
+              isWeb: kIsWeb,
+            ),
+        onLinkPreviewOpen: onLinkPreviewOpen,
       );
     } on Object {
       for (final undo in unwind.reversed) {
@@ -373,6 +392,10 @@ final class ChatInputSet {
     required this.presentation,
     required PanelPlaybackHold playbackHold,
     required this.insets,
+    required String? chatId,
+    required LinkPreviewResolver linkPreviewResolver,
+    required LinkPreviewDismissalPolicy linkPreviewDismissal,
+    required this.onLinkPreviewOpen,
   }) : _messageLengthLimit = messageLengthLimit,
        _pageAvailability = pageAvailability,
        _frames = frames,
@@ -389,7 +412,13 @@ final class ChatInputSet {
        _selection = selection,
        _window = window,
        _text = text,
-       linkPreview = ChatLinkPreview(text: text) {
+       linkPreview = ChatLinkPreview(
+         text: text,
+         resolver: linkPreviewResolver,
+         policy: linkPreviewDismissal,
+         correlation: () => ChatCorrelation(chatId: chatId),
+         capabilities: capabilities,
+       ) {
     ImeSampleFeed? feed;
     StreamSubscription<PanelEvent>? panelEvents;
     KeyboardPanelDock? dock;
@@ -477,6 +506,11 @@ final class ChatInputSet {
   /// The link the composer's header offers a preview of, read from the typed
   /// text.
   final ChatLinkPreview linkPreview;
+
+  /// The host's answer to a tap on the link preview strip, with the strip's
+  /// global rect; null leaves the strip inert. (The draft options overlay
+  /// opens here once it exists.)
+  final ComposerLinkPreviewOpen? onLinkPreviewOpen;
 
   /// The keyboard-replacement strategy (mobile).
   final KeyboardReplacementStrategy keyboardStrategy;
@@ -760,6 +794,7 @@ final class ChatInputSet {
       composer: composer,
       editing: _editing,
       editingId: () => _editing.value?.id,
+      linkPreview: linkPreview,
       saved: stored,
     );
   }
@@ -797,6 +832,8 @@ final class ChatInputSet {
     if (draft.editing case final id?) {
       _editing.value = ChatEditTarget(id: id, preview: text.plain);
     }
+    // After the text: its arrival is an edit the dismissal would read.
+    if (!draft.linkPreview.isEmpty) linkPreview.restore(draft.linkPreview);
   }
 
   /// Leaves edit mode and empties the composer.
@@ -827,12 +864,19 @@ final class ChatInputSet {
       if (target != null) {
         await _edit(target.id, body);
       } else {
-        await _send(body);
+        await _send(
+          ChatOutgoingMessage(
+            body: body,
+            linkPreview: linkPreview.outgoing,
+            invertMedia: linkPreview.invertMedia,
+          ),
+        );
       }
       if (_disposed) return;
       // The draft is a message now: drop its record before the emptied
       // composer would be written as one.
       _draftSync?.discard();
+      linkPreview.sent();
       composer.clear();
       _editing.value = null;
     } finally {
@@ -1197,7 +1241,7 @@ final class ChatInputSet {
   // so a failure is reported to the framework, not shown twice, and not lost.
   Future<void> _sendPicked(String body) async {
     try {
-      await _send(body);
+      await _send(ChatOutgoingMessage(body: body));
     } on Object catch (error, stack) {
       FlutterError.reportError(
         FlutterErrorDetails(

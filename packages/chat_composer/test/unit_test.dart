@@ -21,6 +21,8 @@ import 'input/composer_field_integration_test.dart'
 import 'input/composer_lists_paste_test.dart' as composer_lists_paste_test;
 import 'input/composer_mentions_test.dart' as composer_mentions_test;
 import 'input/composer_paste_report_test.dart' as composer_paste_report_test;
+import 'link_preview/link_preview_dismissal_test.dart'
+    as link_preview_dismissal_test;
 import 'menu/composer_menu_hints_test.dart' as composer_menu_hints_test;
 import 'menu/composer_menu_policy_test.dart' as composer_menu_policy_test;
 import 'menu/composer_pointer_menu_items_test.dart'
@@ -66,6 +68,8 @@ import 'view/composer_formatting_shortcuts_test.dart'
     as composer_formatting_shortcuts_test;
 import 'view/composer_golden_test.dart' as composer_golden_test;
 import 'view/composer_length_budget_test.dart' as composer_length_budget_test;
+import 'view/composer_link_preview_strip_test.dart'
+    as composer_link_preview_strip_test;
 import 'view/composer_list_gutter_golden_test.dart'
     as composer_list_gutter_golden_test;
 import 'view/composer_lists_field_test.dart' as composer_lists_field_test;
@@ -115,6 +119,10 @@ void main() {
   group(
     'input/composer_paste_report_test.dart',
     composer_paste_report_test.main,
+  );
+  group(
+    'link_preview/link_preview_dismissal_test.dart',
+    link_preview_dismissal_test.main,
   );
   group('menu/composer_menu_hints_test.dart', composer_menu_hints_test.main);
   group('menu/composer_menu_policy_test.dart', composer_menu_policy_test.main);
@@ -204,6 +212,10 @@ void main() {
   group(
     'view/composer_length_budget_test.dart',
     composer_length_budget_test.main,
+  );
+  group(
+    'view/composer_link_preview_strip_test.dart',
+    composer_link_preview_strip_test.main,
   );
   group(
     'view/composer_list_gutter_golden_test.dart',

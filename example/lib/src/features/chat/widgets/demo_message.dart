@@ -3,13 +3,16 @@ import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_media_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/document_embed.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_emoji_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_markdown_theme.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_media_bubble.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message_meta.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_row_hover.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/message_row_frame.dart';
+import 'package:chrome_foundation/chrome_foundation.dart' show ChromeTypography;
 import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart' show EmojiOnly;
 import 'package:flutter/material.dart';
@@ -249,6 +252,18 @@ class DemoMessageBubble extends StatelessWidget {
 
     final edited = message.updatedAt != message.createdAt;
     final bubble = switch ((emojiOnly, selection, host)) {
+      (null, final controller?, ChatBodyHost(media: final media?))
+          when message.hasMedia =>
+        _mediaBubble(
+          context,
+          host: media,
+          selection: controller,
+          markdown: markdown,
+          outgoing: outgoing,
+          sender: isFirstInRun ? message.sender : null,
+          edited: edited,
+          layout: layout,
+        ),
       (final emoji?, final controller?, final host?) => DemoEmojiMessage(
         messageId: message.id,
         emojiOnly: emoji,
@@ -290,6 +305,76 @@ class DemoMessageBubble extends StatelessWidget {
               },
             )
           : null,
+    );
+  }
+}
+
+extension on DemoMessageBubble {
+  // A message with media or a link preview: its items, card, caption,
+  // header and time in one media bubble.
+  Widget _mediaBubble(
+    BuildContext context, {
+    required ChatMediaHost host,
+    required ChatSelectionController selection,
+    required Markdown? markdown,
+    required bool outgoing,
+    required String? sender,
+    required bool edited,
+    required ChatMessageThemeData layout,
+  }) {
+    final textStyle = demoBubbleTextStyle(outgoing: outgoing);
+    final body = markdown?.markdown ?? '';
+    return DemoMediaBubble(
+      messageId: message.id,
+      items: message.media,
+      payload: switch (message) {
+        UserChatMessage(:final payload) => payload,
+        _ => const {},
+      },
+      body: body,
+      host: host,
+      createdAt: message.createdAt,
+      edited: edited,
+      isOutgoing: outgoing,
+      color: outgoing ? _kOutgoingBg : _kIncomingBg,
+      metaColor: outgoing
+          ? _kOutgoingText.withValues(alpha: 0.78)
+          : _kIncomingText.withValues(alpha: 0.55),
+      textStyle: textStyle,
+      borderRadius: ChatBubbleMetrics.bubbleBorderRadius(
+        theme: layout,
+        outgoing: outgoing,
+        run: runLayout,
+      ).resolve(Directionality.of(context)),
+      textPadding: ChatBubbleMetrics.bubbleContentPadding(
+        theme: layout,
+      ).resolve(Directionality.of(context)),
+      selection: selection,
+      caption: switch (markdown) {
+        final md? when body.trim().isNotEmpty => _RegisteredChatMdBody(
+          selection: selection,
+          messageId: message.id,
+          markdown: md,
+          textStyle: textStyle,
+          isOutgoing: outgoing,
+          embedResolver: this.host?.embedResolver,
+        ),
+        _ => null,
+      },
+      header: switch (sender) {
+        final name? when name.isNotEmpty => Text(
+          name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: ChromeTypography.of(context).copyWith(
+            color: _colorForSender(name),
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+            height: 1.15,
+          ),
+        ),
+        _ => null,
+      },
     );
   }
 }

@@ -7,7 +7,7 @@ void main() {
     const reply = ComposerHeader.reply(name: 'Ada', preview: 'hi');
     const edit = ComposerHeader.edit(preview: 'draft');
     const forward = ComposerHeader.forward(title: 'Forward', preview: '2');
-    const link = ComposerHeader.linkPreview(title: 'site', preview: 'url');
+    final link = ComposerHeader.linkPreview(url: Uri.parse('https://a.b'));
     final suggestion = ComposerHeader.suggestion(
       builder: (context) => const SizedBox(),
     );
@@ -66,7 +66,7 @@ void main() {
         const ComposerHeader.edit(preview: ''),
         const ComposerHeader.reply(name: '', preview: ''),
         const ComposerHeader.forward(title: '', preview: ''),
-        const ComposerHeader.linkPreview(title: '', preview: ''),
+        ComposerHeader.linkPreview(url: Uri.parse('https://a.b')),
         ComposerHeader.suggestion(builder: (context) => const SizedBox()),
       ].map((header) => header.priority).toList();
 

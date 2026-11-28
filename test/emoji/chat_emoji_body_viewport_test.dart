@@ -430,7 +430,8 @@ void main() {
 
       expect(ticks.isRunning, isTrue);
       for (final attempt in producer.attempts) {
-        expect(attempt.request.spec.pixelWidth, 60);
+        // 60 px on its rung.
+        expect(attempt.request.spec.pixelWidth, 64);
       }
     });
 
@@ -585,8 +586,8 @@ void main() {
 
       await pump(tester, selection, oneThumb, sticker: _pack);
 
-      // iOS: a fixed 112 pt, at 1x.
-      expect(producer.attempts.single.request.spec.pixelWidth, 112);
+      // iOS: a fixed 112 pt, at 1x, on its rung.
+      expect(producer.attempts.single.request.spec.pixelWidth, 128);
     });
   });
 

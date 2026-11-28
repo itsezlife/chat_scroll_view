@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- `ContentAssetScope.withMedia(tracked:)`: the host's `TrackedTransfers`,
+  handed to its media scope, so surfaces with a status control download in
+  tracked jobs and show an upload of the content they draw.
 - `SvgDocumentPreview`: when an SVG sent as a document shows a preview of
   its drawing, and how. It is SVG by type, else by name; its preview
   descriptor is the document as a vector image, capped at 1 MiB; it is drawn

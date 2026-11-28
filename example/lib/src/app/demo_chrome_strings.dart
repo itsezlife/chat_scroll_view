@@ -281,6 +281,27 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
     selectionPreviewTitle: 'Предпросмотр сообщения',
     closeSheet: 'Закрыть',
   ),
+  media: MediaStrings(
+    photoKind: 'Фото',
+    videoKind: 'Видео',
+    animationKind: 'GIF',
+    fileKind: 'Файл',
+    duration: _clock,
+    size: _byteSize,
+    downloadProgress: (fraction) => switch (fraction) {
+      final measured? => 'Загрузка, ${(measured * 100).round()}%',
+      null => 'Загрузка',
+    },
+    downloadAction: 'Скачать',
+    cancelDownloadAction: 'Отменить загрузку',
+    optionsAction: 'Другие действия',
+    pagePreview: 'Предпросмотр страницы',
+    fileProgress: (received, total) => '$received / $total',
+    fileInfo: (size, extension) => [?size, ?extension].join(' '),
+    fileDownload: 'СКАЧАТЬ',
+    fileOpenWith: 'ОТКРЫТЬ В',
+    fileCancel: 'ОТМЕНА',
+  ),
   semantics: SemanticsStrings(
     panelOpened: 'Панель открыта',
     panelClosed: 'Панель закрыта',
@@ -297,6 +318,28 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
     stickerPackStripLabel: 'Наборы стикеров',
   ),
 );
+
+// A playback length as a clock: `1:05`, `1:02:05`.
+String _clock(Duration duration) {
+  final seconds = duration.inSeconds;
+  final minutes = seconds ~/ 60;
+  final rest = (seconds % 60).toString().padLeft(2, '0');
+  if (minutes < 60) return '$minutes:$rest';
+  final hours = minutes ~/ 60;
+  return '$hours:${(minutes % 60).toString().padLeft(2, '0')}:$rest';
+}
+
+// A byte count: `512 Б`, `1,2 КБ`, `3,4 МБ`, `1,25 ГБ`.
+String _byteSize(int bytes) {
+  String fixed(double value, int digits) =>
+      value.toStringAsFixed(digits).replaceAll('.', ',');
+  return switch (bytes) {
+    < 1024 => '$bytes Б',
+    < 1024 * 1024 => '${fixed(bytes / 1024, 1)} КБ',
+    < 1024 * 1024 * 1024 => '${fixed(bytes / (1024 * 1024), 1)} МБ',
+    _ => '${fixed(bytes / (1024 * 1024 * 1024), 2)} ГБ',
+  };
+}
 
 const _months = [
   'Январь',

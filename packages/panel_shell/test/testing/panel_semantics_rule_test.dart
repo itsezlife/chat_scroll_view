@@ -55,6 +55,7 @@ ChromeStrings stringsWith({
       dismissAction: 'Dismiss',
     ),
     attach: ChromeStringsPresets.english.attach,
+    media: ChromeStringsPresets.english.media,
     semantics: SemanticsStrings(
       panelOpened: base.semantics.panelOpened,
       panelClosed: base.semantics.panelClosed,

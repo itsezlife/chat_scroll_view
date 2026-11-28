@@ -7,6 +7,7 @@ import 'package:chat_scroll_view_example/src/features/logs/model/journal_record.
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart' show ChangeNotifier;
 import 'package:http_bytes_cache/http_bytes_cache.dart';
+import 'package:mpx_core/mpx_core.dart' show MpxDiagnostics, MpxEvent;
 
 /// What the journal reports about itself.
 enum JournalOp implements DiagnosticOp {
@@ -28,7 +29,8 @@ enum JournalOp implements DiagnosticOp {
 /// kill are there at the next start.
 ///
 /// The host routes the policies into it once at start ([chatDiagnostics],
-/// [bytesDiagnostics]). Lines go to the store in batches, at most
+/// [mediaDiagnostics], or [bytesDiagnostics] for a bytes cache not bridged
+/// into the media side's). Lines go to the store in batches, at most
 /// [batchInterval] after they arrive; a warning or an error is written with
 /// everything before it before [add] returns, since it is the event a kill
 /// right after would otherwise take with it.
@@ -88,12 +90,18 @@ final class DiagnosticsJournal with ChangeNotifier {
   BytesDiagnostics get bytesDiagnostics =>
       BytesDiagnostics.onEvent(addBytesEvent);
 
+  /// The media side's policy, into this journal.
+  MpxDiagnostics get mediaDiagnostics => MpxDiagnostics.onEvent(addMediaEvent);
+
   /// Records a chat package's [event].
   void addChatEvent(ChatEvent event) => add(JournalRecord.fromChatEvent(event));
 
   /// Records the bytes cache's [event], stamped now.
   void addBytesEvent(BytesLogEvent event) =>
       add(JournalRecord.fromBytesEvent(event, time: _clock()));
+
+  /// Records the media side's [event].
+  void addMediaEvent(MpxEvent event) => add(JournalRecord.fromMpxEvent(event));
 
   /// Records [record], dropping the oldest past [capBytes].
   void add(JournalRecord record) {

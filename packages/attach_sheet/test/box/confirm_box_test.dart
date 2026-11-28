@@ -9,7 +9,12 @@ import 'package:content_model/testing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mpx_capture/mpx_capture.dart';
+import 'package:mpx_core/mpx_core.dart'
+    show
+        PreparationIntent,
+        PreparationIntent$Photo,
+        PreparedKind,
+        PreparedMedia;
 import 'package:mpx_library/mpx_library.dart';
 import 'package:mpx_library/testing.dart';
 

@@ -5,7 +5,13 @@ import 'package:attach_model/attach_model.dart';
 import 'package:attach_sheet/src/files/intake_items.dart';
 import 'package:flutter/foundation.dart';
 import 'package:mpx_capture/mpx_capture.dart';
-import 'package:mpx_core/mpx_core.dart' show MediaKey, MediaKey$Local;
+import 'package:mpx_core/mpx_core.dart'
+    show
+        MediaKey,
+        MediaKey$Local,
+        PreparationInput,
+        PreparationIntent,
+        PreparedMedia;
 import 'package:mpx_library/mpx_library.dart';
 
 /// Prepares one source file for an intent; [AttachPreparation.withPreparer]

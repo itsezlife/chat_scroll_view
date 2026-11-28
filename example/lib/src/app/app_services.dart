@@ -315,13 +315,14 @@ final class AppServices {
         bytesDirectory == null
             ? MemoryBytesCache()
             // Opening installs its policy as the process's, so it is the
-            // journal's: the host's start routed the bytes cache there
-            // already, and the default here would silence it again.
+            // bridge into the media side's diagnostics, which the host's
+            // start routed into the journal: the default here would silence
+            // the bytes cache again.
             : await BytesCache.open(
                 directory: bytesDirectory,
                 diagnostics: journal == null
                     ? const BytesDiagnostics.silent()
-                    : diagnostics.bytesDiagnostics,
+                    : CacheDiagnosticsBridge.policy,
               ),
         (store) => store.close(),
       );

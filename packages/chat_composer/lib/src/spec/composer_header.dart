@@ -1,4 +1,5 @@
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_model/content_model.dart' show LinkPreview;
 import 'package:flutter/widgets.dart';
 
 /// What sits above the field: a reply, an edit, a forward, a link preview or
@@ -37,11 +38,19 @@ sealed class ComposerHeader {
     VoidCallback? onDismiss,
   }) = ComposerHeader$Forward;
 
-  /// A preview of the link in the field: [title] is the page, [preview] its
-  /// address or description.
+  /// A preview of the link [url] in the field: [page] once the host's
+  /// resolver has it, null while it is pending.
+  ///
+  /// The strip draws the page compactly (site name, title, a small
+  /// thumbnail from [thumbnail]); a tap on it calls [onOpen] with the
+  /// strip's global rect, the origin of a spring into the host's options.
+  /// The open action and the dismiss control take one tap per
+  /// `ComposerHeaderStrip.tapGuard`.
   const factory ComposerHeader.linkPreview({
-    required String title,
-    required String preview,
+    required Uri url,
+    LinkPreview? page,
+    ComposerLinkPreviewThumbnail? thumbnail,
+    ComposerLinkPreviewOpen? onOpen,
     ChromeIconId icon,
     VoidCallback? onDismiss,
   }) = ComposerHeader$LinkPreview;
@@ -143,25 +152,67 @@ final class ComposerHeader$Forward extends ComposerHeader {
   int get priority => 3;
 }
 
+/// Builds the small thumbnail of a link preview strip for [page] at [size],
+/// or returns null to show the strip's glyph instead.
+typedef ComposerLinkPreviewThumbnail =
+    Widget? Function(BuildContext context, LinkPreview page, Size size);
+
+/// The host's answer to a tap on a link preview strip; [stripRect] is the
+/// strip's rect in global coordinates.
+typedef ComposerLinkPreviewOpen = void Function(Rect stripRect);
+
 /// A link preview; see [ComposerHeader.linkPreview].
 final class ComposerHeader$LinkPreview extends ComposerHeader {
   /// Creates a link preview header.
   const ComposerHeader$LinkPreview({
-    required this.title,
-    required this.preview,
+    required this.url,
+    this.page,
+    this.thumbnail,
+    this.onOpen,
     this.icon = const ChromeIconId('link'),
     super.onDismiss,
   });
 
-  /// Title of the linked page, in the host's language.
-  final String title;
+  /// The URL the preview is for.
+  final Uri url;
 
-  /// Address or description of the link.
-  final String preview;
+  /// The page, or null while the host's resolver is still looking.
+  final LinkPreview? page;
 
-  /// Glyph of the strip. The stock registry has none for `link`; a host
-  /// registers a painter.
+  /// The host's thumbnail of the page's photo; null shows the glyph.
+  final ComposerLinkPreviewThumbnail? thumbnail;
+
+  /// Called by a tap on the strip; null makes the strip inert.
+  final ComposerLinkPreviewOpen? onOpen;
+
+  /// Glyph of the strip when there is no thumbnail. The stock registry has
+  /// none for `link`; a host registers a painter.
   final ChromeIconId icon;
+
+  /// The strip's first line: the page's site name, else its title, else the
+  /// URL's host.
+  String get title => switch (page) {
+    LinkPreview(siteName: final name?) when name.isNotEmpty => name,
+    LinkPreview(title: final title?) when title.isNotEmpty => title,
+    _ => url.host.isEmpty ? url.toString() : url.host,
+  };
+
+  /// The strip's second line: the title under a site name, else the
+  /// description, else the address. The address while pending.
+  String get preview {
+    if (page case final page?) {
+      if (page case LinkPreview(
+        siteName: final name?,
+        title: final title?,
+      ) when name.isNotEmpty && title.isNotEmpty) {
+        return title;
+      }
+      final description = page.description.plain.trim();
+      if (description.isNotEmpty) return description;
+      if (page.displayUrl case final shown? when shown.isNotEmpty) return shown;
+    }
+    return url.toString();
+  }
 
   @override
   int get priority => 2;

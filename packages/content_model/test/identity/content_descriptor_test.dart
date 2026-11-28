@@ -383,4 +383,36 @@ void main() {
       expect(described(), isNot(described(preview: const [1, 2])));
     });
   });
+
+  group('ContentDescriptor file facts', () {
+    test('default to null', () {
+      const descriptor = ContentDescriptor(key: key);
+
+      expect(descriptor.fileName, isNull);
+      expect(descriptor.mimeType, isNull);
+    });
+
+    test('take part in equality and hashCode', () {
+      ContentDescriptor of({String? name = 'a.pdf', String? type = 'x/y'}) =>
+          ContentDescriptor(key: key, fileName: name, mimeType: type);
+
+      expect(of(), of());
+      expect(of().hashCode, of().hashCode);
+      expect(of(), isNot(of(name: 'b.pdf')));
+      expect(of(), isNot(of(name: null)));
+      expect(of(), isNot(of(type: 'x/z')));
+      expect(of(), isNot(of(type: null)));
+    });
+
+    test('copyWith sets them and keeps the rest', () {
+      const base = ContentDescriptor(key: key, byteSize: 5);
+      final next = base.copyWith(fileName: 'a.pdf', mimeType: 'x/y');
+
+      expect(next.fileName, 'a.pdf');
+      expect(next.mimeType, 'x/y');
+      expect(next.byteSize, 5);
+      expect(next.key, key);
+      expect(next.copyWith(), next);
+    });
+  });
 }

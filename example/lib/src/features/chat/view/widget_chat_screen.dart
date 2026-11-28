@@ -25,20 +25,25 @@ import 'package:chat_scroll_view_example/src/features/chat/capabilities/demo_cha
 import 'package:chat_scroll_view_example/src/features/chat/controller/chat_search_controller.dart';
 import 'package:chat_scroll_view_example/src/features/chat/controller/chat_search_state.dart';
 import 'package:chat_scroll_view_example/src/features/chat/controller/unread_boundary_controller.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/address_link_preview_resolver.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/backend_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/comments_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/demo_documents.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/demo_media_messages.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/http_open_graph_resolver.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_attach.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_confirm_box.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/chat_outgoing_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_pack_sheets.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_bulletins.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy_feedback.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_data_source_extension.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_media_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_messages_copy_format.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_pack_targets.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_texture_warmer.dart';
@@ -68,12 +73,17 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/unread_separa
 import 'package:chat_scroll_view_example/src/features/logs/model/journal_view.dart';
 import 'package:chat_scroll_view_example/src/features/logs/view/journal_page.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_model/content_model.dart' as model show RichText;
 import 'package:content_model/content_model.dart'
     show
         AppliedEdit,
         ContentDescriptor,
         ContentKey,
         LibraryPackEdit,
+        LinkPreview,
+        LinkPreviewResolver,
+        LinkPreviewWire,
+        MediaItem,
         PackId,
         PackKind,
         PackInstallState,
@@ -89,7 +99,9 @@ import 'package:flutter_md/flutter_md.dart'
         MarkdownPainterCache,
         MarkdownPainterCacheScope,
         MarkdownSpoilerController;
+import 'package:http/http.dart' as http;
 import 'package:listen/listen.dart' as listen;
+import 'package:message_media/message_media.dart';
 import 'package:mpx_core/mpx_core.dart'
     show MediaLoadingStyleScope, MediaStageStyle;
 import 'package:panel_presentation/panel_presentation.dart';
@@ -168,6 +180,34 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   /// facade is only given it) to turn the dust's motion off with the
   /// chrome's motion speed.
   final MarkdownSpoilerController _spoilers = MarkdownSpoilerController();
+
+  /// What the chat's media items remember while it is open (a revealed
+  /// spoiler, where each item is on screen): one per chat, above the list,
+  /// so leaving the chat and coming back hides the spoilers again.
+  final MessageMediaState _mediaState = MessageMediaState();
+
+  /// The transport the link previews are fetched through; closed with the
+  /// screen.
+  final http.Client _http = http.Client();
+
+  /// Looks up link previews, for the composer's strip and for a received
+  /// message that came without a page: the page's Open Graph tags, fetched
+  /// from here. A browser's page may not fetch another site's, so the web
+  /// shows the address alone.
+  late final LinkPreviewResolver _linkPreviews = kIsWeb
+      ? const AddressLinkPreviewResolver()
+      : HttpOpenGraphResolver(client: _http, chatId: widget.chatId);
+
+  /// The chat's media seams: the platform's media policy, the link preview
+  /// lookups, the viewer, the item menu and the card's taps.
+  late final ChatMediaHost _media = ChatMediaHost(
+    chatId: widget.chatId,
+    resolver: _linkPreviews,
+    downloadContext: widget.kind.downloadContext,
+    onOpenViewer: _openMediaViewer,
+    onItemMenu: _openItemMenu,
+    onLinkPreview: _onLinkPreview,
+  );
 
   /// What the message bodies take from this screen: the embeds over the
   /// app's asset cache, the sticker lookup and the stickers already played.
@@ -365,7 +405,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     final input = _inputSet ??= ChatInputSet(
       services: widget.services,
       view: View.of(context),
-      send: _sendInChat,
+      send: _sendComposed,
       edit: _handleEditSelected,
       confirmClearRecents: _confirmClearRecents,
       keyboard: widget.softKeyboard,
@@ -382,6 +422,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       panelFeedback: _rights.panelFeedback,
       chatId: _rights.chatId,
       accessAction: _rights.accessAction,
+      linkPreviewResolver: _linkPreviews,
     );
     if (fresh && kPanelTrace) _trace = PanelTrace(input);
     if (fresh) {
@@ -420,6 +461,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
             DemoDocuments.document(id) ??
             widget.services.sentDocuments.document(id),
         documentStyle: _documentStyle,
+        media: _media,
       );
     }
     // The chat's stickers and GIFs composite as texture layers: the pool is
@@ -516,6 +558,10 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
             ChatPackTargets.ofContent(content, widget.services.describe),
           );
         }
+      // A body part's activation is its body's own (the media cell); the demo
+      // adds nothing on top.
+      case ChatBodyPartActivated():
+        break;
       case ChatCodeActivated(:final gesture):
         // Host-owned copy path only when [copyCodeOnClick] is false.
         if (gesture == ChatInlineGesture.longPress) {
@@ -600,6 +646,94 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     );
   }
 
+  /// The per-item actions protection allows on [item] of the message
+  /// [messageId].
+  Set<MediaItemAction> _itemActionsOf(int messageId, MediaItem item) =>
+      MediaItemAction.allowedItemActions(
+        item,
+        protection: _rights.capabilities.value.protection,
+        messageProtected:
+            _dataSource?.getMessage(messageId)?.isProtected ?? false,
+      );
+
+  /// The address of [message]'s link preview card: the page's, else the
+  /// sender's options'.
+  static Uri? _linkPreviewUrlOf(IChatMessage? message) => switch (message) {
+    UserChatMessage(:final payload) => switch (LinkPreviewWire.readLinkPreview(
+      payload,
+    )) {
+      final preview? => preview.page?.url ?? preview.options.url,
+      null => null,
+    },
+    _ => null,
+  };
+
+  /// Opens the viewer on a tapped picture; a file alone has no page in it
+  /// and opens elsewhere (here, a notice).
+  void _openMediaViewer(
+    BuildContext context,
+    MediaViewerRequest request,
+    List<MediaItem> items,
+  ) {
+    if (!mounted) return;
+    if (!ChatMediaViewer.shows(request, items)) {
+      final name = items
+          .where((item) => item.id == request.item)
+          .map((item) => item.descriptor.fileName)
+          .firstOrNull;
+      _showNotice('Would open ${name ?? 'the file'}');
+      return;
+    }
+    unawaited(
+      ChatMediaViewer.open(
+        context,
+        request,
+        items,
+        downloadContext: widget.kind.downloadContext,
+      ),
+    );
+  }
+
+  /// The item's options from its semantics action: the per-item rows over
+  /// the item's rect.
+  void _openItemMenu(
+    BuildContext context,
+    int messageId,
+    MediaHitPart part,
+    Rect rect,
+  ) {
+    final menu = _messageMenu;
+    if (menu == null || !mounted) return;
+    unawaited(menu.presentItem(context, messageId, part, rect));
+  }
+
+  /// A tap on a link preview card: its body opens the page, its button runs
+  /// the button's action.
+  void _onLinkPreview(
+    int messageId,
+    LinkPreviewHitPart part,
+    LinkPreview page,
+  ) {
+    switch (part.zone) {
+      case LinkPreviewZone.body:
+        _onLinkTap(messageId, page.title ?? '', page.url.toString());
+      case LinkPreviewZone.button:
+        _showNotice('Would open the page in place: ${page.url.host}');
+    }
+  }
+
+  /// A per-item row: Copy File Name copies; the others (save, share) are
+  /// the media-save work's and show what they would do.
+  void _onMediaAction(int messageId, MediaItem item, MediaItemAction action) {
+    switch ((action, item.descriptor.fileName)) {
+      case (MediaItemAction.copyFileName, final name?):
+        unawaited(widget.services.clipboard.write(model.RichText.plain(name)));
+        _showNotice('File name copied');
+      case _:
+        _showNotice('Would ${action.name} the item');
+    }
+  }
+
   void _onAvatarTap(String sender) {
     _showNotice('User Profile: $sender');
   }
@@ -628,6 +762,9 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     _stages?.dispose();
     _documentStyle?.dispose();
     _stickerInteractions.dispose();
+    _media.dispose();
+    _mediaState.dispose();
+    _http.close();
     _trace?.dispose();
     _inputSet?.dispose();
     if (_dataSource case final BackendChatDataSource source) {
@@ -660,8 +797,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       // final backend = await BackendChatDataSource.connect(
       //   client: Supabase.instance.client,
       // );
-      final backend =
-          await (widget.dataSourceLoader ?? CommentsDataSource.load)();
+      final backend = await (widget.dataSourceLoader ?? _loadDemoChat)();
 
       // The screen may have been popped while `load()` was in flight. The
       // `dispose()` above already ran with `_dataSource == null`, so we
@@ -721,6 +857,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
               _onLibraryEdited(widget.services.libraryShown.apply(edit)),
           onNotice: _showNotice,
           onMessageLogs: kDebugMode ? _openMessageLogs : null,
+          onMediaAction: _onMediaAction,
           onDenied: (actionId, messageId) =>
               _protection.reportDenied(switch (actionId) {
                 MessageMenuActionId.forward => CapabilityAction.forward,
@@ -729,6 +866,9 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
               }, messageId),
         ),
         deniedActionsOf: _protection.deniedMenuActions,
+        mediaOf: (id) => backend.getMessage(id)?.media ?? const [],
+        itemActionsOf: _itemActionsOf,
+        linkPreviewUrlOf: (id) => _linkPreviewUrlOf(backend.getMessage(id)),
         contentOf: (id) => switch (backend.getMessage(id)?.text) {
           final text? => _menuContentOf(text),
           null => null,
@@ -921,21 +1061,38 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   static bool _isSelfMessage(IChatMessage message) =>
       message.sender == _demoSender;
 
+  /// The demo chat: the bundled comments, then the media messages as the
+  /// newest.
+  static Future<ChatDataSource> _loadDemoChat() =>
+      CommentsDataSource.load(tailMedia: DemoMediaMessages.all);
+
   /// Sends [text] as one send of the chat: in slow mode the next send waits
-  /// an interval, and this one is pending until it lands.
-  Future<void> _sendInChat(String text) =>
-      _rights.send(() => _handleSendMessage(text));
+  /// an interval, and this one is pending until it lands. [payload] is the
+  /// rest of the message (its link preview, `invertMedia`).
+  Future<void> _sendInChat(
+    String text, {
+    Map<String, Object?> payload = const {},
+  }) => _rights.send(() => _handleSendMessage(text, payload: payload));
+
+  /// Sends what the composer produced: its body, and its link preview and
+  /// `invertMedia` as the message's payload, which the demo sources keep
+  /// and the bubbles read as a received message's.
+  Future<void> _sendComposed(ChatOutgoingMessage message) =>
+      _sendInChat(message.body, payload: message.toJson()..remove('body'));
 
   /// Sends [text] as the signed-in user. A send that succeeds clears the
   /// unread boundary of the open it was sent from, whether or not the tail
-  /// holding the sent message is loaded.
-  Future<void> _handleSendMessage(String text) async {
+  /// holding the sent message is loaded. The backend keeps the body alone.
+  Future<void> _handleSendMessage(
+    String text, {
+    Map<String, Object?> payload = const {},
+  }) async {
     final boundary = _unreadBoundary;
     switch (_dataSource) {
       case final CommentsDataSource ds:
-        ds.sendMessage(sender: _demoSender, content: text);
+        ds.sendMessage(sender: _demoSender, content: text, payload: payload);
       case final GeneratedChatDataSource ds:
-        ds.sendMessage(sender: _demoSender, content: text);
+        ds.sendMessage(sender: _demoSender, content: text, payload: payload);
       case final BackendChatDataSource ds:
         try {
           await ds.sendMessage(text);
@@ -982,6 +1139,11 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
           createdAt: message.createdAt,
           updatedAt: DateTime.now(),
           content: text,
+          media: message.media,
+          payload: switch (message) {
+            UserChatMessage(:final payload) => payload,
+            _ => const {},
+          },
         ),
       );
     }
@@ -1475,38 +1637,42 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                   dataSource: _dataSource!,
                   selection: _selection,
                   embedResolver: _bodies.embedResolver,
-                  child: _historyKeepsField(
-                    ChatKeyboardShortcuts(
-                      controller: _controller,
-                      selectionController: _selection,
-                      reverse: true,
-                      preserveExternalFocus: true,
-                      child: ChatScrollView(
-                        reverse: true,
-                        dataSource: _dataSource!,
+                  child: MessageMediaStateScope(
+                    state: _mediaState,
+                    child: _historyKeepsField(
+                      ChatKeyboardShortcuts(
                         controller: _controller,
                         selectionController: _selection,
-                        onIdleMessageTap: _presentMessageMenu,
-                        onSecondaryMessageTap: _presentMessageMenu,
-                        isSelfMessage: _isSelfMessage,
-                        bottomPadding: insets.bottomPadding,
-                        topPadding: insets.topPadding,
-                        messageBuilder: _buildMessage,
-                        chunkErrorBuilder: _buildChunkError,
-                        emptyBuilder: _buildEmpty,
-                        loadingBuilder: _buildInitialSkeleton,
-                        scrollActivityTiming: const ChatScrollActivityTiming(),
-                        dayHeaderDelegate: const ChatPushingDayHeader(),
-                        dateSeparatorBuilder: (context, bucket, date) =>
-                            DateSeparator(date: date),
-                        unreadBoundary: _unreadBoundary,
-                        unreadSeparatorBuilder: _buildUnreadSeparator,
-                        senderRunLayout: switch (_unreadBoundary) {
-                          final boundary? => UnreadBoundarySenderRunLayout(
-                            boundary: boundary,
-                          ),
-                          null => DefaultChatSenderRunLayout.instance,
-                        },
+                        reverse: true,
+                        preserveExternalFocus: true,
+                        child: ChatScrollView(
+                          reverse: true,
+                          dataSource: _dataSource!,
+                          controller: _controller,
+                          selectionController: _selection,
+                          onIdleMessageTap: _presentMessageMenu,
+                          onSecondaryMessageTap: _presentMessageMenu,
+                          isSelfMessage: _isSelfMessage,
+                          bottomPadding: insets.bottomPadding,
+                          topPadding: insets.topPadding,
+                          messageBuilder: _buildMessage,
+                          chunkErrorBuilder: _buildChunkError,
+                          emptyBuilder: _buildEmpty,
+                          loadingBuilder: _buildInitialSkeleton,
+                          scrollActivityTiming:
+                              const ChatScrollActivityTiming(),
+                          dayHeaderDelegate: const ChatPushingDayHeader(),
+                          dateSeparatorBuilder: (context, bucket, date) =>
+                              DateSeparator(date: date),
+                          unreadBoundary: _unreadBoundary,
+                          unreadSeparatorBuilder: _buildUnreadSeparator,
+                          senderRunLayout: switch (_unreadBoundary) {
+                            final boundary? => UnreadBoundarySenderRunLayout(
+                              boundary: boundary,
+                            ),
+                            null => DefaultChatSenderRunLayout.instance,
+                          },
+                        ),
                       ),
                     ),
                   ),

@@ -45,6 +45,9 @@ dependencies:
     path: ../packages/glyph_atlas
   kv_shared_preferences:
     path: ../packages/kv_shared_preferences
+  # The chat's media messages and link preview cards: layout, cells, hits.
+  message_media:
+    path: ../packages/message_media
   # mpx, from git at one pinned commit (see the root pubspec): the media core,
   # the bytes cache and its fetch adapter, and the two decoders whose build
   # hooks build their native libraries for the app.
@@ -52,53 +55,53 @@ dependencies:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/http_bytes_cache
-      ref: 5b951d74dab322c6cbbf7eb2629025bc04bbc502
+      ref: 9f86912485e31ae2bb727c8124985a5ba4315f6d
   mpx:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx
-      ref: 5b951d74dab322c6cbbf7eb2629025bc04bbc502
+      ref: 9f86912485e31ae2bb727c8124985a5ba4315f6d
   mpx_core:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_core
-      ref: 5b951d74dab322c6cbbf7eb2629025bc04bbc502
+      ref: 9f86912485e31ae2bb727c8124985a5ba4315f6d
   mpx_capture:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_capture
-      ref: 5b951d74dab322c6cbbf7eb2629025bc04bbc502
+      ref: 9f86912485e31ae2bb727c8124985a5ba4315f6d
   mpx_library:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_library
-      ref: 5b951d74dab322c6cbbf7eb2629025bc04bbc502
+      ref: 9f86912485e31ae2bb727c8124985a5ba4315f6d
   mpx_lottie:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_lottie
-      ref: 5b951d74dab322c6cbbf7eb2629025bc04bbc502
+      ref: 9f86912485e31ae2bb727c8124985a5ba4315f6d
   # SVG as a media kind (vector images, and SVG handed as a plain image).
   mpx_svg:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_svg
-      ref: 5b951d74dab322c6cbbf7eb2629025bc04bbc502
+      ref: 9f86912485e31ae2bb727c8124985a5ba4315f6d
   mpx_player:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_player
-      ref: 5b951d74dab322c6cbbf7eb2629025bc04bbc502
+      ref: 9f86912485e31ae2bb727c8124985a5ba4315f6d
   mpx_ui:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_ui
-      ref: 5b951d74dab322c6cbbf7eb2629025bc04bbc502
+      ref: 9f86912485e31ae2bb727c8124985a5ba4315f6d
   mpx_video_decoder:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_video_decoder
-      ref: 5b951d74dab322c6cbbf7eb2629025bc04bbc502
+      ref: 9f86912485e31ae2bb727c8124985a5ba4315f6d
   panel_catalog:
     path: ../packages/panel_catalog
   panel_pages:
@@ -166,6 +169,10 @@ flutter:
     # Documents the showcase sends: an SVG drawing, which previews, and a
     # text file, which keeps its icon.
     - assets/documents/
+    # Photos the demo chat's media messages send, generated for it from
+    # synthetic sources (no third-party artwork); the README there has the
+    # commands.
+    - assets/media_photos/
     # The animated emoji pack and its licence credit; see LICENSE.md there.
     - assets/animated_emoji/
     # Lottie stickers authored for the demo (no third-party artwork).

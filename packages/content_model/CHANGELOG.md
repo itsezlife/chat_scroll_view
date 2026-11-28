@@ -8,6 +8,36 @@ package is pre-1.0.
 
 ### Added
 
+- `MediaItemKind.isPicture` (a photo, video or animation: drawn as a box,
+  paged together in a viewer) and `MediaItemKind.plays` (a video or an
+  animation).
+
+- Link preview resolver seam ([ADR 023](../../docs/adr/023-data-layering-and-persistence.md)
+  amendment): `LinkPreviewResolver.resolve(List<Uri>)` returns a
+  `LinkPreviewRequest`, a `ValueListenable<LinkPreviewState>` that starts
+  `pending` and moves once to `loaded(page)` or `none` (a failed lookup is
+  `none`), with an idempotent `cancel()` after which it notifies no more.
+  `LinkPreviewCompleter` keeps those rules for an implementation.
+  `testing.dart` adds `FakeLinkPreviewResolver` and
+  `LinkPreviewResolverContract`.
+- Link preview model and wire ([ADR 034](../../docs/adr/034-rich-text-wire-and-persistence.md)
+  amendment): `LinkPreview`, the page (an opaque `type`, a `RichText`
+  description, `photo` and `media` descriptors, a nullable `hasLargeMedia`
+  hint); `LinkPreviewOptions` with `LinkPreviewMedia` (`auto`, `small`,
+  `large`; an unknown value reads as `auto`) and `removed`; and
+  `LinkPreviewWire` with `MessageLinkPreview`, the codec of a message's
+  `linkPreview` and `invertMedia` fields over a host map. The envelope stays
+  the host's; `invertMedia` is written only when true; a message without
+  `linkPreview` has no preview. A tolerated value is reported as
+  `linkPreview` / `codecTolerated` (`LinkPreviewOp`), with the field and the
+  kind of problem, never the value.
+- Media items ([ADR 047](../../docs/adr/047-message-media.md)): `MediaItem`
+  (id, descriptor, kind, per-item spoiler; the kind defaults from the
+  descriptor and the host's kind wins), `MediaItemId` (host-issued, or
+  `linkPreviewOf(messageId, slot:)` with `LinkPreviewMediaSlot`; a lossless
+  string form read by `parse` / `tryParse`) and `MediaItemKind` (`photo`,
+  `video`, `animation`, `file`, `custom(tag)`; a stable `value`, unknown
+  values decode as `custom`, `fromDescriptor` maps media form and MIME type).
 - Diagnostics events ([ADR 050](../../docs/adr/050-diagnostics-events.md)):
   `ChatDiagnostics`, the process-wide policy chat packages report through
   (`ChatDiagnostics.current`, `silent` by default, `developer`, `onEvent`

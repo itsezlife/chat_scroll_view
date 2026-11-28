@@ -6,6 +6,22 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (link preview strip, breaking)
+
+- `ComposerHeader.linkPreview` takes the `url` and the resolver's `page`
+  (null while pending) instead of a host-built `title` and `preview`; it
+  draws the site name and title, a thumbnail from the host's `thumbnail`
+  builder, and calls `onOpen` with the strip's global rect. Code that built
+  it from two strings builds it from the `LinkPreview` now. The open action
+  and the cross ignore a repeat within `ComposerHeaderStrip.tapGuard`.
+
+### Added
+
+- `LinkPreviewDismissal` with `LinkPreviewDismissalPolicy`
+  (`fieldUntilBigEdit`, `perUrl`, `untilNoLinks`, `forPlatform`) and its
+  serialisable `LinkPreviewDismissalState`; `LinkPreviewDismissalOp`
+  (`dismissed`, `dismissalReset`) under the `linkPreview` category.
+
 ### Changed (review, breaking)
 
 - The capability rules moved from `ComposerView`'s state into

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:content_model/content_model.dart';
 import 'package:http_bytes_cache/http_bytes_cache.dart';
 import 'package:meta/meta.dart';
+import 'package:mpx_core/mpx_core.dart' show MpxEvent, MpxEventLevel;
 
 /// Where a [JournalRecord] came from: each source has its own event type and
 /// policy, and the journal holds them side by side so one log follows a
@@ -14,8 +15,8 @@ enum JournalSource {
   /// The bytes cache's `BytesDiagnostics`.
   bytes,
 
-  /// The media side's diagnostics (not bridged yet; see the composition
-  /// root).
+  /// The media side's `MpxDiagnostics`, the bytes cache's events among
+  /// them (category `cache`, through mpx's cache bridge).
   media,
 }
 
@@ -86,6 +87,37 @@ final class JournalRecord {
     source: JournalSource.bytes,
     category: bytesCategory,
     op: event.op,
+    stackTrace: _trace(event.stackTrace),
+  );
+
+  /// The record of the media side's [event].
+  ///
+  /// The job, item and media key become the record's ids; the tag, which is
+  /// the host's own label, is kept as a field. The event's fields are plain
+  /// and short already; the error is kept as text with URLs cut to their
+  /// host, as for a chat event.
+  factory JournalRecord.fromMpxEvent(MpxEvent event) => JournalRecord(
+    time: event.time,
+    level: switch (event.level) {
+      MpxEventLevel.trace => ChatEventLevel.trace,
+      MpxEventLevel.debug => ChatEventLevel.debug,
+      MpxEventLevel.info => ChatEventLevel.info,
+      MpxEventLevel.warning => ChatEventLevel.warning,
+      MpxEventLevel.error => ChatEventLevel.error,
+    },
+    source: JournalSource.media,
+    category: event.category,
+    op: event.op.name,
+    correlation: ChatCorrelation(
+      jobId: event.jobId,
+      mediaItemId: event.itemId,
+      mediaKey: event.mediaKey?.encoded,
+    ),
+    fields: {...event.fields, 'tag': ?event.tag},
+    error: switch (event.error) {
+      final error? => withoutUrlPaths('$error'),
+      null => null,
+    },
     stackTrace: _trace(event.stackTrace),
   );
 

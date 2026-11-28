@@ -5,13 +5,16 @@ import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart'
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy_feedback.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_messages_copy_format.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_emoji_packs.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/message_menu_media.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/message_menu_chrome.dart';
 import 'package:content_model/content_model.dart' as model show RichText;
 import 'package:content_model/content_model.dart'
-    show ContentKey, LibraryEdit, PackId, RichClipboard;
+    show ContentKey, LibraryEdit, MediaItem, PackId, RichClipboard;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:message_media/message_media.dart'
+    show LinkPreviewHitPart, MediaHitPart, MediaItemAction;
 
 /// Builds rows for a [ChatMessageMenuRequest] under a **selection policy**.
 typedef MessageMenuItemsBuilder =
@@ -328,12 +331,16 @@ abstract final class MessageMenuCatalog {
   ) => switch (request.inlineHit) {
     ChatInlineHit$Link() => const <ChatMessageMenuItem>[_copyLink],
     ChatInlineHit$Code() => const <ChatMessageMenuItem>[_copyCode],
+    // A link preview card: its page's address.
+    ChatInlineHit$BodyPart(partId: LinkPreviewHitPart()) =>
+      const <ChatMessageMenuItem>[_copyLink],
     // Nothing to copy from a mention, a hashtag, an embed or a sticker by
     // itself.
     ChatInlineHit$Mention() ||
     ChatInlineHit$Hashtag() ||
     ChatInlineHit$Embed() ||
     ChatInlineHit$Sticker() ||
+    ChatInlineHit$BodyPart() ||
     null => const <ChatMessageMenuItem>[],
   };
 
@@ -521,7 +528,13 @@ final class MessageMenuActions {
     this.onNotice,
     this.onMessageLogs,
     this.onDenied,
+    this.onMediaAction,
   });
+
+  /// A per-item row chosen on a media item of the message with the given
+  /// id: the item and its action (save, copy, share).
+  final void Function(int messageId, MediaItem item, MediaItemAction action)?
+  onMediaAction;
 
   /// Delete one message.
   final ValueChanged<int> onDelete;
@@ -614,6 +627,9 @@ final class MessageMenu {
     this.emojiPacks,
     this.contentOf,
     this.deniedActionsOf,
+    this.mediaOf,
+    this.itemActionsOf,
+    this.linkPreviewUrlOf,
   }) : itemsFor = itemsFor ?? MessageMenuCatalog.itemsFor,
        _reactionsOverride = reactions;
 
@@ -656,6 +672,20 @@ final class MessageMenu {
   /// null takes none away.
   final Set<String> Function(Iterable<int> messageIds)? deniedActionsOf;
 
+  /// The media items of the message with the given id; null offers no
+  /// per-item rows.
+  final List<MediaItem> Function(int messageId)? mediaOf;
+
+  /// The per-item actions the chat allows on an item of the message with
+  /// the given id (`MediaItemAction.allowedItemActions` over its
+  /// protection), read as the menu opens on the item; null allows none.
+  final Set<MediaItemAction> Function(int messageId, MediaItem item)?
+  itemActionsOf;
+
+  /// The address of the link preview card of the message with the given
+  /// id, which Copy link on the card writes; null leaves the row inert.
+  final Uri? Function(int messageId)? linkPreviewUrlOf;
+
   final List<String>? _reactionsOverride;
 
   var _sessionOpen = false;
@@ -690,6 +720,15 @@ final class MessageMenu {
           : null;
       final targets = [request.messageId, ...selectedSnapshot];
       final denied = deniedActionsOf?.call(targets) ?? const <String>{};
+      final mediaItem = request.membership == ChatMessageMenuMembership.idle
+          ? _mediaItemOf(request)
+          : null;
+      final mediaRows = switch ((mediaItem, itemActionsOf)) {
+        (final item?, final actionsOf?) => MessageMenuMediaRows.rowsFor(
+          actionsOf(request.messageId, item),
+        ),
+        _ => const <ChatMessageMenuItem>[],
+      };
       final presentation = AppPlatformPolicy.current()
           .messageMenuPresentationFor(policy);
       final surfaceBuilder = MessageMenuChrome.surfaceBuilderFor(presentation);
@@ -715,6 +754,7 @@ final class MessageMenu {
         surfaceShape: request.surfaceShape,
         visibleRect: request.bandGlobal,
         items: [
+          ...mediaRows,
           ...MessageMenuCatalog.excluding(
             itemsFor(request, policy, content: content),
             [
@@ -784,6 +824,7 @@ final class MessageMenu {
         selectedSnapshot: selectedSnapshot,
         emojiPacks: packs,
         content: content,
+        mediaItem: mediaItem,
       );
     } finally {
       _sessionOpen = false;
@@ -797,6 +838,7 @@ final class MessageMenu {
     required List<int> selectedSnapshot,
     required List<PackId> emojiPacks,
     required MessageMenuContent? content,
+    required MediaItem? mediaItem,
   }) async {
     switch (result) {
       case ChatMessageMenuReactionResult(:final reaction):
@@ -831,10 +873,15 @@ final class MessageMenu {
             ChatCopyFeedback.endSelection(selection);
             actions.onCopySelected?.call(text);
           case MessageMenuActionId.copyLink:
-            final hit = request.inlineHit;
-            if (hit is! ChatInlineHit$Link) return;
-            await clipboard.write(model.RichText.plain(hit.url));
-            actions.onCopyLink?.call(hit.url);
+            final url = switch (request.inlineHit) {
+              ChatInlineHit$Link(:final url) => url,
+              ChatInlineHit$BodyPart(partId: LinkPreviewHitPart()) =>
+                linkPreviewUrlOf?.call(request.messageId)?.toString(),
+              _ => null,
+            };
+            if (url == null) return;
+            await clipboard.write(model.RichText.plain(url));
+            actions.onCopyLink?.call(url);
           case MessageMenuActionId.copyCode:
             final hit = request.inlineHit;
             if (hit is! ChatInlineHit$Code) return;
@@ -918,10 +965,69 @@ final class MessageMenu {
                   : MessageMenuActionId.forward,
             );
           default:
-            return;
+            if ((MessageMenuMediaRows.actionOf(itemId), mediaItem) case (
+              final action?,
+              final item?,
+            )) {
+              actions.onMediaAction?.call(request.messageId, item, action);
+            }
         }
     }
   }
+
+  /// Opens the per-item rows of the item [part] names in the message
+  /// [messageId] over [rect], the item's global rect: the options
+  /// affordance's semantics action, which has no menu request of the
+  /// viewport's. Silent when a session is open or the item allows nothing.
+  Future<void> presentItem(
+    BuildContext context,
+    int messageId,
+    MediaHitPart part,
+    Rect rect,
+  ) async {
+    if (_sessionOpen) return;
+    final item = switch (mediaOf) {
+      final of? => MessageMenuMediaRows.itemOfPart(part, of(messageId)),
+      null => null,
+    };
+    final actionsOf = itemActionsOf;
+    if (item == null || actionsOf == null) return;
+    final rows = MessageMenuMediaRows.rowsFor(actionsOf(messageId, item));
+    if (rows.isEmpty) return;
+    _sessionOpen = true;
+    try {
+      final policy = selectionPolicy;
+      final presentation = AppPlatformPolicy.current()
+          .messageMenuPresentationFor(policy);
+      final result = await ChatMessageMenu.show(
+        context: context,
+        presentation: presentation,
+        messageRect: rect,
+        items: rows,
+        selectionPolicy: policy,
+        itemBuilder: MessageMenuChrome.itemBuilderFor(presentation),
+        surfaceBuilder: MessageMenuChrome.surfaceBuilderFor(presentation),
+        transitionBuilder: MessageMenuChrome.transition,
+        presence: _ChatDataSourceListenable(dataSource),
+        isPresent: () => dataSource.getMessage(messageId) != null,
+      );
+      if (result case ChatMessageMenuItemResult(:final itemId)) {
+        if (MessageMenuMediaRows.actionOf(itemId) case final action?) {
+          // Protection may have changed while the menu was up.
+          if (actionsOf(messageId, item).contains(action)) {
+            actions.onMediaAction?.call(messageId, item, action);
+          }
+        }
+      }
+    } finally {
+      _sessionOpen = false;
+    }
+  }
+
+  MediaItem? _mediaItemOf(ChatMessageMenuRequest request) => switch (mediaOf) {
+    final of? => MessageMenuMediaRows.itemOf(request, of(request.messageId)),
+    null => null,
+  };
 
   // Offered on the message alone: the button is built only for the menu of
   // one message, not over a selection, and not beside the

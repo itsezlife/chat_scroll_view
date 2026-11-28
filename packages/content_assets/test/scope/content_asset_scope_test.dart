@@ -660,6 +660,14 @@ void main() {
       expect(scope.media.autoDownload, same(policy));
     });
 
+    test('a scope with media of its own hands the tracked transfers to it', () {
+      final tracked = FakeTrackedTransfers();
+      final scope = ContentAssetScope.withMedia(tracked: tracked);
+      addTearDown(scope.dispose);
+
+      expect(scope.media.tracked, same(tracked));
+    });
+
     test('downloads everything by default', () {
       final scope = ContentAssetScope.withMedia();
       addTearDown(scope.dispose);

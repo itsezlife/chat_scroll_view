@@ -116,7 +116,8 @@ void main() {
       expect(inline.profile.halfFrameRate, isFalse);
       expect(emojiOnly.profile.halfFrameRate, isFalse);
       expect(sticker.profile.halfFrameRate, isFalse);
-      expect(sticker.spec.pixelWidth, 180);
+      // 180 px on its rung.
+      expect(sticker.spec.pixelWidth, 205);
     });
   });
 
@@ -234,7 +235,8 @@ void main() {
       );
 
       expect(preset.size, const Size(18, 18));
-      expect(preset.spec.pixelWidth, 36);
+      // 36 px on its rung.
+      expect(preset.spec.pixelWidth, 40);
     });
   });
 
@@ -249,8 +251,9 @@ void main() {
         );
 
         expect(preset.size, const Size(40, 40));
-        expect(preset.spec.pixelWidth, 100);
-        expect(preset.spec.pixelHeight, 100);
+        // 100 px on its rung.
+        expect(preset.spec.pixelWidth, 103);
+        expect(preset.spec.pixelHeight, 103);
         expect(preset.profile, const AssetProfile(animate: true, loop: false));
       },
     );
@@ -265,8 +268,9 @@ void main() {
       );
 
       expect(preset.size, const Size(59.2, 59.2));
-      expect(preset.spec.pixelWidth, 119); // 59.2 * 2 = 118.4, rounded up
-      expect(preset.spec.pixelHeight, 119);
+      // 59.2 * 2 = 118.4, rounded up to 119, on its rung.
+      expect(preset.spec.pixelWidth, 128);
+      expect(preset.spec.pixelHeight, 128);
     });
 
     test('decodes at the extent at the density', () {
@@ -275,8 +279,9 @@ void main() {
         devicePixelRatio: 3,
       );
 
-      expect(preset.spec.pixelWidth, 132);
-      expect(preset.spec.pixelHeight, 132);
+      // 132 px on its rung.
+      expect(preset.spec.pixelWidth, 160);
+      expect(preset.spec.pixelHeight, 160);
     });
 
     test('is one spec per step and density, two for two steps', () {
@@ -329,15 +334,15 @@ void main() {
   });
 
   group('emoji sticker', () {
-    test('decodes 112 logical px at density 3 as 336 px square', () {
+    test('decodes 112 logical px at density 3 as 336 px, on its rung', () {
       final preset = ContentAssetPresets.emojiSticker(
         extent: 112,
         devicePixelRatio: 3,
       );
 
       expect(preset.size, const Size(112, 112));
-      expect(preset.spec.pixelWidth, 336);
-      expect(preset.spec.pixelHeight, 336);
+      expect(preset.spec.pixelWidth, 410);
+      expect(preset.spec.pixelHeight, 410);
       expect(preset.spec.variant, AssetVariant.full);
     });
 
@@ -402,8 +407,9 @@ void main() {
       );
 
       expect(preset.size, const Size(160, 90));
+      // 320 by 180 px, each side on its rung.
       expect(preset.spec.pixelWidth, 320);
-      expect(preset.spec.pixelHeight, 180);
+      expect(preset.spec.pixelHeight, 205);
       expect(preset.profile, const AssetProfile(animate: true));
     });
 
@@ -435,7 +441,8 @@ void main() {
         maxPixelExtent: 512,
       );
 
-      expect((preset.spec.pixelWidth, preset.spec.pixelHeight), (336, 336));
+      // 336 px on its rung, still under the cap.
+      expect((preset.spec.pixelWidth, preset.spec.pixelHeight), (410, 410));
     });
   });
 
@@ -472,8 +479,9 @@ void main() {
       );
 
       expect(preset.size, const Size.square(200));
-      expect(preset.spec.pixelWidth, 400);
-      expect(preset.spec.pixelHeight, 400);
+      // 400 px on its rung.
+      expect(preset.spec.pixelWidth, 410);
+      expect(preset.spec.pixelHeight, 410);
       expect(preset.isRound, isTrue);
       expect(preset.profile.fit, AssetFit.cover);
       expect(preset.profile.animate, isTrue);

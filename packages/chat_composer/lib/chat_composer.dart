@@ -14,6 +14,7 @@ export 'src/capabilities/composer_slow_mode_state.dart';
 export 'src/input/composer_controller.dart';
 export 'src/input/composer_paste.dart';
 export 'src/input/soft_keyboard_mode.dart';
+export 'src/link_preview/link_preview_dismissal.dart';
 export 'src/menu/composer_formatting_option.dart';
 export 'src/menu/composer_menu_hints.dart';
 export 'src/menu/composer_menu_policy.dart';

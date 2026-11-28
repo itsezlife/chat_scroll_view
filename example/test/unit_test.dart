@@ -93,6 +93,8 @@ import 'features/chat/chat_messages_copy_format_test.dart'
     as chat_messages_copy_format_test;
 import 'features/chat/chat_pack_sheets_test.dart' as chat_pack_sheets_test;
 import 'features/chat/chat_pack_targets_test.dart' as chat_pack_targets_test;
+import 'features/chat/chat_received_link_preview_test.dart'
+    as chat_received_link_preview_test;
 import 'features/chat/chat_texture_warmer_test.dart'
     as chat_texture_warmer_test;
 import 'features/chat/corpus_sticker_pack_test.dart'
@@ -106,6 +108,8 @@ import 'features/chat/emoji_service_colors_test.dart'
 import 'features/chat/giphy_client_test.dart' as giphy_client_test;
 import 'features/chat/giphy_content_test.dart' as giphy_content_test;
 import 'features/chat/giphy_gif_source_test.dart' as giphy_gif_source_test;
+import 'features/chat/http_open_graph_resolver_test.dart'
+    as http_open_graph_resolver_test;
 import 'features/chat/installed_packs_source_test.dart'
     as installed_packs_source_test;
 import 'features/chat/joined_collection_source_test.dart'
@@ -202,6 +206,7 @@ import 'widgets/copy_feedback_test.dart' as copy_feedback_test;
 import 'widgets/demo_emoji_message_menu_test.dart'
     as demo_emoji_message_menu_test;
 import 'widgets/demo_emoji_message_test.dart' as demo_emoji_message_test;
+import 'widgets/demo_media_bubble_test.dart' as demo_media_bubble_test;
 import 'widgets/demo_message_bodies_test.dart' as demo_message_bodies_test;
 import 'widgets/demo_message_edit_transition_test.dart'
     as demo_message_edit_transition_test;
@@ -217,6 +222,7 @@ import 'widgets/large_emoji_limit_button_test.dart'
 import 'widgets/lottie_sticker_message_test.dart'
     as lottie_sticker_message_test;
 import 'widgets/message_emoji_packs_test.dart' as message_emoji_packs_test;
+import 'widgets/message_menu_media_test.dart' as message_menu_media_test;
 import 'widgets/message_menu_test.dart' as message_menu_test;
 import 'widgets/message_row_frame_test.dart' as message_row_frame_test;
 import 'widgets/notes_dialog_test.dart' as notes_dialog_test;
@@ -235,6 +241,8 @@ import 'widgets/unread_separator_test.dart' as unread_separator_test;
 import 'widgets/video_sticker_message_test.dart' as video_sticker_message_test;
 import 'widgets/widget_chat_screen_bodies_test.dart'
     as widget_chat_screen_bodies_test;
+import 'widgets/widget_chat_screen_media_test.dart'
+    as widget_chat_screen_media_test;
 import 'widgets/widget_chat_screen_source_test.dart'
     as widget_chat_screen_source_test;
 
@@ -415,6 +423,10 @@ void main() {
   );
   group('features/chat/chat_draft_store_test.dart', chat_draft_store_test.main);
   group(
+    'features/chat/chat_received_link_preview_test.dart',
+    chat_received_link_preview_test.main,
+  );
+  group(
     'features/chat/joined_collection_source_test.dart',
     joined_collection_source_test.main,
   );
@@ -463,6 +475,10 @@ void main() {
   group('features/chat/giphy_client_test.dart', giphy_client_test.main);
   group('features/chat/giphy_content_test.dart', giphy_content_test.main);
   group('features/chat/giphy_gif_source_test.dart', giphy_gif_source_test.main);
+  group(
+    'features/chat/http_open_graph_resolver_test.dart',
+    http_open_graph_resolver_test.main,
+  );
   group('features/chat/document_embed_test.dart', document_embed_test.main);
   group('features/chat/emoji_chrome_test.dart', emoji_chrome_test.main);
   group(
@@ -579,6 +595,7 @@ void main() {
   );
   group('widgets/copy_feedback_test.dart', copy_feedback_test.main);
   group('widgets/demo_emoji_message_test.dart', demo_emoji_message_test.main);
+  group('widgets/demo_media_bubble_test.dart', demo_media_bubble_test.main);
   group('widgets/demo_message_bodies_test.dart', demo_message_bodies_test.main);
   group(
     'widgets/demo_message_edit_transition_test.dart',
@@ -603,6 +620,7 @@ void main() {
     large_emoji_limit_button_test.main,
   );
   group('widgets/message_emoji_packs_test.dart', message_emoji_packs_test.main);
+  group('widgets/message_menu_media_test.dart', message_menu_media_test.main);
   group('widgets/message_menu_test.dart', message_menu_test.main);
   group('widgets/message_row_frame_test.dart', message_row_frame_test.main);
   group('widgets/notes_dialog_test.dart', notes_dialog_test.main);
@@ -624,6 +642,10 @@ void main() {
   group(
     'widgets/widget_chat_screen_bodies_test.dart',
     widget_chat_screen_bodies_test.main,
+  );
+  group(
+    'widgets/widget_chat_screen_media_test.dart',
+    widget_chat_screen_media_test.main,
   );
   group(
     'widgets/widget_chat_screen_source_test.dart',

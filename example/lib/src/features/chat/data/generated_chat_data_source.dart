@@ -126,9 +126,12 @@ class GeneratedChatDataSource extends ChatDataSource {
   /// Demo integrator: append a new message at the tail via [insertMessage].
   ///
   /// Stores [content] as given: it is the body the composer sent.
+  /// [payload] is the rest of what it sent (its link preview and
+  /// `invertMedia`), kept as a received message carries it.
   UserChatMessage sendMessage({
     required String sender,
     required String content,
+    Map<String, Object?> payload = const {},
   }) {
     final id = nextInsertId;
     final now = DateTime.now();
@@ -138,6 +141,7 @@ class GeneratedChatDataSource extends ChatDataSource {
       createdAt: now,
       updatedAt: now,
       content: content,
+      payload: payload,
     );
     _tailOverrides[id] = message;
     insertMessage(message, reason: 'demo-send');
@@ -146,7 +150,8 @@ class GeneratedChatDataSource extends ChatDataSource {
 
   /// Demo integrator: edit an existing message via [updateMessage].
   ///
-  /// Stores [newContent] as given, like [sendMessage].
+  /// Stores [newContent] as given, like [sendMessage]; the message keeps its
+  /// media and payload.
   void editMessage(UserChatMessage message, String newContent) {
     updateMessage(
       UserChatMessage(
@@ -155,6 +160,8 @@ class GeneratedChatDataSource extends ChatDataSource {
         createdAt: message.createdAt,
         updatedAt: DateTime.now(),
         content: newContent,
+        media: message.media,
+        payload: message.payload,
       ),
       reason: 'demo-edit',
     );

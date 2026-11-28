@@ -1,0 +1,50 @@
+name: message_media
+description: >
+  Message media display: the policy, layouts, cells and link preview card that
+  show a message's media items, keyed by media item id.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+  flutter: '>=3.32.0'
+
+dependencies:
+  # ChatBodyPartRole and ChatDiagnosablePart, for the hit part message media
+  # puts in a body part hit (ADR 020 rule 11; the root never depends back).
+  chat_scroll_view:
+    path: ../..
+  # Protection only, through ChatProtection.forMessage, for the per-item
+  # actions a host and its viewer offer (ADR 049 Readers).
+  chat_capabilities:
+    path: ../chat_capabilities
+  # File rows' text starts from ChromeTypography (ADR 020 amendment).
+  chrome_foundation:
+    path: ../chrome_foundation
+  # Cells draw through ContentAssetView (ADR 020 amendment).
+  content_assets:
+    path: ../content_assets
+  # MediaItemId and MediaItemKind, the identity and kind every cell is keyed
+  # and sized by (ADR 047).
+  content_model:
+    path: ../content_model
+  flutter:
+    sdk: flutter
+  # The state's change signals (ADR 023).
+  listen: ^1.0.1
+  meta: ^1.17.0
+  # The asset presets, status control and badge the cells draw with; mpx is
+  # consumed from git, pinned to one commit (see the root pubspec).
+  mpx_core:
+    git:
+      url: https://github.com/itsezlife/mpx.git
+      path: packages/mpx_core
+      ref: 9f86912485e31ae2bb727c8124985a5ba4315f6d
+
+dev_dependencies:
+  # Golden baselines are the CI runner's: compared and regenerated there only.
+  golden_baseline:
+    path: ../golden_baseline
+  flutter_test:
+    sdk: flutter

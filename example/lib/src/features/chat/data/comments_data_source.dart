@@ -7,6 +7,7 @@ import 'package:chat_scroll_view_example/src/common/environment_specific/asset_t
     as environment_specific;
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_message_search.dart';
+import 'package:chat_scroll_view_example/src/features/chat/data/demo_media_messages.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_markdown.dart';
 import 'package:flutter/foundation.dart' show compute;
 
@@ -65,8 +66,9 @@ class CommentsDataSource extends ChatDataSource {
     required this.fetchDelay,
     required this.maxCachedChunks,
     required List<String> tailBodies,
+    required List<DemoMediaMessage> tailMedia,
   }) {
-    final total = manifest.totalMessages + tailBodies.length;
+    final total = manifest.totalMessages + tailBodies.length + tailMedia.length;
     final baseTime = DateTime.now();
     for (var i = 0; i < tailBodies.length; i++) {
       final id = manifest.totalMessages + i;
@@ -76,6 +78,15 @@ class CommentsDataSource extends ChatDataSource {
         createdAt: baseTime,
         updatedAt: baseTime,
         content: ChatBodyMarkdown.received(tailBodies[i]),
+      );
+    }
+    for (var i = 0; i < tailMedia.length; i++) {
+      final id = manifest.totalMessages + tailBodies.length + i;
+      _tailOverrides[id] = tailMedia[i].toMessage(
+        id: id,
+        sender:
+            manifest.senders[(tailBodies.length + i) % manifest.senders.length],
+        time: baseTime,
       );
     }
     if (total > 0) {
@@ -90,9 +101,11 @@ class CommentsDataSource extends ChatDataSource {
 
   /// Load manifest and return a ready-to-use data source.
   ///
-  /// [tailBodies] follow the comments as the newest messages, one each.
+  /// [tailBodies] follow the comments as the newest messages, one each,
+  /// then [tailMedia], the media messages, one each.
   static Future<CommentsDataSource> load({
     List<String> tailBodies = const [],
+    List<DemoMediaMessage> tailMedia = const [],
     String assetPrefix = 'assets/comments',
     Duration fetchDelay = const Duration(milliseconds: 120),
     int maxCachedChunks = 32,
@@ -106,6 +119,7 @@ class CommentsDataSource extends ChatDataSource {
       fetchDelay: fetchDelay,
       maxCachedChunks: maxCachedChunks,
       tailBodies: tailBodies,
+      tailMedia: tailMedia,
     );
   }
 
@@ -219,10 +233,13 @@ class CommentsDataSource extends ChatDataSource {
   /// Demo integrator: send a new message at the tail via [insertMessage].
   ///
   /// Stores [content] as given: it is the body the composer sent, already
-  /// detected and encoded.
+  /// detected and encoded. [payload] is the rest of what the composer sent
+  /// (its link preview and `invertMedia`), kept as a received message
+  /// carries it.
   UserChatMessage sendMessage({
     required String sender,
     required String content,
+    Map<String, Object?> payload = const {},
   }) {
     final id = nextInsertId;
     final now = DateTime.now();
@@ -232,6 +249,7 @@ class CommentsDataSource extends ChatDataSource {
       createdAt: now,
       updatedAt: now,
       content: content,
+      payload: payload,
     );
     _tailOverrides[id] = message;
     insertMessage(message, reason: 'demo-send');
@@ -240,7 +258,8 @@ class CommentsDataSource extends ChatDataSource {
 
   /// Demo integrator: edit an existing message via [updateMessage].
   ///
-  /// Stores [newContent] as given, like [sendMessage].
+  /// Stores [newContent] as given, like [sendMessage]; the message keeps its
+  /// media and payload.
   void editMessage(UserChatMessage message, String newContent) {
     updateMessage(
       UserChatMessage(
@@ -249,6 +268,8 @@ class CommentsDataSource extends ChatDataSource {
         createdAt: message.createdAt,
         updatedAt: DateTime.now(),
         content: newContent,
+        media: message.media,
+        payload: message.payload,
       ),
       reason: 'demo-edit',
     );

@@ -197,6 +197,7 @@ void main() {
         packSheet: russian.packSheet,
         bulletin: russian.bulletin,
         attach: russian.attach,
+        media: russian.media,
         semantics: russian.semantics,
       );
       await MenuRig.show(tester, size: const Size(900, 700), strings: strings);

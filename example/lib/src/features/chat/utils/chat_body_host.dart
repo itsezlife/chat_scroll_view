@@ -12,6 +12,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_p
 import 'package:chat_scroll_view_example/src/features/chat/data/bundled_packs.dart'
     show DescribeContent;
 import 'package:chat_scroll_view_example/src/features/chat/data/demo_documents.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/chat_media_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/document_embed.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/reference_media_sizes.dart';
@@ -59,6 +60,9 @@ final class ChatBodyHost {
   /// It also says which lone document is a sticker or a GIF of its own
   /// ([mediaOf]), drawn at the size [mediaSizes] gives it: the running
   /// platform's sizes by default.
+  ///
+  /// [media] is how a message with media or a link preview is drawn; without
+  /// it such a message shows its text alone.
   ChatBodyHost({
     required ContentAssetScope assets,
     required this.policy,
@@ -74,6 +78,7 @@ final class ChatBodyHost {
     ChatDocument? Function(String id) documents = DemoDocuments.document,
     SvgDocumentPreview? documentPreviews = DemoDocuments.previews,
     listen.ValueListenable<DocumentRowStyle>? documentStyle,
+    this.media,
   }) : embedResolver = _resolverFor(
          DocumentEmbedResolver(
            scope: assets,
@@ -153,6 +158,10 @@ final class ChatBodyHost {
   /// [InlineEmbedResolver]: the emoji-only body sizes by count with presets
   /// of its own, which a resolver given only text metrics cannot carry.
   final ChatEmojiEmbedFactory embedFactory;
+
+  /// The chat's media seams: the message media policy, the link preview
+  /// lookups and where a tap on media goes; null draws no media.
+  final ChatMediaHost? media;
 
   /// The host's decision for each message, live: the user's setting changes
   /// it while the screen is open.

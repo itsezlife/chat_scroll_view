@@ -194,8 +194,8 @@ void main() {
       expect(turned - first, closeTo(2 * math.pi * 425 / 2500, 1e-6));
     });
 
-    testWidgets('a download of unknown size spins: the arc swings between '
-        'the spinner\'s shortest and longest sweep, not a 0 % arc', (
+    testWidgets('a download of unknown size spins: the arc grows from the '
+        'spinner\'s shortest toward its longest sweep, not a 0 % arc', (
       tester,
     ) async {
       await pump(tester, [_gif(0)]);
@@ -205,8 +205,9 @@ void main() {
       render(tester).debugFrameTime = () => now;
 
       final first = paintOnce(tester).arcs.single.sweep;
-      // 15 frames of 17 ms: a quarter of the 1000 ms swing of the Android
-      // spinner, halfway from 4 to 270 degrees.
+      // 15 frames of 17 ms: 255 ms of the Android spinner's 1000 ms chase,
+      // whose first half grows the arc from 4 toward 270 degrees with the
+      // head accelerating (t squared).
       for (var i = 0; i < 15; i++) {
         now += const Duration(milliseconds: 17);
         paintOnce(tester);
@@ -214,11 +215,8 @@ void main() {
       final swung = paintOnce(tester).arcs.single.sweep;
 
       expect(first, closeTo(4 * math.pi / 180, 1e-6));
-      const quarter = 2 * math.pi * 255 / 1000;
-      expect(
-        swung,
-        closeTo((4 + 266 * (1 - math.cos(quarter)) / 2) * math.pi / 180, 1e-6),
-      );
+      const t = 2 * 255 / 1000;
+      expect(swung, closeTo((4 + 266 * t * t) * math.pi / 180, 1e-6));
     });
 
     testWidgets('a download with no byte yet spins too', (tester) async {

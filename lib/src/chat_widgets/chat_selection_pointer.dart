@@ -1,6 +1,9 @@
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_selection_diagnostics.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_gesture_exclusion.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_metrics.dart';
+import 'package:content_model/content_model.dart'
+    show ChatCorrelation, ChatDiagnostics, ChatEventCategory, ChatEventLevel;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 
@@ -31,6 +34,14 @@ import 'package:flutter/services.dart';
 /// mutually exclusive with both message selection and text selection. When text
 /// selection is active, taps anywhere in the viewport (including empty padding
 /// where no message is hit) dismiss text chrome.
+///
+/// A tap on a **body part** ([ChatInlineHit$BodyPart]) is arbitrated like a
+/// sticker's: in message selection it toggles the message, over a live text
+/// selection it dismisses it, otherwise an `activate` part is the body's and
+/// the host's (`ChatBodyPartActivated`) and a `menu` part opens the message
+/// menu through the policy's menu entry (the idle message tap where a primary
+/// tap opens the menu, the secondary message tap elsewhere). A long press on a
+/// part is the message's.
 class ChatSelectionPointer {
   /// Creates recognizers owned by [debugOwner] (the viewport render object).
   ChatSelectionPointer({required this.debugOwner});
@@ -335,7 +346,16 @@ class ChatSelectionPointer {
     if (flingCancelSuppresses?.call() ?? false) return;
     final id = _pointerDownId;
     if (id == null) return;
-    _onSecondaryMessageTap?.call(id, details.localPosition);
+    final callback = _onSecondaryMessageTap;
+    if (callback == null) return;
+    if (_pointerDownInlineHit case final ChatInlineHit$BodyPart hit) {
+      _reportBodyPartHit(
+        hit,
+        ChatBodyPartOutcome.menu,
+        gesture: ChatBodyPartGesture.secondaryTap,
+      );
+    }
+    callback(id, details.localPosition);
   }
 
   void _onPanStart(DragStartDetails details) {
@@ -455,8 +475,31 @@ class ChatSelectionPointer {
       // abort ink so message / text selection can own the pointer.
       selection.abortSpanFeedback();
     }
+    final bodyPart = switch (inlineHit) {
+      final ChatInlineHit$BodyPart hit => hit,
+      _ => null,
+    };
+    final inSelection = selection.isSelectionMode;
 
-    if (!selection.isSelectable(id)) return;
+    if (!selection.isSelectable(id)) {
+      if (bodyPart != null) {
+        _reportBodyPartHit(
+          bodyPart,
+          ChatBodyPartOutcome.none,
+          gesture: ChatBodyPartGesture.longPress,
+          inSelection: inSelection,
+        );
+      }
+      return;
+    }
+    if (bodyPart != null) {
+      _reportBodyPartHit(
+        bodyPart,
+        ChatBodyPartOutcome.toggle,
+        gesture: ChatBodyPartGesture.longPress,
+        inSelection: inSelection,
+      );
+    }
 
     selection.abortSpanFeedback();
     HapticFeedback.vibrate();
@@ -578,6 +621,12 @@ class ChatSelectionPointer {
     final selection = this.selection;
     final id = _pointerDownId;
     final hit = _pointerDownInlineHit;
+    if (hit is ChatInlineHit$BodyPart && selection != null && id != null) {
+      final inSelection = selection.isSelectionMode;
+      final outcome = _arbitrateBodyPartTap(selection, id, hit);
+      _reportBodyPartHit(hit, outcome, inSelection: inSelection);
+      return;
+    }
     if (selection != null && hit != null && selection.handleInlineHit(hit)) {
       // Activating another message's link is a click away from the text
       // selection: dismiss it, as a click on the other message's text would.
@@ -620,6 +669,79 @@ class ChatSelectionPointer {
       return;
     }
     idleTap(id, local);
+  }
+
+  // The rest of [_onTap] for a body part, in its order: the facade's
+  // activation (normal mode, activate role), then text dismiss, toggle, and the
+  // menu for a menu part. The spoiler-reveal rule of a text body does not
+  // apply: a part's own reveal is the body's activation.
+  ChatBodyPartOutcome _arbitrateBodyPartTap(
+    ChatSelectionController selection,
+    int id,
+    ChatInlineHit$BodyPart hit,
+  ) {
+    if (selection.handleInlineHit(hit)) {
+      if (hit.messageId != selection.textSelectionSubject) {
+        selection.clearTextSelection();
+      }
+      return ChatBodyPartOutcome.activate;
+    }
+    if (selection.isTextSelectionActive) {
+      selection.clearTextSelection();
+      return ChatBodyPartOutcome.dismiss;
+    }
+    if (selection.isSelectionMode) {
+      if (!selection.isSelectable(id)) return ChatBodyPartOutcome.none;
+      selection.toggle(id);
+      return ChatBodyPartOutcome.toggle;
+    }
+    final local = _pointerDownLocal;
+    if (hit.role != ChatBodyPartRole.menu || local == null) {
+      return ChatBodyPartOutcome.none;
+    }
+    // A menu part is a secondary click wherever a primary tap does not open
+    // the menu; where it does (the idle message tap), it is that tap.
+    final idle = onIdleMessageTap;
+    final secondary = _onSecondaryMessageTap;
+    final openMenu = selection.selectionPolicy.routesPrimaryTapToIdleMessage
+        ? idle ?? secondary
+        : secondary ?? idle;
+    if (openMenu == null) return ChatBodyPartOutcome.none;
+    openMenu(id, local);
+    return ChatBodyPartOutcome.menu;
+  }
+
+  /// Emits the [ChatSelectionOp.hit] event for [gesture] on [hit] arbitrated
+  /// as [outcome]; [inSelection] is the mode when the gesture landed (the
+  /// facade's current mode when not given).
+  void _reportBodyPartHit(
+    ChatInlineHit$BodyPart hit,
+    ChatBodyPartOutcome outcome, {
+    ChatBodyPartGesture gesture = ChatBodyPartGesture.tap,
+    bool? inSelection,
+  }) {
+    final named = switch (hit.partId) {
+      final ChatDiagnosablePart part => part,
+      _ => null,
+    };
+    final selecting = inSelection ?? selection?.isSelectionMode ?? false;
+    ChatDiagnostics.current.emit(
+      ChatEventLevel.debug,
+      ChatEventCategory.media,
+      ChatSelectionOp.hit,
+      correlation: ChatCorrelation(
+        chatId: selection?.chatId,
+        scrollId: hit.messageId.toString(),
+        mediaItemId: named?.diagnosticItemId,
+      ),
+      fields: () => {
+        if (named != null) 'part': named.diagnosticName,
+        'role': hit.role,
+        'gesture': gesture,
+        'mode': selecting ? 'selection' : 'normal',
+        'outcome': outcome,
+      },
+    );
   }
 }
 

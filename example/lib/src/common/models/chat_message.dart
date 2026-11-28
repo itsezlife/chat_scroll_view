@@ -1,5 +1,6 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
-import 'package:content_model/content_model.dart' show EmojiOnly, EmojiOnlyText;
+import 'package:content_model/content_model.dart'
+    show EmojiOnly, EmojiOnlyText, LinkPreviewWire, MediaItem;
 import 'package:content_model/markdown.dart' show RichTextMarkdown;
 import 'package:meta/meta.dart';
 
@@ -76,10 +77,15 @@ class UserChatMessage extends ChatMessage {
     required super.createdAt,
     required super.updatedAt,
     required String content,
-    this.hasMedia = false,
+    bool hasMedia = false,
     this.isProtected = false,
+    List<MediaItem> media = const [],
+    Map<String, Object?> payload = const {},
   }) : body = Markdown.fromString(content),
-       emojiOnly = _emojiOnlyOf(content);
+       emojiOnly = _emojiOnlyOf(content),
+       media = List.unmodifiable(media),
+       payload = Map.unmodifiable(payload),
+       hasMedia = hasMedia || _carriesMedia(media, payload);
 
   /// Already-parsed [body] — host cache, isolate batch, or future entities bridge.
   UserChatMessage.preParsed({
@@ -88,9 +94,14 @@ class UserChatMessage extends ChatMessage {
     required super.createdAt,
     required super.updatedAt,
     required this.body,
-    this.hasMedia = false,
+    bool hasMedia = false,
     this.isProtected = false,
-  }) : emojiOnly = _emojiOnlyOf(body.markdown);
+    List<MediaItem> media = const [],
+    Map<String, Object?> payload = const {},
+  }) : emojiOnly = _emojiOnlyOf(body.markdown),
+       media = List.unmodifiable(media),
+       payload = Map.unmodifiable(payload),
+       hasMedia = hasMedia || _carriesMedia(media, payload);
 
   /// Pre-parsed markdown AST for paint and selection registration.
   final Markdown body;
@@ -101,8 +112,23 @@ class UserChatMessage extends ChatMessage {
   final EmojiOnly? emojiOnly;
 
   /// Whether the message carries media, a link preview included: a media
-  /// message is never shown as the emoji-only body.
+  /// message is never shown as the emoji-only body. True whenever [media]
+  /// has items or [payload] has a link preview.
   final bool hasMedia;
+
+  /// The message's media items, in order: photos, videos, GIFs and files,
+  /// their `MediaItemId`s issued by the host, unique in the chat.
+  final List<MediaItem> media;
+
+  /// The message's wire fields beside its body, as a received message
+  /// carries them: `linkPreview` and `invertMedia` in `LinkPreviewWire`'s
+  /// form. Read with `ChatReceivedLinkPreview.read` and [invertMedia].
+  final Map<String, Object?> payload;
+
+  /// Whether the message puts its media above its text (and its link
+  /// preview card above the text): the payload's `invertMedia`.
+  bool get invertMedia =>
+      LinkPreviewWire.readInvertMedia(payload, scrollId: '$id');
 
   /// Whether the message itself is protected: it may not be copied,
   /// forwarded or saved, whatever the chat allows (the chat capabilities'
@@ -111,6 +137,11 @@ class UserChatMessage extends ChatMessage {
 
   /// Original markdown source (same as [Markdown.markdown]).
   String get content => body.markdown;
+
+  static bool _carriesMedia(
+    List<MediaItem> media,
+    Map<String, Object?> payload,
+  ) => media.isNotEmpty || payload.containsKey(LinkPreviewWire.linkPreviewKey);
 
   // A body that is emoji-only starts with whitespace, an emoji (non-ASCII, or
   // a keycap's digit, `#` or `*`) or the `!` of a custom emoji's image: the
@@ -158,6 +189,13 @@ extension ChatMessageExtension on IChatMessage {
   bool get isProtected => switch (this) {
     UserChatMessage(:final isProtected) => isProtected,
     _ => false,
+  };
+
+  /// The message's media items ([UserChatMessage.media]); none for any other
+  /// message.
+  List<MediaItem> get media => switch (this) {
+    UserChatMessage(:final media) => media,
+    _ => const [],
   };
 
   /// Pre-parsed markdown body when this is a [ChatMessage] leaf; otherwise null.
