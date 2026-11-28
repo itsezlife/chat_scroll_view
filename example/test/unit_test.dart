@@ -168,20 +168,20 @@ import 'features/chat/panel_texture_warmer_test.dart'
     as panel_texture_warmer_test;
 import 'features/chat/reference_media_sizes_test.dart'
     as reference_media_sizes_test;
-import 'features/chat/save/chat_save_entries_test.dart'
-    as save_chat_save_entries_test;
 import 'features/chat/save/chat_media_saves_test.dart'
     as save_chat_media_saves_test;
+import 'features/chat/save/chat_save_entries_test.dart'
+    as save_chat_save_entries_test;
 import 'features/chat/save/chat_save_menu_test.dart'
     as save_chat_save_menu_test;
-import 'features/chat/save/selection_save_test.dart'
-    as save_selection_save_test;
 import 'features/chat/save/chat_save_wiring_test.dart'
     as save_chat_save_wiring_test;
 import 'features/chat/save/save_debug_actions_test.dart'
     as save_save_debug_actions_test;
 import 'features/chat/save/save_debug_panel_test.dart'
     as save_save_debug_panel_test;
+import 'features/chat/save/selection_save_test.dart'
+    as save_selection_save_test;
 import 'features/chat/shipped_packs_seed_test.dart' as shipped_packs_seed_test;
 import 'features/chat/spoiler_round_trip_test.dart' as spoiler_round_trip_test;
 import 'features/chat/static_sticker_pack_test.dart'
