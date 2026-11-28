@@ -282,6 +282,43 @@ void main() {
       expect(find.text(hint), findsNothing);
     });
 
+    testWidgets('the hint goes with the bar: it fades out as reading on '
+        'slides the bar away, and does not come back with it', (tester) async {
+      build();
+      controller.setPageAvailability(
+        'stickers',
+        const PageAvailability.dimmed(hint),
+      );
+      await pump(tester);
+      await tester.tap(tabOf('Stickers'));
+      await tester.pump();
+      expect(find.text(hint), findsOneWidget);
+
+      double opacity() => tester
+          .widgetList<FadeTransition>(
+            find.ancestor(
+              of: find.text(hint),
+              matching: find.byType(FadeTransition),
+            ),
+          )
+          .fold(1, (a, o) => a * o.opacity.value);
+      expect(opacity(), 1);
+
+      emoji.host!.reportScrollActivity(const PageScrollDrag(50));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text(hint), findsOneWidget);
+      expect(opacity(), inExclusiveRange(0, 1));
+      await tester.pumpAndSettle();
+      expect(find.text(hint), findsNothing);
+
+      emoji.host!.reportScrollActivity(const PageScrollJump());
+      await tester.pumpAndSettle();
+      expect(find.text(hint), findsNothing);
+      // Past the tap guard's window.
+      await tester.pump(const Duration(seconds: 4));
+    });
+
     testWidgets('a burst of taps is one attempt per guard window', (
       tester,
     ) async {

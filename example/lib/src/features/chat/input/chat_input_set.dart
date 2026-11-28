@@ -64,8 +64,13 @@ typedef ClearRecentsConfirm = Future<bool> Function(SemanticKind kind);
 /// The message being edited: what the composer's header names.
 @immutable
 final class ChatEditTarget {
-  /// Edit of message [id], whose text reads [preview].
-  const ChatEditTarget({required this.id, required this.preview});
+  /// Edit of message [id], whose text reads [preview]; [caption] when the
+  /// text is a media message's caption.
+  const ChatEditTarget({
+    required this.id,
+    required this.preview,
+    this.caption = false,
+  });
 
   /// The message id.
   final int id;
@@ -73,12 +78,23 @@ final class ChatEditTarget {
   /// The message text, for the header.
   final String preview;
 
-  @override
-  bool operator ==(Object other) =>
-      other is ChatEditTarget && other.id == id && other.preview == preview;
+  /// Whether the text is a media message's caption, which may be cleared:
+  /// an empty edit is saved. Text alone keeps some text.
+  final bool caption;
+
+  /// Whether [text] may be saved as the edit: any text, or none for a
+  /// caption.
+  bool accepts(String text) => caption || text.trim().isNotEmpty;
 
   @override
-  int get hashCode => Object.hash(id, preview);
+  bool operator ==(Object other) =>
+      other is ChatEditTarget &&
+      other.id == id &&
+      other.preview == preview &&
+      other.caption == caption;
+
+  @override
+  int get hashCode => Object.hash(id, preview, caption);
 }
 
 /// The per-chat controller set: everything one chat screen creates, wires to
@@ -765,14 +781,18 @@ final class ChatInputSet {
   /// Does nothing for a body that is a sticker or a GIF
   /// ([MessageEditability]): this is the one door every way into edit mode
   /// goes through, so the rule holds for a door added later too.
-  void beginEdit(int id, String body) {
+  void beginEdit(int id, String body, {bool caption = false}) {
     if (_disposed || !MessageEditability.canEditBody(body)) return;
     final text = ChatBodyMarkdown.decodeForEdit(body);
     composer.restore(
       text,
       selection: TextSelection.collapsed(offset: text.length),
     );
-    _editing.value = ChatEditTarget(id: id, preview: text.plain);
+    _editing.value = ChatEditTarget(
+      id: id,
+      preview: text.plain,
+      caption: caption,
+    );
     composer.requestFocus();
     _raiseKeyboardForEdit();
   }
@@ -872,7 +892,14 @@ final class ChatInputSet {
       selection: TextSelection.collapsed(offset: text.length),
     );
     if (draft.editing case final id?) {
-      _editing.value = ChatEditTarget(id: id, preview: text.plain);
+      _editing.value = ChatEditTarget(
+        id: id,
+        preview: text.plain,
+        caption: switch (_messages?.getMessage(id)) {
+          final message? => MessageEditability.editsCaption(message),
+          null => false,
+        },
+      );
     }
     // After the text: its arrival is an edit the dismissal would read.
     if (!draft.linkPreview.isEmpty) linkPreview.restore(draft.linkPreview);
@@ -886,7 +913,8 @@ final class ChatInputSet {
   }
 
   /// Sends what the composer holds, or saves the edit; keeps the text when
-  /// that fails. Does nothing for a blank composer, one over the
+  /// that fails. Does nothing for a blank composer (but for an edit of a
+  /// caption, which may be cleared: [ChatEditTarget.accepts]), one over the
   /// [messageLengthLimit] (nothing is cut to fit) or while a send is in
   /// flight.
   ///
@@ -896,11 +924,15 @@ final class ChatInputSet {
   Future<void> submit() async {
     if (_disposed || _busy.value) return;
     final rich = composer.sendableText;
-    if (rich.plain.trim().isEmpty) return;
+    final target = _editing.value;
+    final accepted = switch (target) {
+      final target? => target.accepts(rich.plain),
+      null => rich.plain.trim().isNotEmpty,
+    };
+    if (!accepted) return;
     final limit = messageLengthLimit;
     if (limit != null && composer.length > limit) return;
     final body = ChatBodyMarkdown.send(rich);
-    final target = _editing.value;
     _busy.value = true;
     try {
       if (target != null) {

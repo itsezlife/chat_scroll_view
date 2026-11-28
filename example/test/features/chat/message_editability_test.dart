@@ -12,6 +12,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_p
 import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_editability.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/sticker_message_body.dart';
+import 'package:content_model/content_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 UserChatMessage _message(String content) => UserChatMessage(
@@ -117,6 +118,44 @@ void main() {
         MessageEditability.canEditBody('![duck 3](document:corpus:duck:3)'),
         isFalse,
       );
+    });
+  });
+
+  group('MessageEditability.editsCaption', () {
+    test(
+      'a message with media items edits a caption, which may be cleared',
+      () {
+        final photo = UserChatMessage(
+          id: 1,
+          sender: 'me',
+          createdAt: DateTime(2026),
+          updatedAt: DateTime(2026),
+          content: 'a caption',
+          media: [
+            MediaItem(
+              id: const MediaItemId('p1'),
+              descriptor: const ContentDescriptor(
+                key: ContentKey.document('p1'),
+                mediaForm: MediaForm.still,
+              ),
+            ),
+          ],
+        );
+        expect(MessageEditability.editsCaption(photo), isTrue);
+      },
+    );
+
+    test('text alone, a link preview included, keeps some text', () {
+      expect(MessageEditability.editsCaption(_message('hello')), isFalse);
+      final preview = UserChatMessage(
+        id: 1,
+        sender: 'me',
+        createdAt: DateTime(2026),
+        updatedAt: DateTime(2026),
+        content: 'https://example.com',
+        hasMedia: true,
+      );
+      expect(MessageEditability.editsCaption(preview), isFalse);
     });
   });
 }

@@ -156,6 +156,36 @@ void main() {
     expect(preview, findsNothing);
   });
 
+  testWidgets('a pick and its removal while a page covers the sheet (the '
+      'camera, its viewer) leave the header empty when it shows again', (
+    tester,
+  ) async {
+    final rig = await open(tester);
+    final navigator = Navigator.of(tester.element(header));
+    unawaited(
+      navigator.push(
+        PageRouteBuilder<void>(
+          pageBuilder: (_, _, _) => const SizedBox.expand(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    // Under the page the header's tickers are muted: it hears the pick and
+    // the removal without a frame between them.
+    final item = AttachPickerSelection.itemOf(FakeMediaLibrary.assetAt(0));
+    rig.selection.toggle(item);
+    await tester.pump();
+    rig.selection.remove(item.id);
+    await tester.pump();
+    expect(rig.selection.items, isEmpty);
+
+    navigator.pop();
+    await tester.pumpAndSettle();
+    final words = find.text('1 photo selected');
+    if (words.evaluate().isNotEmpty) expect(opacityOf(tester, words), 0);
+    expect(toggle.hitTestable(), findsNothing);
+  });
+
   testWidgets("nothing selected: the band over the grid is the handle's "
       '24', (tester) async {
     await open(tester);

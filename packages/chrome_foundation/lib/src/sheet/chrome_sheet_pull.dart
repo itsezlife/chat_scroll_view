@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
-import 'package:meta/meta.dart';
 
 /// What a release does to a bottom sheet that a drag pulled down.
 enum ChromeSheetRelease {
@@ -19,7 +18,8 @@ enum ChromeSheetRelease {
 /// How a bottom sheet's pull closes it: past [dismissDistance] logical
 /// pixels, or on a downward flick of [dismissVelocity] physical pixels per
 /// second; a shorter, slower pull springs back over [springBack] scaled by
-/// the share of the distance it holds.
+/// the share of the distance it holds, on [springBackCurve], from wherever
+/// the finger left the sheet.
 @immutable
 final class ChromeSheetDragSpec {
   /// A spec closing past [dismissDistance] or on [dismissVelocity].
@@ -27,6 +27,7 @@ final class ChromeSheetDragSpec {
     required this.dismissDistance,
     required this.dismissVelocity,
     required this.springBack,
+    this.springBackCurve = Curves.ease,
   });
 
   /// How far a pull closes the sheet, in logical pixels.
@@ -39,6 +40,11 @@ final class ChromeSheetDragSpec {
   /// How long springing back from a pull of [dismissDistance] takes; a
   /// shorter pull takes its share of it, on an ease out.
   final Duration springBack;
+
+  /// The spring back's curve: by default the standard ease
+  /// (`Cubic(0.25, 0.1, 0.25, 1)`), the curve a picker sheet returns to
+  /// its rest on, so every bottom sheet a pull leaves low settles alike.
+  final Curve springBackCurve;
 }
 
 /// The one owner of a bottom sheet's pull: how far a finger has pulled the

@@ -6,6 +6,13 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed (tab hint goes with the bar)
+
+- A dimmed tab's hint fades out on the bar's own motion as the bar slides
+  away (reading on, an open search) and is dropped once faded, so the bar
+  comes back without it. Before, it stayed over the panel after the bar
+  had gone.
+
 ### Changed (tooltip)
 
 - The tab hint (`PanelTabHint`) draws chrome_foundation's `ChromeTooltip`
