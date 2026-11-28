@@ -13,14 +13,20 @@ layout) and [Content and Assets](../../docs/content/CONTEXT.md) (media item).
 ## Policy
 
 `MessageMediaPolicy.android()`, `.ios()`, `.desktop()` hold each platform
-family's defaults; `.platform()` picks the running app's (on the web, its
-operating system's family until the web's own sizes land). A host replaces
+family's defaults; `.platform()` picks the running app's. In a browser that
+is `.web()`: the browser's operating system's family with the web's box
+sizes by the window's width class (`MediaBoxSizing$Web`: 340 boxes on a
+compact window, 420 on a wider one, a resize across 600 re-laying them out
+at once), the card's media in the web's preview box, and the hover by the
+pointer's input class. The host passes the window in the layout input
+(`displaySize`, and `widthClass: ChromeWidthClass.of(context)`) and mounts
+one `ChromeInputClassScope` near its root. A host replaces
 the layout step whole (`copyWith(layoutStep:)`, any `MediaLayoutStep`), or
 keeps the default `MediaLayoutPolicy` and replaces one part:
 
 | Part | Role |
 | --- | --- |
-| `box` (`MediaBoxSizing`) | A single box's size and the width of a block spanning the media budget. `MediaBoxSizing$Android`, `$IOS` and `$Desktop` each list their values, each a field with `copyWith`. |
+| `box` (`MediaBoxSizing`) | A single box's size and the width of a block spanning the media budget. `MediaBoxSizing$Android`, `$IOS`, `$Desktop` and `$Web` each list their values, each a field with `copyWith`. |
 | `mosaicAlgorithm` (`MosaicAlgorithm`) | Two or more boxes into a mosaic. `GroupedMosaicAlgorithm` is the default, with rows bounded by half of `max(list width, screen height)`. The iOS policy uses `IosMosaicAlgorithm`: a fixed pattern by orientation for two to four boxes, else the best split into two to four rows, within the list class's max size (300 × 380 compact, 440 × 440 regular). The desktop policy uses `DesktopMosaicAlgorithm`, laid out at 430 and scaled to the block width. |
 | `fit` (`MediaFitPolicy`) | Each box kind's fit mode alone: `crop`, `blurFit`, `cropIfVisible(fraction)`; and `album`, the fit of every box in a mosaic of two or more (`crop` on every platform). |
 | `captionWidth` (`MediaCaptionWidthPolicy`) | The caption's width metrics. |
@@ -150,12 +156,12 @@ of the media's own takes a tap.
 In normal mode the view performs the part's action
 (`MediaGesturePolicy.actionOf`, `MessageMediaPolicy.gestures`):
 
-| Part | Android | iOS | Desktop |
-| --- | --- | --- | --- |
-| content | opens the viewer (`onOpenViewer`) | the same; a loading item cancels | the same; a loading item cancels |
-| status | downloads, cancels, retries | the same | the same |
-| hidden spoiler | reveals only | the same | the same |
-| cursor, hover | none | none | click cursor over a part, a 200 ms highlight on the item; plain in selection |
+| Part | Android | iOS | Desktop | Web |
+| --- | --- | --- | --- | --- |
+| content | opens the viewer (`onOpenViewer`) | the same; a loading item cancels | the same; a loading item cancels | the same; a loading item cancels |
+| status | downloads, cancels, retries | the same | the same | the same |
+| hidden spoiler | reveals only | the same | the same | the same |
+| cursor, hover | none | none | click cursor over a part, a 200 ms highlight on the item; plain in selection | as on desktop for a mouse; none for a touch screen or a stylus, read from each event's pointer kind |
 
 An activation within 400 ms of the last accepted one is dropped
 (`activationGuard`). A `MediaViewerRequest` carries the items to page

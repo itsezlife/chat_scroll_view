@@ -16,7 +16,8 @@ import 'package:panel_pages/panel_pages.dart';
 /// Host-owned and above the whole app: the chrome theme (dark palette), the
 /// strings, the motion speed (reduce motion mapped to instant: no chrome
 /// package reads the platform flag itself), the glass quality, the panel's
-/// category icons and the asset cache the content widgets look up. The chat screen adds its own
+/// category icons, the input class (touch or mouse, from the last pointer)
+/// and the asset cache the content widgets look up. The chat screen adds its own
 /// nested scopes (glass source) below.
 ///
 /// Needs a [MediaQuery] above it; nothing here owns [AppServices.assets].
@@ -78,7 +79,11 @@ class AppChrome extends StatelessWidget {
                   // face: a route a package pushes without a text root of
                   // its own (a picker's menu, a viewer) inherits this one,
                   // not the framework's underlined debug style.
-                  child: ChromeTextRoot(child: child),
+                  // The input class follows the last pointer anywhere in
+                  // the app: the web's media policy reads it.
+                  child: ChromeInputClassScope(
+                    child: ChromeTextRoot(child: child),
+                  ),
                 ),
               ),
             ),

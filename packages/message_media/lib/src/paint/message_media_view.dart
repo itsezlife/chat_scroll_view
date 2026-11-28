@@ -1,5 +1,7 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart'
     show ChatSelectionController;
+import 'package:chrome_foundation/chrome_foundation.dart'
+    show ChromeInputClass, ChromeWidthClass;
 import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart';
 import 'package:message_media/src/chrome/media_cell_chrome.dart';
@@ -213,30 +215,41 @@ class MessageMediaView extends StatelessWidget {
     size: layout.size,
     child: MessageMediaStateBuilder(
       scrollId: correlation.scrollId,
-      builder: (context, state) => MessageMediaBody(
-        layout: layout,
-        items: items,
-        policy: policy,
-        state: state,
-        dataOf: _dataOf,
-        cellBuilder: (context, block, cell, decorate, {origin = Offset.zero}) =>
-            _positioned(context, state, block, cell, decorate, origin),
-        selection: selection,
-        messageId: messageId,
-        onOpenViewer: onOpenViewer,
-        onItemMenu: onItemMenu,
-        onLinkPreview: onLinkPreview,
-        linkPreviewColors: linkPreviewColors,
-        cardOpacity: cardOpacity,
-        leavingCard: leavingCard,
-        leavingCardOpacity: leavingCardOpacity,
-        chromeContext: chromeContext,
-        correlation: correlation,
-        sendState: sendState,
-        onItemCancelled: onItemCancelled,
-      ),
+      builder: _body,
     ),
   );
+
+  Widget _body(BuildContext context, MessageMediaState state) {
+    if (policy.isWeb) {
+      state.noteWebClasses(
+        ChromeWidthClass.of(context),
+        ChromeInputClass.of(context),
+        chatId: correlation.chatId,
+      );
+    }
+    return MessageMediaBody(
+      layout: layout,
+      items: items,
+      policy: policy,
+      state: state,
+      dataOf: _dataOf,
+      cellBuilder: (context, block, cell, decorate, {origin = Offset.zero}) =>
+          _positioned(context, state, block, cell, decorate, origin),
+      selection: selection,
+      messageId: messageId,
+      onOpenViewer: onOpenViewer,
+      onItemMenu: onItemMenu,
+      onLinkPreview: onLinkPreview,
+      linkPreviewColors: linkPreviewColors,
+      cardOpacity: cardOpacity,
+      leavingCard: leavingCard,
+      leavingCardOpacity: leavingCardOpacity,
+      chromeContext: chromeContext,
+      correlation: correlation,
+      sendState: sendState,
+      onItemCancelled: onItemCancelled,
+    );
+  }
 
   Widget _positioned(
     BuildContext context,

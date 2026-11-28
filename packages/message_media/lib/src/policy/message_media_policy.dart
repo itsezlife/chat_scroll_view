@@ -4,12 +4,14 @@ import 'package:message_media/src/chrome/media_chrome_slots.dart';
 import 'package:message_media/src/diagnostics/media_op.dart';
 import 'package:message_media/src/diagnostics/media_trace.dart';
 import 'package:message_media/src/gesture/media_gesture_policy.dart';
+import 'package:message_media/src/layout/link_preview_card.dart';
 import 'package:message_media/src/layout/media_layout.dart';
 import 'package:message_media/src/layout/media_layout_input.dart';
 import 'package:message_media/src/outgoing/media_send_flight_policy.dart';
 import 'package:message_media/src/paint/media_cell_builders.dart';
 import 'package:message_media/src/policy/link_preview_card_policy.dart';
 import 'package:message_media/src/policy/media_autoplay_policy.dart';
+import 'package:message_media/src/policy/media_box_sizing.dart';
 import 'package:message_media/src/policy/media_corner_policy.dart';
 import 'package:message_media/src/policy/media_file_stack_policy.dart';
 import 'package:message_media/src/policy/media_layout_policy.dart';
@@ -31,8 +33,10 @@ enum MessageMediaPlatform {
 /// defaults, overridable in parts.
 ///
 /// One object per platform family: [MessageMediaPolicy.android],
-/// [MessageMediaPolicy.ios], [MessageMediaPolicy.desktop], or the running
-/// app's with [MessageMediaPolicy.platform]. A host changes one part with
+/// [MessageMediaPolicy.ios], [MessageMediaPolicy.desktop], the web's
+/// [MessageMediaPolicy.web] (by the window and the pointer, over the
+/// browser's operating system's family), or the running app's with
+/// [MessageMediaPolicy.platform]. A host changes one part with
 /// [copyWith]: the layout step as a whole ([layoutStep]) or one of the
 /// default step's parts through [MediaLayoutPolicy.copyWith], the file rows
 /// ([fileStack]) or the link preview card ([linkPreview]), which every step
@@ -61,6 +65,7 @@ final class MessageMediaPolicy {
     this.transition = const MediaTransitionPolicy.none(),
     this.sendFlight = const MediaSendFlightPolicy.none(),
     this.gestures = const MediaGesturePolicy(),
+    this.isWeb = false,
   });
 
   /// The Android family's defaults.
@@ -118,16 +123,60 @@ final class MessageMediaPolicy {
         TargetPlatform.fuchsia => const MessageMediaPolicy.desktop(),
       };
 
-  /// The running app's family.
+  /// The web's policy: boxes by the window's width class, hover by the
+  /// pointer's input class, an instant re-layout; every other part is the
+  /// family of [platform], the browser's operating system (by default the
+  /// running one).
   ///
-  /// On the web this is the browser's operating system's family for now:
-  /// the web's own box sizes by width class are not laid out yet, and a
-  /// phone's browser is not a desktop.
-  factory MessageMediaPolicy.platform() =>
-      MessageMediaPolicy.forPlatform(defaultTargetPlatform);
+  /// The web is neither a phone nor a desktop: one browser runs on a phone,
+  /// a tablet and a desktop window resized at will, so its layout follows
+  /// the window live and its hover follows each event's pointer, never the
+  /// desktop preset. What it replaces in the family's defaults:
+  ///
+  /// | Part | Web |
+  /// | --- | --- |
+  /// | [layoutStep] | the family's `MediaLayoutPolicy` with `MediaBoxSizing$Web`: 340 boxes on a compact window, 420 otherwise |
+  /// | [linkPreview] | the family's card, fitting its media (`LinkPreviewCardWidth.fitMedia`), so large media takes the web's preview box |
+  /// | [gestures] | `MediaGesturePolicy.web` |
+  /// | [transition] | none: a resize, or any other change, re-lays out at once |
+  ///
+  /// A host's view of this policy reports `media` / `webClassChanged`
+  /// ([isWeb]). The input to [layout] carries the window: its
+  /// `displaySize`, and its `widthClass` read with `ChromeWidthClass.of`.
+  factory MessageMediaPolicy.web({TargetPlatform? platform}) {
+    final base = MessageMediaPolicy.forPlatform(
+      platform ?? defaultTargetPlatform,
+    );
+    return base.copyWith(
+      layoutStep: switch (base.layoutStep) {
+        final MediaLayoutPolicy step => step.copyWith(
+          box: const MediaBoxSizing.web(),
+        ),
+        final step => step,
+      },
+      linkPreview: base.linkPreview.copyWith(
+        width: LinkPreviewCardWidth.fitMedia,
+      ),
+      gestures: const MediaGesturePolicy.web(),
+      transition: const MediaTransitionPolicy.none(),
+      isWeb: true,
+    );
+  }
 
-  /// The family the defaults came from, named in diagnostics.
+  /// The running app's policy: [MessageMediaPolicy.web] in a browser, else
+  /// the family of the operating system.
+  factory MessageMediaPolicy.platform() => kIsWeb
+      ? MessageMediaPolicy.web()
+      : MessageMediaPolicy.forPlatform(defaultTargetPlatform);
+
+  /// The family the defaults came from, named in diagnostics; on the web,
+  /// the browser's operating system's.
   final MessageMediaPlatform family;
+
+  /// Whether this is the web's policy ([MessageMediaPolicy.web]): its view
+  /// follows the window's width class and the input class, and reports a
+  /// change of either (`media` / `webClassChanged`).
+  final bool isWeb;
 
   /// The layout step.
   final MediaLayoutStep layoutStep;
@@ -226,6 +275,7 @@ final class MessageMediaPolicy {
     MediaTransitionPolicy? transition,
     MediaSendFlightPolicy? sendFlight,
     MediaGesturePolicy? gestures,
+    bool? isWeb,
   }) => MessageMediaPolicy(
     family: family ?? this.family,
     layoutStep: layoutStep ?? this.layoutStep,
@@ -238,5 +288,6 @@ final class MessageMediaPolicy {
     transition: transition ?? this.transition,
     sendFlight: sendFlight ?? this.sendFlight,
     gestures: gestures ?? this.gestures,
+    isWeb: isWeb ?? this.isWeb,
   );
 }

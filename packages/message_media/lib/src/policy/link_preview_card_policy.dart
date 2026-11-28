@@ -1136,7 +1136,8 @@ final class LinkPreviewCardPolicy {
     // Large media's natural width, which the fitting rules read.
     final mediaNatural = switch (item) {
       final item? when large => switch (width) {
-        LinkPreviewCardWidth.fitMedia => box.single(item, input).size.width,
+        LinkPreviewCardWidth.fitMedia =>
+          box.linkPreviewMedia(item, input).size.width,
         _ => item.descriptor.size?.width ?? cardMax,
       },
       _ => 0.0,
@@ -1443,7 +1444,7 @@ final class LinkPreviewCardPolicy {
     final m = metrics;
     switch (this.width) {
       case LinkPreviewCardWidth.fitMedia:
-        final natural = box.single(item, input).size;
+        final natural = box.linkPreviewMedia(item, input).size;
         if (natural.isEmpty) return m.largeMediaZeroSide;
         return natural.height * math.min(1, width / natural.width);
       case LinkPreviewCardWidth.fillBudget || LinkPreviewCardWidth.fitContent:

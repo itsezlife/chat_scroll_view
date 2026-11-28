@@ -71,6 +71,12 @@ enum MediaOp implements DiagnosticOp {
   /// `originPresent`, the [MediaFlightOutcome] as `outcome`, and for want
   /// of an overlay the [MediaFlightSkip] as `reason`.
   sendOriginFlight,
+
+  /// The web policy's view saw the window's width class or the input class
+  /// change (debug): the width class `from` and `to` (`ChromeWidthClass`)
+  /// and the `input` class (`ChromeInputClass`); reported once per chat
+  /// and change, with the chat's id.
+  webClassChanged,
 }
 
 /// The cell builder or chrome slot that failed; the `builder` of a
