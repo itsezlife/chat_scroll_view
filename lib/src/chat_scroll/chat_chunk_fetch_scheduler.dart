@@ -491,14 +491,23 @@ class ChatChunkFetchScheduler {
   /// new range. While under budget, off-screen chunks are kept so a later
   /// `jumpTo` / scroll back can reuse cached data without a refetch. Pass 2
   /// drops the coldest in-range chunk when still over budget, never the
-  /// anchor's chunk. Load-gate destination-window chunks are also protected.
+  /// anchor's chunk. Load-gate destination-window chunks and the chunks of the
+  /// provisional tail are also protected.
   void evictChunks() {
     final maxChunks = _dataSource.maxChunks;
     final anchorChunk = _anchorChunkIndex();
     final dest = _navigationDestChunk;
+    final provisional = _dataSource.provisionalChunks;
 
     bool isProtected(int index) {
       if (index == anchorChunk) return true;
+      // The provisional tail lives only in the engine: no fetch restores it.
+      if (provisional case (
+        :final first,
+        :final last,
+      ) when index >= first && index <= last) {
+        return true;
+      }
       // Never drop an in-flight fetch victim — eviction + same-range early
       // return left the poll with null pending forever.
       if (_dataSource.coversChunkInFlight(index)) return true;

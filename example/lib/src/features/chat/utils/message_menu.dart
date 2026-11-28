@@ -745,6 +745,9 @@ final class MessageMenu {
       final packsInCard = packsLook != MessageContainsEmojiLook.card;
       final packsSource = emojiPacks?.source;
 
+      // Closes when the row's message leaves or moves (a provisional
+      // outgoing row the tail move shifts).
+      final row = dataSource.rowPresence(request.messageId);
       final result = await ChatMessageMenu.show(
         context: context,
         presentation: presentation,
@@ -813,8 +816,8 @@ final class MessageMenu {
         itemBuilder: MessageMenuChrome.itemBuilderFor(presentation),
         surfaceBuilder: surfaceBuilder,
         transitionBuilder: MessageMenuChrome.transition,
-        presence: _ChatDataSourceListenable(dataSource),
-        isPresent: () => dataSource.getMessage(request.messageId) != null,
+        presence: row,
+        isPresent: () => row.isPresent,
       );
       if (!context.mounted || result == null) return;
       await _dispatch(
@@ -999,6 +1002,7 @@ final class MessageMenu {
       final policy = selectionPolicy;
       final presentation = AppPlatformPolicy.current()
           .messageMenuPresentationFor(policy);
+      final row = dataSource.rowPresence(messageId);
       final result = await ChatMessageMenu.show(
         context: context,
         presentation: presentation,
@@ -1008,8 +1012,8 @@ final class MessageMenu {
         itemBuilder: MessageMenuChrome.itemBuilderFor(presentation),
         surfaceBuilder: MessageMenuChrome.surfaceBuilderFor(presentation),
         transitionBuilder: MessageMenuChrome.transition,
-        presence: _ChatDataSourceListenable(dataSource),
-        isPresent: () => dataSource.getMessage(messageId) != null,
+        presence: row,
+        isPresent: () => row.isPresent,
       );
       if (result case ChatMessageMenuItemResult(:final itemId)) {
         if (MessageMenuMediaRows.actionOf(itemId) case final action?) {
@@ -1047,21 +1051,6 @@ final class MessageMenu {
       _ => emojiPacks.of(request.messageId),
     };
   }
-}
-
-/// Forwards [ChatDataSource] data notifications as a [Listenable].
-final class _ChatDataSourceListenable implements Listenable {
-  const _ChatDataSourceListenable(this.dataSource);
-
-  final ChatDataSource dataSource;
-
-  @override
-  void addListener(VoidCallback listener) =>
-      dataSource.addDataListener(listener);
-
-  @override
-  void removeListener(VoidCallback listener) =>
-      dataSource.removeDataListener(listener);
 }
 
 /// The default menu column with the contains-emoji entry under the action
