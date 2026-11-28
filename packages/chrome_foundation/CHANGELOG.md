@@ -6,6 +6,14 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (media strings)
+
+- **Breaking:** `ChromeStrings` requires `media` (`MediaStrings`): the
+  words of a message's media, what a screen reader hears for an item and a
+  link preview card, and a file row's size, info and link lines.
+  `ChromeStringsScope.mediaOf`; English and Russian in the presets. A host
+  building its own `ChromeStrings` adds the group.
+
 ### Added
 
 - `ChromeTapTiming.repeatGuard` (400 ms): the window in which a control
@@ -20,8 +28,9 @@ package is pre-1.0.
   instant motion speed. Null by default: existing users are unchanged.
 - `ChromeInk.yieldsTap`: the target shows its press but leaves the gesture
   arena on the pointer's up, so a recognizer above it (a chat list that
-  arbitrates taps on its rows) takes the tap; `onTap` may be null and is not
-  called. `ChromeInk.pressableAt`: where a press may start, for a target
+  arbitrates taps on its rows) takes the tap; `onTap` is then null (a
+  yielding target with a tap callback asserts). `ChromeInk.pressableAt`:
+  where a press may start, for a target
   whose links or buttons press on their own. Both off by default.
 
 ### Added (tooltip)

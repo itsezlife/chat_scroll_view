@@ -15,6 +15,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:message_media/message_media.dart';
 import 'package:mpx_core/testing.dart' hide RecordingDiagnostics;
 
+import '../support/media_scopes.dart';
+
 MediaItem _photo(String id, {ContentSize size = const ContentSize(800, 600)}) =>
     MediaItem(
       id: MediaItemId(id),
@@ -80,6 +82,7 @@ void main() {
     final layout = policy.layout(
       composition.inputFor(
         MediaLayoutInput(
+          text: MediaScopes.text,
           items: items,
           availableWidth: 360,
           displaySize: const Size(360, 640),
@@ -118,7 +121,7 @@ void main() {
     ) async {
       const policy = MessageMediaPolicy.android();
       final b = bubble(policy, [_photo('a')], const MediaBubbleComposition());
-      await tester.pumpWidget(host(b.widget));
+      await tester.pumpWidget(MediaScopes.wrap(host(b.widget)));
       final media = mediaRect(tester);
       expect(media.topLeft, const Offset(2, 2));
       expect(media.size, b.layout.size);
@@ -128,7 +131,7 @@ void main() {
     testWidgets('desktop: flush, no inset', (tester) async {
       const policy = MessageMediaPolicy.desktop();
       final b = bubble(policy, [_photo('a')], const MediaBubbleComposition());
-      await tester.pumpWidget(host(b.widget));
+      await tester.pumpWidget(MediaScopes.wrap(host(b.widget)));
       expect(mediaRect(tester).topLeft, Offset.zero);
       expect(bubbleRect(tester).size, b.layout.size);
     });
@@ -143,7 +146,7 @@ void main() {
         const MediaBubbleComposition(hasCaption: true),
         caption: _box(_captionKey, 100, 40),
       );
-      await tester.pumpWidget(host(b.widget));
+      await tester.pumpWidget(MediaScopes.wrap(host(b.widget)));
       final media = mediaRect(tester);
       expect(media.topLeft, const Offset(2, 2));
       final caption = rectOf(tester, find.byKey(_captionKey));
@@ -161,7 +164,7 @@ void main() {
         caption: _box(_captionKey, 100, 40),
         time: const SizedBox(key: _timeKey),
       );
-      await tester.pumpWidget(host(b.widget));
+      await tester.pumpWidget(MediaScopes.wrap(host(b.widget)));
       final caption = rectOf(tester, find.byKey(_captionKey));
       expect(caption.topLeft, const Offset(10, 6));
       final media = mediaRect(tester);
@@ -182,7 +185,7 @@ void main() {
         time: const SizedBox(key: _timeKey),
       );
       expect(b.layout.timePill, isNull);
-      await tester.pumpWidget(host(b.widget));
+      await tester.pumpWidget(MediaScopes.wrap(host(b.widget)));
       expect(find.byKey(_timeKey), findsNothing);
     });
 
@@ -200,8 +203,8 @@ void main() {
           caption: _box(_captionKey, 2000, 20),
         );
         // A fresh bubble per policy: no transition between them.
-        await tester.pumpWidget(const SizedBox());
-        await tester.pumpWidget(host(b.widget));
+        await tester.pumpWidget(MediaScopes.wrap(const SizedBox()));
+        await tester.pumpWidget(MediaScopes.wrap(host(b.widget)));
         final metrics = b.layout.widthMetrics!;
         expect(
           rectOf(tester, find.byKey(_captionKey)).width,
@@ -223,7 +226,7 @@ void main() {
       final plain = bubble(policy, [
         _photo('a', size: const ContentSize(300, 600)),
       ], const MediaBubbleComposition());
-      await tester.pumpWidget(host(plain.widget));
+      await tester.pumpWidget(MediaScopes.wrap(host(plain.widget)));
       final width = bubbleRect(tester).width;
 
       final headed = bubble(
@@ -237,7 +240,7 @@ void main() {
           overflow: TextOverflow.ellipsis,
         ),
       );
-      await tester.pumpWidget(host(headed.widget));
+      await tester.pumpWidget(MediaScopes.wrap(host(headed.widget)));
       expect(bubbleRect(tester).width, width);
       final header = rectOf(tester, find.byKey(_headerKey));
       expect(header.left, 10);
@@ -255,7 +258,7 @@ void main() {
         const MediaBubbleComposition(hasCaption: true),
         caption: _box(_captionKey, 100, 30),
       );
-      await tester.pumpWidget(host(album.widget));
+      await tester.pumpWidget(MediaScopes.wrap(host(album.widget)));
       expect(find.byKey(_captionKey), findsOneWidget);
       expect(
         rectOf(tester, find.byKey(_captionKey)).top,
@@ -274,7 +277,7 @@ void main() {
           const MediaItemId('b'): _box(const Key('caption-b'), 120, 30),
         },
       );
-      await tester.pumpWidget(host(stack.widget));
+      await tester.pumpWidget(MediaScopes.wrap(host(stack.widget)));
       final block = stack.layout.blocks.single as MediaBlock$FileStack;
       final slot = block.rowOf(a)!.captionSlot!;
       expect(
@@ -300,11 +303,11 @@ void main() {
           correlation: correlation,
         ).widget,
       );
-      await tester.pumpWidget(at(inverted: false));
+      await tester.pumpWidget(MediaScopes.wrap(at(inverted: false)));
       final below = rectOf(tester, find.byKey(_captionKey)).top;
       final height = bubbleRect(tester).height;
 
-      await tester.pumpWidget(at(inverted: true));
+      await tester.pumpWidget(MediaScopes.wrap(at(inverted: true)));
       await tester.pump(const Duration(milliseconds: 125));
       final mid = rectOf(tester, find.byKey(_captionKey)).top;
       expect(mid, lessThan(below));
@@ -334,9 +337,9 @@ void main() {
           captionRevision: text,
         ).widget,
       );
-      await tester.pumpWidget(at('one', 20));
+      await tester.pumpWidget(MediaScopes.wrap(at('one', 20)));
       final before = bubbleRect(tester).height;
-      await tester.pumpWidget(at('two', 60));
+      await tester.pumpWidget(MediaScopes.wrap(at('two', 60)));
       await tester.pump(const Duration(milliseconds: 125));
 
       expect(find.byKey(const ValueKey('one')), findsOneWidget);
@@ -372,7 +375,7 @@ void main() {
       final none = bubble(policy, [
         _photo('a'),
       ], const MediaBubbleComposition());
-      await tester.pumpWidget(host(none.widget));
+      await tester.pumpWidget(MediaScopes.wrap(host(none.widget)));
       final before = bubbleRect(tester).height;
       final added = bubble(
         policy,
@@ -380,7 +383,7 @@ void main() {
         const MediaBubbleComposition(hasCaption: true),
         caption: _box(_captionKey, 100, 40),
       );
-      await tester.pumpWidget(host(added.widget));
+      await tester.pumpWidget(MediaScopes.wrap(host(added.widget)));
       await tester.pump(const Duration(milliseconds: 125));
       final mid = bubbleRect(tester).height;
       await tester.pumpAndSettle();
@@ -405,15 +408,15 @@ void main() {
           ).widget,
           disableAnimations: reduce,
         );
-        await tester.pumpWidget(at(inverted: false));
-        await tester.pumpWidget(at(inverted: true));
+        await tester.pumpWidget(MediaScopes.wrap(at(inverted: false)));
+        await tester.pumpWidget(MediaScopes.wrap(at(inverted: true)));
         expect(
           rectOf(tester, find.byKey(_captionKey)).top,
           6,
           reason: policy.family.name,
         );
         expect(tester.hasRunningAnimations, isFalse);
-        await tester.pumpWidget(const SizedBox());
+        await tester.pumpWidget(MediaScopes.wrap(const SizedBox()));
       }
     });
   });

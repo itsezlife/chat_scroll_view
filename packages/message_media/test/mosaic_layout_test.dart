@@ -21,11 +21,6 @@ void main() {
       final b = mosaic.cells[1].rect;
       expect(a.width + b.width + MediaLayoutMetrics.cellGap, closeTo(400, 0.5));
       expect(b.left - a.right, closeTo(MediaLayoutMetrics.cellGap, 0.01));
-      // Outer corners large, shared vertical edge inner.
-      expect(mosaic.cells[0].borderRadius.topLeft.x, 15);
-      expect(mosaic.cells[0].borderRadius.topRight.x, 4);
-      expect(mosaic.cells[1].borderRadius.topLeft.x, 4);
-      expect(mosaic.cells[1].borderRadius.topRight.x, 15);
     });
 
     test('2× ww stacked cells share full width', () {

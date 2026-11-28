@@ -8,6 +8,10 @@ package is pre-1.0.
 
 ### Added
 
+- `MediaItemKind.isPicture` (a photo, video or animation: drawn as a box,
+  paged together in a viewer) and `MediaItemKind.plays` (a video or an
+  animation).
+
 - Link preview resolver seam ([ADR 023](../../docs/adr/023-data-layering-and-persistence.md)
   amendment): `LinkPreviewResolver.resolve(List<Uri>)` returns a
   `LinkPreviewRequest`, a `ValueListenable<LinkPreviewState>` that starts

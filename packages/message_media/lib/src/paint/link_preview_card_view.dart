@@ -6,12 +6,17 @@ import 'package:flutter/widgets.dart' hide RichText;
 import 'package:message_media/src/diagnostics/link_preview_card_op.dart';
 import 'package:message_media/src/layout/link_preview_card.dart';
 import 'package:message_media/src/layout/media_layout.dart';
+import 'package:message_media/src/layout/media_layout_text.dart';
 import 'package:message_media/src/policy/link_preview_card_policy.dart';
 import 'package:meta/meta.dart';
 
 /// The colours a link preview card is drawn in: the host's, since the
 /// accent is the sender's colour on an incoming message and the bubble's
 /// accent on an outgoing one.
+///
+/// A view given none draws in [LinkPreviewCardColors.of]: the chrome
+/// palette's accent and the ambient text colour. Whether the theme is dark
+/// (the fill's share may differ) is always the chrome palette's brightness.
 @immutable
 final class LinkPreviewCardColors {
   /// Colours of [accent] (the bar, the fill, the site name, links) and
@@ -20,11 +25,16 @@ final class LinkPreviewCardColors {
     required this.accent,
     this.text,
     this.outgoing = false,
-    this.dark = false,
   });
 
-  /// The fallback: a blue accent, the ambient text colour.
-  static const fallback = LinkPreviewCardColors(accent: Color(0xFF3390EC));
+  /// The chrome palette's: its accent, the ambient text colour.
+  factory LinkPreviewCardColors.of(
+    BuildContext context, {
+    bool outgoing = false,
+  }) => LinkPreviewCardColors(
+    accent: ChromeThemeScope.paletteOf(context).accent,
+    outgoing: outgoing,
+  );
 
   /// The bar, the fill (at the block style's share), the site name, the
   /// links and the button.
@@ -36,19 +46,15 @@ final class LinkPreviewCardColors {
   /// Whether the message is outgoing (the fill's share may differ).
   final bool outgoing;
 
-  /// Whether the theme is dark (the fill's share may differ).
-  final bool dark;
-
   @override
   bool operator ==(Object other) =>
       other is LinkPreviewCardColors &&
       other.accent == accent &&
       other.text == text &&
-      other.outgoing == outgoing &&
-      other.dark == dark;
+      other.outgoing == outgoing;
 
   @override
-  int get hashCode => Object.hash(accent, text, outgoing, dark);
+  int get hashCode => Object.hash(accent, text, outgoing);
 }
 
 /// A link under a point of a card's description.
@@ -72,7 +78,7 @@ class LinkPreviewCardView extends StatefulWidget {
     required this.block,
     required this.card,
     required this.policy,
-    required this.colors,
+    this.colors,
     this.media,
     this.pressable = true,
     this.correlation = ChatCorrelation.none,
@@ -89,7 +95,7 @@ class LinkPreviewCardView extends StatefulWidget {
   final LinkPreviewCardPolicy policy;
 
   /// The colours.
-  final LinkPreviewCardColors colors;
+  final LinkPreviewCardColors? colors;
 
   /// The media cell, positioned in the card's coordinates.
   final Widget? media;
@@ -159,10 +165,15 @@ class LinkPreviewCardViewState extends State<LinkPreviewCardView> {
     );
   }
 
-  TextStyle _base(BuildContext context) => ChromeTypography.of(context);
+  MediaLayoutText _text(BuildContext context) => MediaLayoutText.of(context);
+
+  TextStyle _base(BuildContext context) => _text(context).style;
+
+  LinkPreviewCardColors _colors(BuildContext context) =>
+      widget.colors ?? LinkPreviewCardColors.of(context);
 
   Color _textColor(BuildContext context) =>
-      widget.colors.text ??
+      _colors(context).text ??
       DefaultTextStyle.of(context).style.color ??
       const Color(0xFF000000);
 
@@ -214,6 +225,7 @@ class LinkPreviewCardViewState extends State<LinkPreviewCardView> {
   ) => TextPainter(
     text: _span(context, LinkPreviewCardPart.description),
     textDirection: Directionality.of(context),
+    textScaler: _text(context).scaler,
     maxLines: piece.maxLines,
     ellipsis: '…',
   )..layout(maxWidth: piece.rect.width);
@@ -223,7 +235,7 @@ class LinkPreviewCardViewState extends State<LinkPreviewCardView> {
     final type = widget.policy.text;
     final base = _base(context);
     final text = _textColor(context);
-    final accent = widget.colors.accent;
+    final accent = _colors(context).accent;
     return switch (part) {
       LinkPreviewCardPart.siteName => TextSpan(
         text: page.siteName,
@@ -237,7 +249,7 @@ class LinkPreviewCardViewState extends State<LinkPreviewCardView> {
         text: page.author,
         style: type.over(base).copyWith(color: text),
       ),
-      LinkPreviewCardPart.description => linkPreviewDescriptionSpan(
+      LinkPreviewCardPart.description => LinkPreviewCardPolicy.descriptionSpan(
         page.description,
         type.over(base).copyWith(color: text),
         linkColor: accent,
@@ -261,13 +273,16 @@ class LinkPreviewCardViewState extends State<LinkPreviewCardView> {
   Widget build(BuildContext context) {
     final card = widget.card;
     final policy = widget.policy;
-    final colors = widget.colors;
+    final colors = _colors(context);
+    final scaler = _text(context).scaler;
+    final dark =
+        ChromeThemeScope.paletteOf(context).brightness == Brightness.dark;
     final origin = card.rect.topLeft;
     final style = policy.style;
     final fill = colors.accent.withValues(
       alpha:
           colors.accent.a *
-          style.fillOpacityFor(outgoing: colors.outgoing, dark: colors.dark),
+          style.fillOpacityFor(outgoing: colors.outgoing, dark: dark),
     );
     final press = policy.press;
     final ripple = press.kind == ChromeInkKind.pointer
@@ -308,13 +323,13 @@ class LinkPreviewCardViewState extends State<LinkPreviewCardView> {
                 child: ExcludeSemantics(
                   child: Text.rich(
                     _span(context, piece.part),
-                    // The ambient style (its line height) never reaches the
-                    // card: the layout measured without it.
+                    // The base style and scaler the layout measured with;
+                    // the ambient style (its line height) never reaches it.
                     style: _base(context),
                     maxLines: piece.maxLines,
                     overflow: TextOverflow.ellipsis,
                     textAlign: textAlign,
-                    textScaler: TextScaler.noScaling,
+                    textScaler: scaler,
                   ),
                 ),
               ),
@@ -335,6 +350,7 @@ class LinkPreviewCardViewState extends State<LinkPreviewCardView> {
                   colors: colors,
                   textColor: _textColor(context),
                   base: _base(context),
+                  scaler: scaler,
                   pressable: widget.pressable,
                 ),
               ),
@@ -352,6 +368,7 @@ class _CardButton extends StatelessWidget {
     required this.colors,
     required this.textColor,
     required this.base,
+    required this.scaler,
     required this.pressable,
   });
 
@@ -360,6 +377,7 @@ class _CardButton extends StatelessWidget {
   final LinkPreviewCardColors colors;
   final Color textColor;
   final TextStyle base;
+  final TextScaler scaler;
   final bool pressable;
 
   @override
@@ -410,7 +428,7 @@ class _CardButton extends StatelessWidget {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                textScaler: TextScaler.noScaling,
+                textScaler: scaler,
                 style: policy.text.buttonOver(base).copyWith(color: accent),
               ),
             ),

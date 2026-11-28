@@ -47,10 +47,7 @@ void main() {
     tester,
   ) async {
     var outer = 0;
-    var ink = 0;
-    await tester.pumpWidget(
-      host(onOuterTap: () => outer++, onInkTap: () => ink++),
-    );
+    await tester.pumpWidget(host(onOuterTap: () => outer++));
     final gesture = await tester.startGesture(
       tester.getCenter(find.byType(ChromeInk)),
     );
@@ -60,8 +57,19 @@ void main() {
     await gesture.up();
     await tester.pumpAndSettle();
     expect(outer, 1);
-    expect(ink, 0);
     expect(scaleOf(tester), closeTo(1, 1e-9));
+  });
+
+  test('a yielding target with a tap callback is refused', () {
+    expect(
+      () => ChromeInk(
+        color: const Color(0xFF000000),
+        onTap: () {},
+        yieldsTap: true,
+        child: const SizedBox(),
+      ),
+      throwsAssertionError,
+    );
   });
 
   testWidgets('without yielding the target wins the tap', (tester) async {

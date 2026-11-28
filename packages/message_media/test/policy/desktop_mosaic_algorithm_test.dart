@@ -9,6 +9,8 @@ import 'package:content_model/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:message_media/message_media.dart';
 
+import '../support/media_scopes.dart';
+
 MediaItem _photo(String id, (int, int)? size) => MediaItem(
   id: MediaItemId(id),
   kind: MediaItemKind.photo,
@@ -32,6 +34,7 @@ MediaLayoutInput _input(
   MediaCaptionPosition captionPosition = MediaCaptionPosition.none,
   bool joinedBelow = false,
 }) => MediaLayoutInput(
+  text: MediaScopes.text,
   items: items,
   availableWidth: availableWidth,
   captionPosition: captionPosition,

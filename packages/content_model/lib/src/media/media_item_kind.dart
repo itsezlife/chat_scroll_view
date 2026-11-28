@@ -93,6 +93,14 @@ final class MediaItemKind {
   /// Whether this is a [custom] kind rather than a built-in one.
   bool get isCustom => !builtIns.contains(this);
 
+  /// Whether this is a picture: a [photo], [video] or [animation], drawn as
+  /// a box of its own aspect and paged together in a viewer. A [file] or a
+  /// custom kind is not.
+  bool get isPicture => this == photo || this == video || this == animation;
+
+  /// Whether items of this kind play: a [video] or an [animation].
+  bool get plays => this == video || this == animation;
+
   @override
   bool operator ==(Object other) =>
       other is MediaItemKind && other.value == value;

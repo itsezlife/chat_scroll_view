@@ -9,6 +9,8 @@ import 'package:content_model/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:message_media/message_media.dart';
 
+import '../support/media_scopes.dart';
+
 MediaItem _item(
   String id,
   MediaItemKind kind, {
@@ -38,6 +40,7 @@ MediaLayoutInput _input(
   bool joinedBelow = false,
   double availableWidth = 364,
 }) => MediaLayoutInput(
+  text: MediaScopes.text,
   items: items,
   availableWidth: availableWidth,
   displaySize: const Size(364, 800),
@@ -396,15 +399,15 @@ void main() {
   group('parts', () {
     test('each platform lays files out by its own file stack policy', () {
       expect(
-        const MediaLayoutPolicy.android().fileStack,
+        const MessageMediaPolicy.android().fileStack,
         const MediaFileStackPolicy.android(),
       );
       expect(
-        const MediaLayoutPolicy.ios().fileStack,
+        const MessageMediaPolicy.ios().fileStack,
         const MediaFileStackPolicy.ios(),
       );
       expect(
-        const MediaLayoutPolicy.desktop().fileStack,
+        const MessageMediaPolicy.desktop().fileStack,
         const MediaFileStackPolicy.desktop(),
       );
     });
@@ -470,6 +473,27 @@ void main() {
           fields: {'kind': 'sticker', 'drawnAs': 'fileRow'},
         ),
       ]);
+    });
+
+    test('a custom kind is reported once, not on every layout pass; another '
+        'kind is its own cause', () {
+      final recorder = RecordingDiagnostics.install();
+      for (var pass = 0; pass < 3; pass++) {
+        _android.layout(
+          _input([
+            _item('s1', const MediaItemKind.custom('sticker')),
+            _item('s2', const MediaItemKind.custom('sticker')),
+          ]),
+        );
+      }
+      _android.layout(_input([_item('r', const MediaItemKind.custom('roll'))]));
+      expect(
+        [
+          for (final event in recorder.whereOp(MediaOp.unknownKind))
+            event.fields['kind'],
+        ],
+        ['sticker', 'roll'],
+      );
     });
 
     test('a fallback rule reports layoutFallback with the resulting size', () {
@@ -612,5 +636,9 @@ final class _EmptyStep implements MediaLayoutStep {
   const _EmptyStep();
 
   @override
-  MediaLayout layout(MediaLayoutInput input) => MediaLayout.empty;
+  MediaLayout layout(
+    MediaLayoutInput input, {
+    required MediaFileStackPolicy fileStack,
+    required LinkPreviewCardPolicy linkPreview,
+  }) => MediaLayout.empty;
 }

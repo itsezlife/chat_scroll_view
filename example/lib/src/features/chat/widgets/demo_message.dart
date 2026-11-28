@@ -12,6 +12,7 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_media_bu
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message_meta.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_row_hover.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/message_row_frame.dart';
+import 'package:chrome_foundation/chrome_foundation.dart' show ChromeTypography;
 import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart' show EmojiOnly;
 import 'package:flutter/material.dart';
@@ -365,7 +366,7 @@ extension on DemoMessageBubble {
           name,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(
+          style: ChromeTypography.of(context).copyWith(
             color: _colorForSender(name),
             fontWeight: FontWeight.w600,
             fontSize: 13,

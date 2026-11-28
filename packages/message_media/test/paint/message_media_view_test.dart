@@ -14,6 +14,8 @@ import 'package:message_media/message_media.dart';
 import 'package:mpx_core/mpx_core.dart';
 import 'package:mpx_core/testing.dart' hide RecordingDiagnostics;
 
+import '../support/media_scopes.dart';
+
 MediaItem _item(
   String id, {
   MediaItemKind kind = MediaItemKind.photo,
@@ -40,11 +42,13 @@ void main() {
   });
 
   Future<void> pump(WidgetTester tester, Widget view) => tester.pumpWidget(
-    Directionality(
-      textDirection: TextDirection.ltr,
-      child: ContentAssetProvider(
-        scope: scope,
-        child: Align(alignment: Alignment.topLeft, child: view),
+    MediaScopes.wrap(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: ContentAssetProvider(
+          scope: scope,
+          child: Align(alignment: Alignment.topLeft, child: view),
+        ),
       ),
     ),
   );
@@ -58,6 +62,7 @@ void main() {
   }) => MessageMediaView(
     layout: policy.layout(
       MediaLayoutInput(
+        text: MediaScopes.text,
         items: items,
         availableWidth: width,
         displaySize: Size(width, 640),
@@ -435,7 +440,10 @@ void main() {
       final event = recorder.whereOp(MediaOp.cellFailed).single;
       expect(event.level, ChatEventLevel.error);
       expect(event.category, ChatEventCategory.media);
-      expect(event.fields, {'builder': 'box', 'errorType': 'StateError'});
+      expect(event.fields, {
+        'builder': MediaBuilder.box,
+        'errorType': 'StateError',
+      });
       expect(event.correlation.chatId, 'chat-1');
       expect(event.correlation.scrollId, 'm-1');
       expect(event.correlation.mediaItemId, item.id.toString());
@@ -454,7 +462,11 @@ void main() {
         tester,
         MessageMediaView(
           layout: policy.layout(
-            MediaLayoutInput(items: [item], availableWidth: 375),
+            MediaLayoutInput(
+              text: MediaScopes.text,
+              items: [item],
+              availableWidth: 375,
+            ),
           ),
           items: const [],
           policy: policy,
@@ -463,7 +475,10 @@ void main() {
       );
 
       final event = recorder.whereOp(MediaOp.cellFailed).single;
-      expect(event.fields, {'builder': 'box', 'errorType': 'missingItem'});
+      expect(event.fields, {
+        'builder': MediaBuilder.box,
+        'errorType': 'missingItem',
+      });
       expect(event.correlation.mediaItemId, item.id.toString());
       expect(event.correlation.mediaKey, isNull);
     });

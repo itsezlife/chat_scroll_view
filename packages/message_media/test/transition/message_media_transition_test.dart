@@ -18,6 +18,8 @@ import 'package:message_media/message_media.dart';
 import 'package:mpx_core/mpx_core.dart';
 import 'package:mpx_core/testing.dart' hide RecordingDiagnostics;
 
+import '../support/media_scopes.dart';
+
 MediaItem _item(String id, {ContentSize? size = const ContentSize(1, 1)}) =>
     MediaItem(
       id: MediaItemId(id),
@@ -35,6 +37,7 @@ MediaLayout _layoutOf(
   double width = 360,
 }) => policy.layout(
   MediaLayoutInput(
+    text: MediaScopes.text,
     items: items,
     availableWidth: width,
     displaySize: Size(width, 640),
@@ -122,7 +125,9 @@ void main() {
     testWidgets('the first layout shows at rest', (tester) async {
       const policy = MessageMediaPolicy.android();
       final items = [_item('a')];
-      await tester.pumpWidget(host(transition(policy, items)));
+      await tester.pumpWidget(
+        MediaScopes.wrap(host(transition(policy, items))),
+      );
       expect(sizeOf(tester), _layoutOf(policy, items).size);
       expect(tester.hasRunningAnimations, isFalse);
     });
@@ -137,8 +142,12 @@ void main() {
       final to = _layoutOf(policy, after).size;
       expect(to.height, isNot(from.height));
 
-      await tester.pumpWidget(host(transition(policy, before)));
-      await tester.pumpWidget(host(transition(policy, after)));
+      await tester.pumpWidget(
+        MediaScopes.wrap(host(transition(policy, before))),
+      );
+      await tester.pumpWidget(
+        MediaScopes.wrap(host(transition(policy, after))),
+      );
       expect(sizeOf(tester), from, reason: 'the first frame is the old one');
 
       final heights = <double>[];
@@ -163,14 +172,18 @@ void main() {
       const policy = MessageMediaPolicy.android();
       final before = [_item('a', size: null)];
       final after = [_item('a', size: const ContentSize(400, 800))];
-      await tester.pumpWidget(host(transition(policy, before)));
+      await tester.pumpWidget(
+        MediaScopes.wrap(host(transition(policy, before))),
+      );
       final picture = find.descendant(
         of: find.byKey(const ValueKey('picture')),
         matching: find.byType(AssetView),
       );
       final state = tester.state(picture);
 
-      await tester.pumpWidget(host(transition(policy, after)));
+      await tester.pumpWidget(
+        MediaScopes.wrap(host(transition(policy, after))),
+      );
       await tester.pump(const Duration(milliseconds: 100));
       final cell = find.byKey(const ValueKey(MediaItemId('a')));
       expect(tester.getSize(cell), sizeOf(tester));
@@ -186,9 +199,11 @@ void main() {
       final recorder = RecordingDiagnostics.install();
       const policy = MessageMediaPolicy.android();
       await tester.pumpWidget(
-        host(transition(policy, [_item('a'), _item('b')])),
+        MediaScopes.wrap(host(transition(policy, [_item('a'), _item('b')]))),
       );
-      await tester.pumpWidget(host(transition(policy, [_item('a')])));
+      await tester.pumpWidget(
+        MediaScopes.wrap(host(transition(policy, [_item('a')]))),
+      );
       await tester.pump(const Duration(milliseconds: 60));
 
       final b = find.byKey(const ValueKey(MediaItemId('b')));
@@ -216,9 +231,13 @@ void main() {
           return media;
         },
       );
-      await tester.pumpWidget(host(build([_item('a', size: null)])));
       await tester.pumpWidget(
-        host(build([_item('a', size: const ContentSize(400, 800))])),
+        MediaScopes.wrap(host(build([_item('a', size: null)]))),
+      );
+      await tester.pumpWidget(
+        MediaScopes.wrap(
+          host(build([_item('a', size: const ContentSize(400, 800))])),
+        ),
       );
       await tester.pumpAndSettle();
       expect(progress.first, 1);
@@ -232,13 +251,17 @@ void main() {
       const policy = MessageMediaPolicy.android();
       final after = [_item('a', size: const ContentSize(400, 800))];
       await tester.pumpWidget(
-        host(
-          transition(policy, [_item('a', size: null)]),
-          disableAnimations: true,
+        MediaScopes.wrap(
+          host(
+            transition(policy, [_item('a', size: null)]),
+            disableAnimations: true,
+          ),
         ),
       );
       await tester.pumpWidget(
-        host(transition(policy, after), disableAnimations: true),
+        MediaScopes.wrap(
+          host(transition(policy, after), disableAnimations: true),
+        ),
       );
       expect(sizeOf(tester), _layoutOf(policy, after).size);
       expect(tester.hasRunningAnimations, isFalse);
@@ -251,9 +274,11 @@ void main() {
       const policy = MessageMediaPolicy.desktop();
       final after = [_item('a', size: const ContentSize(400, 800))];
       await tester.pumpWidget(
-        host(transition(policy, [_item('a', size: null)])),
+        MediaScopes.wrap(host(transition(policy, [_item('a', size: null)]))),
       );
-      await tester.pumpWidget(host(transition(policy, after)));
+      await tester.pumpWidget(
+        MediaScopes.wrap(host(transition(policy, after))),
+      );
       expect(sizeOf(tester), _layoutOf(policy, after).size);
       expect(tester.hasRunningAnimations, isFalse);
     });
@@ -268,21 +293,25 @@ void main() {
       final recorder = RecordingDiagnostics.install();
       const policy = MessageMediaPolicy.android();
       await tester.pumpWidget(
-        host(
-          transition(policy, [
-            _item('a'),
-            _item('b'),
-          ], correlation: correlation),
+        MediaScopes.wrap(
+          host(
+            transition(policy, [
+              _item('a'),
+              _item('b'),
+            ], correlation: correlation),
+          ),
         ),
       );
       expect(recorder.whereOp(MediaOp.transitionStarted), isEmpty);
 
       await tester.pumpWidget(
-        host(
-          transition(policy, [
-            _item('a'),
-            _item('c'),
-          ], correlation: correlation),
+        MediaScopes.wrap(
+          host(
+            transition(policy, [
+              _item('a'),
+              _item('c'),
+            ], correlation: correlation),
+          ),
         ),
       );
       final event = recorder.whereOp(MediaOp.transitionStarted).single;
@@ -306,19 +335,25 @@ void main() {
       final recorder = RecordingDiagnostics.install();
       const policy = MessageMediaPolicy.ios();
       await tester.pumpWidget(
-        host(transition(policy, [_item('a', size: null)])),
+        MediaScopes.wrap(host(transition(policy, [_item('a', size: null)]))),
       );
       await tester.pumpWidget(
-        host(
-          transition(policy, [_item('a', size: const ContentSize(900, 1600))]),
+        MediaScopes.wrap(
+          host(
+            transition(policy, [
+              _item('a', size: const ContentSize(900, 1600)),
+            ]),
+          ),
         ),
       );
       await tester.pumpAndSettle();
       await tester.pumpWidget(
-        host(
-          transition(policy, [
-            _item('a', size: const ContentSize(1600, 900)),
-          ], trigger: MediaTransitionTrigger.caption),
+        MediaScopes.wrap(
+          host(
+            transition(policy, [
+              _item('a', size: const ContentSize(1600, 900)),
+            ], trigger: MediaTransitionTrigger.caption),
+          ),
         ),
       );
       await tester.pumpAndSettle();
@@ -337,16 +372,24 @@ void main() {
       final recorder = RecordingDiagnostics.install();
       const policy = MessageMediaPolicy.android();
       await tester.pumpWidget(
-        host(transition(policy, [_item('a', size: null)])),
+        MediaScopes.wrap(host(transition(policy, [_item('a', size: null)]))),
       );
       await tester.pumpWidget(
-        host(transition(policy, [_item('a', size: const ContentSize(9, 16))])),
+        MediaScopes.wrap(
+          host(
+            transition(policy, [_item('a', size: const ContentSize(9, 16))]),
+          ),
+        ),
       );
       await tester.pump(const Duration(milliseconds: 100));
       final reached = sizeOf(tester);
 
       await tester.pumpWidget(
-        host(transition(policy, [_item('a', size: const ContentSize(16, 9))])),
+        MediaScopes.wrap(
+          host(
+            transition(policy, [_item('a', size: const ContentSize(16, 9))]),
+          ),
+        ),
       );
       expect(sizeOf(tester), reached, reason: 'the next leg starts here');
 
@@ -378,10 +421,10 @@ void main() {
           trigger: MediaTransitionTrigger.caption,
         ),
       );
-      await tester.pumpWidget(at(1));
-      await tester.pumpWidget(at(1));
+      await tester.pumpWidget(MediaScopes.wrap(at(1)));
+      await tester.pumpWidget(MediaScopes.wrap(at(1)));
       expect(recorder.whereOp(MediaOp.transitionStarted), isEmpty);
-      await tester.pumpWidget(at(2));
+      await tester.pumpWidget(MediaScopes.wrap(at(2)));
       expect(
         recorder.whereOp(MediaOp.transitionStarted).single.fields['trigger'],
         MediaTransitionTrigger.caption,
@@ -397,13 +440,15 @@ void main() {
       const progress = AlwaysStoppedAnimation<double>(0.5);
       const context = MediaChromeContext(compact: true);
       await tester.pumpWidget(
-        host(
-          MessageMediaTransition(
-            layout: _layoutOf(policy, items),
-            items: items,
-            policy: policy,
-            chromeContext: context,
-            selectionProgress: progress,
+        MediaScopes.wrap(
+          host(
+            MessageMediaTransition(
+              layout: _layoutOf(policy, items),
+              items: items,
+              policy: policy,
+              chromeContext: context,
+              selectionProgress: progress,
+            ),
           ),
         ),
       );
@@ -429,25 +474,27 @@ void main() {
       addTearDown(items.dispose);
 
       await tester.pumpWidget(
-        host(
-          SizedBox(
-            width: 400,
-            height: 600,
-            child: ChatScrollView(
-              dataSource: source,
-              controller: controller,
-              messageBuilder: (context, id, message, status, runLayout) {
-                if (id != lastId) {
-                  return SizedBox(height: 80, child: Text('msg-$id'));
-                }
-                return ValueListenableBuilder(
-                  valueListenable: items,
-                  builder: (context, items, _) => Align(
-                    alignment: Alignment.centerLeft,
-                    child: transition(policy, items),
-                  ),
-                );
-              },
+        MediaScopes.wrap(
+          host(
+            SizedBox(
+              width: 400,
+              height: 600,
+              child: ChatScrollView(
+                dataSource: source,
+                controller: controller,
+                messageBuilder: (context, id, message, status, runLayout) {
+                  if (id != lastId) {
+                    return SizedBox(height: 80, child: Text('msg-$id'));
+                  }
+                  return ValueListenableBuilder(
+                    valueListenable: items,
+                    builder: (context, items, _) => Align(
+                      alignment: Alignment.centerLeft,
+                      child: transition(policy, items),
+                    ),
+                  );
+                },
+              ),
             ),
           ),
         ),

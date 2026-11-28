@@ -75,13 +75,13 @@ final class HttpOpenGraphResolver implements LinkPreviewResolver {
         ..headers['accept'] = 'text/html,application/xhtml+xml';
       final response = await _client.send(request).timeout(timeout);
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        unawaited(response.stream.drain<void>().catchError((Object _) {}));
+        _discard(url, response);
         _failed(url, 'status${response.statusCode}');
         return null;
       }
       final type = response.headers['content-type'] ?? '';
       if (!type.contains('html')) {
-        unawaited(response.stream.drain<void>().catchError((Object _) {}));
+        _discard(url, response);
         return null;
       }
       final bytes = await _head(response.stream).timeout(timeout);
@@ -104,6 +104,15 @@ final class HttpOpenGraphResolver implements LinkPreviewResolver {
     }
     return bytes.length > maxBytes ? bytes.sublist(0, maxBytes) : bytes;
   }
+
+  // Reads off the body of a response the resolver does not use, so the
+  // connection is released. The candidate is already passed over; a body
+  // that fails on the way is still reported (`discard` and its error type).
+  void _discard(Uri url, http.StreamedResponse response) => unawaited(
+    response.stream.drain<void>().catchError(
+      (Object error) => _failed(url, 'discard${error.runtimeType}'),
+    ),
+  );
 
   void _failed(Uri url, String errorType) => ChatDiagnostics.current.emit(
     ChatEventLevel.warning,

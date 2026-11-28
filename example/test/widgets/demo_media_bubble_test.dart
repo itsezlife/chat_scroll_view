@@ -8,6 +8,7 @@
 library;
 
 import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:chat_scroll_view_example/src/app/demo_chrome_strings.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/demo_media_messages.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/demo_photos.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
@@ -99,7 +100,7 @@ void main() {
       MaterialApp(
         builder: (context, child) => ChromeThemeScope(
           palette: const ChromePalette.dark(),
-          child: child!,
+          child: ChromeStringsScope(strings: demoChromeStrings, child: child!),
         ),
         home: ContentAssetProvider(
           scope: scope,

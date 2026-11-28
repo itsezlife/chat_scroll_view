@@ -16,6 +16,8 @@ import 'package:message_media/message_media.dart';
 import 'package:mpx_core/mpx_core.dart';
 import 'package:mpx_core/testing.dart' hide RecordingDiagnostics;
 
+import '../support/media_scopes.dart';
+
 MediaItem _item(
   String id, {
   MediaItemKind kind = MediaItemKind.photo,
@@ -57,6 +59,7 @@ void main() {
     final view = MessageMediaView(
       layout: policy.layout(
         MediaLayoutInput(
+          text: MediaScopes.text,
           items: items,
           availableWidth: width,
           displaySize: Size(width, 640),
@@ -68,17 +71,19 @@ void main() {
       selectionProgress: selection,
     );
     return tester.pumpWidget(
-      MediaQuery(
-        data: MediaQueryData(disableAnimations: reduceMotion),
-        child: Directionality(
-          textDirection: TextDirection.ltr,
-          child: ContentAssetProvider(
-            scope: scope,
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: withScope
-                  ? MessageMediaStateScope(state: state, child: view)
-                  : view,
+      MediaScopes.wrap(
+        MediaQuery(
+          data: MediaQueryData(disableAnimations: reduceMotion),
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: ContentAssetProvider(
+              scope: scope,
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: withScope
+                    ? MessageMediaStateScope(state: state, child: view)
+                    : view,
+              ),
             ),
           ),
         ),
@@ -188,6 +193,7 @@ void main() {
       await pump(tester, policy, [video]);
       final layout = policy.layout(
         MediaLayoutInput(
+          text: MediaScopes.text,
           items: [video],
           availableWidth: 375,
           displaySize: const Size(375, 640),
@@ -354,7 +360,7 @@ void main() {
       expect(find.byType(MediaSpoilerCover), findsNothing);
 
       // A view built anew over the same state: revealed at once.
-      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(MediaScopes.wrap(const SizedBox()));
       await pump(tester, policy, [item]);
       expect(find.byType(MediaSpoilerCover), findsNothing);
       expect(controlsOf(tester, item).value, 1);
@@ -417,7 +423,10 @@ void main() {
 
       expect(tester.takeException(), isA<StateError>());
       final event = recorder.whereOp(MediaOp.cellFailed).single;
-      expect(event.fields, {'builder': 'spoiler', 'errorType': 'StateError'});
+      expect(event.fields, {
+        'builder': MediaBuilder.spoiler,
+        'errorType': 'StateError',
+      });
       expect(event.correlation.chatId, 'chat-1');
       expect(event.correlation.mediaItemId, item.id.toString());
       expect(event.correlation.mediaKey, item.descriptor.key.mediaKey.encoded);
@@ -445,7 +454,7 @@ void main() {
       expect(tester.takeException(), isA<StateError>());
       expect(
         recorder.whereOp(MediaOp.cellFailed).single.fields['builder'],
-        'options',
+        MediaBuilder.options,
       );
       expect(find.byType(MediaOptionsDots), findsNothing);
     });
@@ -465,7 +474,7 @@ void main() {
       expect(tester.takeException(), isA<StateError>());
       expect(
         recorder.whereOp(MediaOp.cellFailed).first.fields['builder'],
-        'statusControl',
+        MediaBuilder.statusControl,
       );
       expect(find.byType(MediaStatusControl), findsWidgets);
     });

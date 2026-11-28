@@ -11,6 +11,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:message_media/message_media.dart';
 
+import '../support/media_scopes.dart';
+
 MediaItem _item(
   String id, {
   MediaItemKind kind = MediaItemKind.photo,
@@ -98,6 +100,7 @@ void main() {
         MediaLinkPreviewInput? linkPreview,
       }) => policy.layout(
         MediaLayoutInput(
+          text: MediaScopes.text,
           items: items,
           availableWidth: 375,
           displaySize: const Size(375, 640),

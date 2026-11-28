@@ -14,25 +14,29 @@ import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:message_media/message_media.dart';
 
+import '../support/media_scopes.dart';
+
 /// A measure of fixed metrics: 8 per character, 18 per line, wrapped at
 /// the width within the limit.
-final class _FixedMeasure implements LinkPreviewTextMeasure {
+final class _FixedMeasure implements MediaTextMeasure {
   const _FixedMeasure();
 
   static const char = 8.0;
   static const line = 18.0;
 
   @override
-  ({double width, double height, int lines}) measure(
+  MediaTextSize measure(
     InlineSpan text, {
-    required double maxWidth,
-    required int maxLines,
+    required TextScaler scaler,
+    double maxWidth = double.infinity,
+    int maxLines = 1,
+    bool ellipsis = false,
   }) {
     final length = text.toPlainText().length * char;
     final lines = maxWidth.isFinite && maxWidth > 0
         ? math.max(1, (length / maxWidth).ceil()).clamp(1, maxLines)
         : 1;
-    return (
+    return MediaTextSize(
       width: maxWidth.isFinite ? math.min(length, maxWidth) : length,
       height: lines * line,
       lines: lines,
@@ -40,18 +44,11 @@ final class _FixedMeasure implements LinkPreviewTextMeasure {
   }
 }
 
-MessageMediaPolicy _fixed(MessageMediaPolicy policy) {
-  final step = policy.layoutStep as MediaLayoutPolicy;
-  return policy.copyWith(
-    layoutStep: step.copyWith(
-      card: step.card.copyWith(measure: const _FixedMeasure()),
-    ),
-  );
-}
+final _text = MediaScopes.text.copyWith(measure: const _FixedMeasure());
 
-final _android = _fixed(const MessageMediaPolicy.android());
-final _ios = _fixed(const MessageMediaPolicy.ios());
-final _desktop = _fixed(const MessageMediaPolicy.desktop());
+const _android = MessageMediaPolicy.android();
+const _ios = MessageMediaPolicy.ios();
+const _desktop = MessageMediaPolicy.desktop();
 
 ContentDescriptor _photo({int width = 800, int height = 600}) =>
     ContentDescriptor(
@@ -97,6 +94,7 @@ MediaLayoutInput _input(
   double timeWidth = 0,
   List<MediaItem> items = const [],
 }) => MediaLayoutInput(
+  text: _text,
   items: items,
   availableWidth: width,
   displaySize: const Size(400, 900),

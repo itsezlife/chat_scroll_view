@@ -64,10 +64,7 @@ enum MediaItemAction {
   }
 
   bool _supports(MediaItemKind kind) {
-    final picture =
-        kind == MediaItemKind.photo ||
-        kind == MediaItemKind.video ||
-        kind == MediaItemKind.animation;
+    final picture = kind.isPicture;
     return switch (this) {
       saveToGallery => picture,
       saveToDownloads || copyFileName => !picture,

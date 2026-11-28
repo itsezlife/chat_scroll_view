@@ -10,6 +10,8 @@ import 'package:content_model/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:message_media/message_media.dart';
 
+import '../support/media_scopes.dart';
+
 /// One expected box: its rect and the mosaic edges it lies on, as letters
 /// (`t`op, `b`ottom, `l`eft, `r`ight).
 typedef _Frame = ({Rect rect, String edges});
@@ -240,6 +242,7 @@ MediaLayoutInput _input(
   double? contentWidth,
   MediaCaptionPosition captionPosition = MediaCaptionPosition.none,
 }) => MediaLayoutInput(
+  text: MediaScopes.text,
   items: items,
   availableWidth: listWidth,
   maxContentWidth: contentWidth,

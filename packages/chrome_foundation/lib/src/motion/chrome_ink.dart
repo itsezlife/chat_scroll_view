@@ -107,7 +107,11 @@ class ChromeInk extends StatefulWidget {
     this.yieldsTap = false,
     this.pressableAt,
     super.key,
-  });
+  }) : assert(
+         !yieldsTap || onTap == null,
+         'A target that yields its tap never calls onTap: the recognizer '
+         'above it takes the tap. Pass onTap: null.',
+       );
 
   /// What is pressed.
   final Widget child;
@@ -163,8 +167,9 @@ class ChromeInk extends StatefulWidget {
   /// would never see the tap. With this set the feedback follows the press
   /// as usual, and on the pointer's up the target leaves the gesture arena
   /// before it is swept, so the list's recognizer takes the tap. [onTap] is
-  /// not called (it may be null: the target still presses); the cursor and
-  /// the semantics tap stay the host's.
+  /// then null (asserted: a yielding target with a tap callback would never
+  /// call it) and the target still presses; the cursor and the semantics
+  /// tap stay the host's.
   final bool yieldsTap;
 
   /// Whether a press starting at a point (in the target's coordinates)
@@ -184,12 +189,12 @@ class _ChromeInkState extends State<ChromeInk> with TickerProviderStateMixin {
   late final AnimationController _grow = AnimationController(vsync: this);
   // The ripple's or the highlight's alpha, 0 to 1.
   late final AnimationController _alpha = AnimationController(vsync: this);
-  // The scale of the target: from [_scaleFrom] to [_scaleTo] over this
-  // controller's 0 to 1 on [_scaleCurve].
-  late final AnimationController _scaleClock = AnimationController(vsync: this);
-  var _scaleFrom = 1.0;
-  var _scaleTo = 1.0;
-  Curve _scaleCurve = Curves.linear;
+  // The scale of the target itself; unbounded, since a bounce curve may
+  // overshoot 1 on release.
+  late final AnimationController _scale = AnimationController.unbounded(
+    value: 1,
+    vsync: this,
+  );
   Offset _origin = Offset.zero;
   var _hovered = false;
   // A press is down; for a highlight it may be away from the target.
@@ -209,7 +214,7 @@ class _ChromeInkState extends State<ChromeInk> with TickerProviderStateMixin {
   void dispose() {
     _grow.dispose();
     _alpha.dispose();
-    _scaleClock.dispose();
+    _scale.dispose();
     super.dispose();
   }
 
@@ -219,40 +224,35 @@ class _ChromeInkState extends State<ChromeInk> with TickerProviderStateMixin {
     widget.onHighlightChanged?.call(shown);
   }
 
-  double get _scaleValue =>
-      _scaleFrom +
-      (_scaleTo - _scaleFrom) * _scaleCurve.transform(_scaleClock.value);
-
-  // Runs the scale to [to] over [duration].
-  void _scaleTowards(double to, Duration duration, Curve curve) {
-    _scaleFrom = _scaleValue;
-    _scaleTo = to;
-    _scaleCurve = curve;
-    _scaleClock
-      ..duration = duration
-      ..forward(from: 0).ignore();
-  }
-
   void _scaleDown() {
     final scale = widget.scale;
     final width = context.size?.width;
     if (scale == null || width == null || _instant) return;
-    _scaleTowards(
-      scale.pressedScale(width),
-      scale.pressDuration,
-      scale.pressCurve,
-    );
+    _scale
+        .animateTo(
+          scale.pressedScale(width),
+          duration: scale.pressDuration,
+          curve: scale.pressCurve,
+        )
+        .ignore();
   }
 
   void _scaleUp() {
     final scale = widget.scale;
     if (scale == null) return;
     if (_instant) {
-      _scaleClock.stop();
-      _scaleFrom = _scaleTo = 1;
+      _scale
+        ..stop()
+        ..value = 1;
       return;
     }
-    _scaleTowards(1, scale.releaseDuration, scale.releaseCurve);
+    _scale
+        .animateTo(
+          1,
+          duration: scale.releaseDuration,
+          curve: scale.releaseCurve,
+        )
+        .ignore();
   }
 
   bool get _enabled => widget.onTap != null || widget.yieldsTap;
@@ -349,10 +349,10 @@ class _ChromeInkState extends State<ChromeInk> with TickerProviderStateMixin {
   Widget _scaled(Widget child) {
     if (widget.scale == null) return child;
     return AnimatedBuilder(
-      animation: _scaleClock,
+      animation: _scale,
       child: child,
       builder: (context, child) =>
-          Transform.scale(scale: _scaleValue, child: child),
+          Transform.scale(scale: _scale.value, child: child),
     );
   }
 

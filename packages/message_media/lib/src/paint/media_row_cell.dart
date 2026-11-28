@@ -6,6 +6,7 @@ import 'package:message_media/src/layout/media_corner_radii.dart';
 import 'package:message_media/src/layout/media_file_row.dart';
 import 'package:message_media/src/layout/media_layout.dart';
 import 'package:message_media/src/layout/media_layout_input.dart';
+import 'package:message_media/src/layout/media_layout_text.dart';
 import 'package:message_media/src/paint/media_box_cell.dart';
 import 'package:message_media/src/paint/media_cell_builders.dart';
 import 'package:message_media/src/paint/middle_elided_text.dart';
@@ -24,9 +25,10 @@ import 'package:mpx_core/mpx_core.dart';
 /// control of the media core. The name is cut in the middle to the lines the
 /// layout gave it ([MiddleElidedText]), with the full name in a tooltip where
 /// the policy says so. The info line shows the size at rest and the bytes
-/// received of the total while they arrive, both worded by the policy's
-/// strings. Text starts from the host's chrome typography at the policy's
-/// sizes; colours come from the ambient text colour unless given.
+/// received of the total while they arrive, both worded by the host's media
+/// strings. Text is drawn in the [MediaLayoutText] the layout measured with
+/// (the chrome typography at the policy's sizes, under the platform's text
+/// scaler); colours come from the ambient text colour unless given.
 ///
 /// ## Right to left
 ///
@@ -58,7 +60,7 @@ class MediaRowCell extends StatelessWidget {
       MediaRowCell(
         item: data.item,
         size: data.cell.rect.size,
-        row: rowOf(data),
+        row: rowOf(context, data),
         policy: data.fileStack ?? const MediaFileStackPolicy.android(),
         radii: data.cell.radii,
         neighbours: data.cell.neighbours,
@@ -69,7 +71,7 @@ class MediaRowCell extends StatelessWidget {
   /// The row geometry the default row of [data] draws by: the layout's, or,
   /// when the layout step reported none, the policy's row for the cell's
   /// width.
-  static MediaFileRow rowOf(MediaCellData data) {
+  static MediaFileRow rowOf(BuildContext context, MediaCellData data) {
     if (data.fileRow case final row?) return row;
     final policy = data.fileStack ?? const MediaFileStackPolicy.android();
     return policy
@@ -78,6 +80,7 @@ class MediaRowCell extends StatelessWidget {
           MediaLayoutInput(
             items: [data.item],
             availableWidth: data.cell.rect.width,
+            text: MediaLayoutText.of(context),
           ),
           top: 0,
           topSide: data.cell.neighbours.top,
@@ -97,7 +100,7 @@ class MediaRowCell extends StatelessWidget {
   /// The row's laid-out geometry.
   final MediaFileRow row;
 
-  /// The file rows' policy: type, strings, thumbnail corners.
+  /// The file rows' policy: type, thumbnail corners.
   final MediaFileStackPolicy policy;
 
   /// The row's corners.
@@ -145,7 +148,9 @@ class MediaRowCell extends StatelessWidget {
             rect.height,
           )
         : rect;
-    final base = ChromeTypography.of(context);
+    final type = MediaLayoutText.of(context);
+    final base = type.style;
+    final strings = type.strings;
     final ambient = DefaultTextStyle.of(context).style.color;
     final nameColor = this.nameColor ?? ambient ?? const Color(0xFF000000);
     final infoColor =
@@ -194,6 +199,7 @@ class MediaRowCell extends StatelessWidget {
                 maxLines: row.nameLines,
                 textAlign: align,
                 tooltipWhenElided: policy.tooltipWhenElided,
+                textScaler: type.scaler,
               ),
             ),
             Positioned.fill(
@@ -208,24 +214,26 @@ class MediaRowCell extends StatelessWidget {
                     Positioned.fromRect(
                       rect: place(row.info),
                       child: Text(
-                        _infoOf(state),
+                        _infoOf(state, strings),
                         style: infoStyle,
                         maxLines: 1,
                         softWrap: false,
                         overflow: TextOverflow.ellipsis,
                         textAlign: align,
+                        textScaler: type.scaler,
                       ),
                     ),
                     if (row.link case final link?)
                       Positioned.fromRect(
                         rect: place(link),
                         child: Text(
-                          _linkOf(state),
+                          _linkOf(state, strings),
                           style: linkStyle,
                           maxLines: 1,
                           softWrap: false,
                           overflow: TextOverflow.ellipsis,
                           textAlign: align,
+                          textScaler: type.scaler,
                         ),
                       ),
                   ],
@@ -240,20 +248,18 @@ class MediaRowCell extends StatelessWidget {
 
   /// The info line: the bytes received of the total while they arrive, the
   /// row's resting text otherwise.
-  String _infoOf(AssetLoadState state) => switch (state.transfer) {
-    AssetTransfer$Receiving(:final received, total: final total?) =>
-      policy.strings.progress(
-        policy.strings.size(received),
-        policy.strings.size(total),
-      ),
-    _ => row.infoText,
-  };
+  String _infoOf(AssetLoadState state, MediaStrings strings) =>
+      switch (state.transfer) {
+        AssetTransfer$Receiving(:final received, total: final total?) =>
+          strings.fileProgress(strings.size(received), strings.size(total)),
+        _ => row.infoText,
+      };
 
-  String _linkOf(AssetLoadState state) => switch (state) {
+  String _linkOf(AssetLoadState state, MediaStrings strings) => switch (state) {
     AssetLoadState(:final transfer) when transfer.isActive =>
-      policy.strings.cancel,
-    AssetLoadState(shown: true) => policy.strings.openWith,
-    _ => policy.strings.download,
+      strings.fileCancel,
+    AssetLoadState(shown: true) => strings.fileOpenWith,
+    _ => strings.fileDownload,
   };
 
   static BorderRadius _border(

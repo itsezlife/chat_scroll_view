@@ -8,6 +8,8 @@ import 'package:content_model/content_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:message_media/message_media.dart';
 
+import '../support/media_scopes.dart';
+
 /// One platform's expected values, written out as numbers.
 typedef _Values = ({
   MediaCornerPolicy policy,
@@ -50,6 +52,7 @@ MediaLayoutInput _input({
   double width = 400,
   double bubbleRadius = _bubbleRadius,
 }) => MediaLayoutInput(
+  text: MediaScopes.text,
   items: const [],
   availableWidth: width,
   isOutgoing: outgoing,
@@ -387,6 +390,7 @@ void main() {
     test('an album with a caption below', () {
       final layout = const MessageMediaPolicy.android().layout(
         MediaLayoutInput(
+          text: MediaScopes.text,
           items: [photo('a'), photo('b')],
           availableWidth: 375,
           displaySize: const Size(375, 610.5),
@@ -426,12 +430,20 @@ void main() {
 
     test('a layout whose radii are already resolved is kept as it is', () {
       final layout = const MessageMediaPolicy.android().layout(
-        MediaLayoutInput(items: [photo('a')], availableWidth: 364),
+        MediaLayoutInput(
+          text: MediaScopes.text,
+          items: [photo('a')],
+          availableWidth: 364,
+        ),
       );
       expect(
         const MediaCornerPolicy.android().resolve(
           layout,
-          MediaLayoutInput(items: [photo('a')], availableWidth: 364),
+          MediaLayoutInput(
+            text: MediaScopes.text,
+            items: [photo('a')],
+            availableWidth: 364,
+          ),
         ),
         same(layout),
       );
@@ -465,7 +477,11 @@ final class _OneCellStep implements MediaLayoutStep {
   final MediaCell cell;
 
   @override
-  MediaLayout layout(MediaLayoutInput input) => MediaLayout(
+  MediaLayout layout(
+    MediaLayoutInput input, {
+    required MediaFileStackPolicy fileStack,
+    required LinkPreviewCardPolicy linkPreview,
+  }) => MediaLayout(
     size: cell.rect.size,
     blocks: [
       MediaBlock.mosaic(rect: cell.rect, cells: [cell]),

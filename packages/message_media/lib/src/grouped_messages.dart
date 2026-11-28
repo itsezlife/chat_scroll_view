@@ -47,7 +47,7 @@ final class GroupedMediaMember {
 ///
 /// Owns: one [GroupedMessagePosition] per member, in member order and
 /// addressed by [MediaItemId] ([positionOf]), and the sibling and caption
-/// summary. Does not own: the single box ([computeSingleMediaSize]), the
+/// summary. Does not own: the single box ([SingleMediaLayout.compute]), the
 /// pixel projection ([MosaicLayout]) or the file stack.
 ///
 /// ## Layout model
@@ -58,7 +58,7 @@ final class GroupedMediaMember {
 /// (120) and the paddings (40) into span units (default
 /// [MediaLayoutMetrics.referenceDisplayMinSide]).
 ///
-/// One member is not a mosaic: use [computeSingleMediaSize]. Fewer than two
+/// One member is not a mosaic: use [SingleMediaLayout.compute]. Fewer than two
 /// members give an empty result. Any aspect above 2 forces the line solver.
 ///
 /// ## Fixed-count layouts (2 / 3 / 4)
@@ -110,7 +110,7 @@ final class GroupedMessages {
   /// Lays [members] out as a mosaic.
   ///
   /// Returns [GroupedMessages.empty] for fewer than two members; a single
-  /// item uses [computeSingleMediaSize]. Member ids MUST be distinct: each
+  /// item uses [SingleMediaLayout.compute]. Member ids MUST be distinct: each
   /// id addresses one cell.
   ///
   /// [isOut] (an outgoing message) flips which cells get

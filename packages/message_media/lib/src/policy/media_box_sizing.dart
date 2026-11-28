@@ -226,13 +226,12 @@ final class MediaBoxSizing$Android extends MediaBoxSizing {
     final (maxWidth, maxHeight) = maxBox(dimensions, input);
     var (width, height) = switch (dimensions) {
       ContentSize(:final width, :final height) => () {
-        final box = computeSingleMediaSize(
+        final box = SingleMediaLayout.compute(
           aspectRatio: width / height,
           maxWidth: maxWidth,
           maxHeight: maxHeight,
           minHeight: minHeight,
           zeroSide: noDimensionsSide,
-          kind: item.kind,
         );
         return (box.width, box.height);
       }(),
@@ -244,9 +243,7 @@ final class MediaBoxSizing$Android extends MediaBoxSizing {
     final minWidths = [
       if (item.kind == MediaItemKind.video)
         chrome.infoBadgeWidth + videoBadgePadding,
-      if (item.kind == MediaItemKind.video ||
-          item.kind == MediaItemKind.animation)
-        chrome.progressLabelWidth + progressLabelPadding,
+      if (item.kind.plays) chrome.progressLabelWidth + progressLabelPadding,
       if (chrome.timeWidth > 0)
         chrome.timeWidth +
             (chrome.bubbleRadius >= smallRadius

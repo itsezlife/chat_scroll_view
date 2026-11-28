@@ -3,17 +3,19 @@
 /// the semantics label, and the chat state's origin lookup.
 ///
 /// **Seam:** `MediaGesturePolicy.actionOf`, `MediaItemAction
-/// .allowedItemActions` over `ChatProtection`, `MediaSemanticsStrings
-/// .label` and `MessageMediaState.rectOf`.
+/// .allowedItemActions` over `ChatProtection`, the media strings' `label`
+/// and `MessageMediaState.rectOf`.
 library;
 
 import 'dart:ui' show Rect;
 
 import 'package:chat_capabilities/chat_capabilities.dart';
+import 'package:chrome_foundation/testing.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart' show TargetPlatform;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:message_media/message_media.dart';
+import 'package:message_media/src/gesture/media_semantics_labels.dart';
 import 'package:mpx_core/mpx_core.dart';
 
 MediaItem _item(MediaItemKind kind) => MediaItem(
@@ -224,7 +226,7 @@ void main() {
 
   group('the semantics label', () {
     test('kind, then duration or size, then progress', () {
-      const strings = MediaSemanticsStrings.english;
+      final strings = ChromeStringsPresets.english.media;
       expect(strings.label(kind: MediaItemKind.photo), 'Photo');
       expect(
         strings.label(
@@ -246,8 +248,10 @@ void main() {
         strings.label(kind: MediaItemKind.animation, loading: true),
         'GIF, Downloading',
       );
-      final host = strings.copyWith(kind: (kind) => 'Foto');
-      expect(host.label(kind: MediaItemKind.photo), 'Foto');
+      expect(
+        ChromeStringsPresets.russian.media.label(kind: MediaItemKind.photo),
+        'Фото',
+      );
     });
   });
 

@@ -4,6 +4,7 @@ import 'package:chrome_foundation/src/strings/chrome_strings.dart';
 import 'package:chrome_foundation/src/strings/composer_strings.dart';
 import 'package:chrome_foundation/src/strings/edit_menu_strings.dart';
 import 'package:chrome_foundation/src/strings/formatting_strings.dart';
+import 'package:chrome_foundation/src/strings/media_strings.dart';
 import 'package:chrome_foundation/src/strings/pack_sheet_strings.dart';
 import 'package:chrome_foundation/src/strings/panel_strings.dart';
 import 'package:chrome_foundation/src/strings/semantics_strings.dart';
@@ -78,6 +79,9 @@ class ChromeStringsScope extends InheritedWidget {
 
   /// The attach sheet strings at [context]; see [of].
   static AttachStrings attachOf(BuildContext context) => of(context).attach;
+
+  /// The message media strings at [context]; see [of].
+  static MediaStrings mediaOf(BuildContext context) => of(context).media;
 
   /// The semantics strings at [context]; see [of].
   static SemanticsStrings semanticsOf(BuildContext context) =>

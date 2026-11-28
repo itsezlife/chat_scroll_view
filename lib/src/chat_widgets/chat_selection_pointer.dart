@@ -2,6 +2,8 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_selection_controller.dart'
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_diagnostics.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_gesture_exclusion.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_selection_metrics.dart';
+import 'package:content_model/content_model.dart'
+    show ChatCorrelation, ChatDiagnostics, ChatEventCategory, ChatEventLevel;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 
@@ -709,18 +711,38 @@ class ChatSelectionPointer {
     return ChatBodyPartOutcome.menu;
   }
 
+  /// Emits the [ChatSelectionOp.hit] event for [gesture] on [hit] arbitrated
+  /// as [outcome]; [inSelection] is the mode when the gesture landed (the
+  /// facade's current mode when not given).
   void _reportBodyPartHit(
     ChatInlineHit$BodyPart hit,
     ChatBodyPartOutcome outcome, {
     ChatBodyPartGesture gesture = ChatBodyPartGesture.tap,
     bool? inSelection,
-  }) => emitBodyPartHit(
-    hit: hit,
-    inSelection: inSelection ?? selection?.isSelectionMode ?? false,
-    outcome: outcome,
-    gesture: gesture,
-    chatId: selection?.chatId,
-  );
+  }) {
+    final named = switch (hit.partId) {
+      final ChatDiagnosablePart part => part,
+      _ => null,
+    };
+    final selecting = inSelection ?? selection?.isSelectionMode ?? false;
+    ChatDiagnostics.current.emit(
+      ChatEventLevel.debug,
+      ChatEventCategory.media,
+      ChatSelectionOp.hit,
+      correlation: ChatCorrelation(
+        chatId: selection?.chatId,
+        scrollId: hit.messageId.toString(),
+        mediaItemId: named?.diagnosticItemId,
+      ),
+      fields: () => {
+        if (named != null) 'part': named.diagnosticName,
+        'role': hit.role,
+        'gesture': gesture,
+        'mode': selecting ? 'selection' : 'normal',
+        'outcome': outcome,
+      },
+    );
+  }
 }
 
 enum _SpanPolarity { select, unselect }

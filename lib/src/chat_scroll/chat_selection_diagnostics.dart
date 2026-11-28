@@ -1,12 +1,6 @@
 import 'package:chat_scroll_view/src/chat_scroll/chat_inline_hit.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_selection_interaction.dart';
-import 'package:content_model/content_model.dart'
-    show
-        ChatCorrelation,
-        ChatDiagnostics,
-        ChatEventCategory,
-        ChatEventLevel,
-        DiagnosticOp;
+import 'package:content_model/content_model.dart' show DiagnosticOp;
 
 /// The operations of the diagnostics events the selection facade and the
 /// viewport's selection pointer emit through `ChatDiagnostics.current`.
@@ -77,39 +71,6 @@ abstract interface class ChatDiagnosablePart {
   /// The string form of the media item the part belongs to, or null for a
   /// part of no item.
   String? get diagnosticItemId;
-}
-
-/// Emits the [ChatSelectionOp.hit] event for [gesture] on [hit] the
-/// viewport arbitrated as [outcome]; [inSelection] is the mode when the
-/// gesture landed.
-void emitBodyPartHit({
-  required ChatInlineHit$BodyPart hit,
-  required bool inSelection,
-  required ChatBodyPartOutcome outcome,
-  ChatBodyPartGesture gesture = ChatBodyPartGesture.tap,
-  String? chatId,
-}) {
-  final named = switch (hit.partId) {
-    final ChatDiagnosablePart part => part,
-    _ => null,
-  };
-  ChatDiagnostics.current.emit(
-    ChatEventLevel.debug,
-    ChatEventCategory.media,
-    ChatSelectionOp.hit,
-    correlation: ChatCorrelation(
-      chatId: chatId,
-      scrollId: hit.messageId.toString(),
-      mediaItemId: named?.diagnosticItemId,
-    ),
-    fields: () => {
-      if (named != null) 'part': named.diagnosticName,
-      'role': hit.role,
-      'gesture': gesture,
-      'mode': inSelection ? 'selection' : 'normal',
-      'outcome': outcome,
-    },
-  );
 }
 
 /// The copy path a `copyRefused` event names: the one source a refusal's

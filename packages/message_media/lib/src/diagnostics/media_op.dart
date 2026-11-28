@@ -19,8 +19,7 @@ enum MediaOp implements DiagnosticOp {
   /// kind tag.
   unknownKind,
 
-  /// A cell could not be built (error): which builder (`box`, `row`, or a
-  /// chrome slot: `infoBadge`, `statusControl`, `spoiler`, `options`) and
+  /// A cell could not be built (error): the [MediaBuilder] as `builder` and
   /// the error's type (`missingItem` for a cell whose item was not given).
   cellFailed,
 
@@ -41,9 +40,9 @@ enum MediaOp implements DiagnosticOp {
   transitionInterrupted,
 
   /// What an activated part did beyond the viewport's arbitration (debug):
-  /// the `part`, its `role`, the `mode` (`normal`) and the `outcome`,
-  /// `reveal` (a hidden spoiler revealed) or `cancel` (a download stopped).
-  /// The viewport's own `hit` event says the tap was an activation.
+  /// the `part`, its `role`, the `mode` (`normal`) and the [MediaHitOutcome]
+  /// as `outcome`. The viewport's own `hit` event says the tap was an
+  /// activation.
   hit,
 
   /// An activation dropped by the input guard (debug): the `part` and the
@@ -54,9 +53,8 @@ enum MediaOp implements DiagnosticOp {
   /// and the `count` of items it pages through.
   viewerOpened,
 
-  /// An item had no rectangle for the viewer (warning): `at` open (the tap's
-  /// hit had none) or close (the viewer asked for it by id and it was off
-  /// screen).
+  /// An item had no rectangle for the viewer (warning): the
+  /// [MediaViewerMoment] as `at`.
   originRectMissing,
 
   /// An item's upload changed what its cell shows (debug): the transfer
@@ -70,7 +68,74 @@ enum MediaOp implements DiagnosticOp {
   itemCancelled,
 
   /// A cell was handed its item's send origin (debug): the `platform`,
-  /// `originPresent`, the `outcome` (`flown`, or `skipped` under
-  /// `reduceMotion` or for want of an overlay, `reason: noOverlay`).
+  /// `originPresent`, the [MediaFlightOutcome] as `outcome`, and for want
+  /// of an overlay the [MediaFlightSkip] as `reason`.
   sendOriginFlight,
+}
+
+/// The cell builder or chrome slot that failed; the `builder` of a
+/// [MediaOp.cellFailed] event.
+enum MediaBuilder {
+  /// The box cell builder.
+  box,
+
+  /// The file row cell builder.
+  row,
+
+  /// The info badge slot.
+  infoBadge,
+
+  /// The sent check slot.
+  sentCheck,
+
+  /// The status control slot.
+  statusControl,
+
+  /// The spoiler slot.
+  spoiler,
+
+  /// The options affordance slot.
+  options,
+}
+
+/// What an activated part did; the `outcome` of a [MediaOp.hit] event.
+enum MediaHitOutcome {
+  /// A hidden spoiler was revealed.
+  reveal,
+
+  /// A download or an upload was stopped.
+  cancel,
+
+  /// The card's page was asked to open.
+  open,
+
+  /// The card's action button was activated.
+  action,
+}
+
+/// When an item's rectangle was missing; the `at` of a
+/// [MediaOp.originRectMissing] event.
+enum MediaViewerMoment {
+  /// The viewer opened from a tap whose hit had no rectangle.
+  open,
+
+  /// The viewer asked for the item by id on close and it was off screen.
+  close,
+}
+
+/// What a cell did with its send origin; the `outcome` of a
+/// [MediaOp.sendOriginFlight] event.
+enum MediaFlightOutcome {
+  /// The item flew in from its origin.
+  flown,
+
+  /// No flight: reduce motion, or no overlay to fly in.
+  skipped,
+}
+
+/// Why a flight was skipped other than reduce motion; the `reason` of a
+/// [MediaOp.sendOriginFlight] event.
+enum MediaFlightSkip {
+  /// No overlay above the cell to fly in.
+  noOverlay,
 }

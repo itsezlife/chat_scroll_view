@@ -14,6 +14,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:golden_baseline/golden_baseline.dart';
 import 'package:message_media/message_media.dart';
 
+import '../support/media_scopes.dart';
+
 const Color _fill = Color(0xFF3A3A40);
 const Color _backdrop = Color(0xFF121215);
 
@@ -97,6 +99,7 @@ MediaItem _item(int index, ContentSize size) => MediaItem(
 _GeometryFill _single(ContentSize size) => _GeometryFill(
   _policy.layout(
     MediaLayoutInput(
+      text: MediaScopes.text,
       items: [_item(0, size)],
       availableWidth: 364,
       displaySize: const Size(364, 800),
@@ -111,6 +114,7 @@ _GeometryFill _single(ContentSize size) => _GeometryFill(
 _GeometryFill _album(List<ContentSize> sizes) => _GeometryFill(
   _policy.layout(
     MediaLayoutInput(
+      text: MediaScopes.text,
       items: [for (final (index, size) in sizes.indexed) _item(index, size)],
       availableWidth: 375,
       displaySize: const Size(375, 610.5),
@@ -127,7 +131,9 @@ void main() {
     _GeometryFill fill, {
     double height = 480,
   }) async {
-    await tester.pumpWidget(_box(height: height, child: fill));
+    await tester.pumpWidget(
+      MediaScopes.wrap(_box(height: height, child: fill)),
+    );
     await expectLater(
       find.byType(_GeometryFill),
       matchesGoldenFile('$name.png'),

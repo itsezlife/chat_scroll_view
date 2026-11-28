@@ -4,7 +4,6 @@ import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/widgets.dart';
 import 'package:message_media/src/layout/media_layout.dart';
-import 'package:message_media/src/policy/media_layout_policy.dart';
 
 /// Where a cell's options affordance is and what a tap on it takes: the
 /// three dots that open the message menu for the item.
@@ -142,7 +141,7 @@ final class MediaOptionsPlacement {
     if (context.compact || context.preview || spoilerHidden || smallImage) {
       return null;
     }
-    final (offset, size) = switch (MediaLayoutPolicy.isBox(cell.kind)) {
+    final (offset, size) = switch (cell.kind.isPicture) {
       true when boxKinds.contains(cell.kind) => (boxIconOffset, boxIconSize),
       false when onRows && _isFirstRow(cell, block) => (
         rowIconOffset,

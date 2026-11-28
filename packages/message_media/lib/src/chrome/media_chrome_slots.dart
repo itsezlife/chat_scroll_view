@@ -6,7 +6,6 @@ import 'package:message_media/src/chrome/media_spoiler_reveal.dart';
 import 'package:message_media/src/chrome/media_time_pill.dart';
 import 'package:message_media/src/layout/media_layout.dart';
 import 'package:message_media/src/outgoing/media_sent_check.dart';
-import 'package:message_media/src/policy/media_layout_policy.dart';
 import 'package:message_media/src/policy/message_media_policy.dart';
 import 'package:mpx_core/mpx_core.dart';
 
@@ -213,7 +212,7 @@ final class MediaChromeSlots {
   /// Whether [item] is behind a spoiler its cell draws: a box (photo, video,
   /// animation) marked so. A file row has no picture to cover.
   static bool coversSpoiler(MediaItem item, MediaCell cell) =>
-      item.spoiler && MediaLayoutPolicy.isBox(cell.kind);
+      item.spoiler && cell.kind.isPicture;
 
   /// The `spoiler` hit part's rect of [cell] (layout coordinates): the
   /// cell's rect while its item's spoiler is hidden, null otherwise.

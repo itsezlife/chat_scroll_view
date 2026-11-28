@@ -101,9 +101,11 @@ class _MediaSendFlightState extends State<MediaSendFlight>
       fields: () => {
         'platform': widget.family,
         'originPresent': true,
-        'outcome': flies ? 'flown' : 'skipped',
+        'outcome': flies
+            ? MediaFlightOutcome.flown
+            : MediaFlightOutcome.skipped,
         'reduceMotion': reduceMotion,
-        if (!overlay) 'reason': 'noOverlay',
+        if (!overlay) 'reason': MediaFlightSkip.noOverlay,
       },
     );
     if (!flies) return;

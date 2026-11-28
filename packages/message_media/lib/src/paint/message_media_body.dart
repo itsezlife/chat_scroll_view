@@ -5,6 +5,8 @@ import 'package:chat_scroll_view/chat_scroll_view.dart'
         ChatNonTextBody,
         ChatSelectionController,
         ChatSelectionInteraction;
+import 'package:chrome_foundation/chrome_foundation.dart'
+    show ChromeStringsScope;
 import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/gestures.dart' show PointerExitEvent, PointerHoverEvent;
@@ -14,6 +16,7 @@ import 'package:message_media/src/chrome/media_chrome_slots.dart';
 import 'package:message_media/src/chrome/media_options_affordance.dart';
 import 'package:message_media/src/diagnostics/media_op.dart';
 import 'package:message_media/src/gesture/media_gesture_policy.dart';
+import 'package:message_media/src/gesture/media_semantics_labels.dart';
 import 'package:message_media/src/gesture/media_viewer_request.dart';
 import 'package:message_media/src/layout/link_preview_card.dart';
 import 'package:message_media/src/layout/media_layout.dart';
@@ -23,7 +26,6 @@ import 'package:message_media/src/paint/link_preview_card_view.dart';
 import 'package:message_media/src/paint/media_box_cell.dart';
 import 'package:message_media/src/paint/media_cell_builders.dart';
 import 'package:message_media/src/paint/media_row_cell.dart';
-import 'package:message_media/src/policy/media_layout_policy.dart';
 import 'package:message_media/src/policy/message_media_policy.dart';
 import 'package:message_media/src/state/message_media_state.dart';
 import 'package:meta/meta.dart';
@@ -109,7 +111,7 @@ class MessageMediaBody extends StatefulWidget {
     this.onOpenViewer,
     this.onItemMenu,
     this.onLinkPreview,
-    this.linkPreviewColors = LinkPreviewCardColors.fallback,
+    this.linkPreviewColors,
     this.cardOpacity = 1,
     this.leavingCard,
     this.leavingCardOpacity = 0,
@@ -160,7 +162,7 @@ class MessageMediaBody extends StatefulWidget {
   final LinkPreviewActivated? onLinkPreview;
 
   /// The link preview card's colours.
-  final LinkPreviewCardColors linkPreviewColors;
+  final LinkPreviewCardColors? linkPreviewColors;
 
   /// The card's opacity while it fades in.
   final double cardOpacity;
@@ -304,9 +306,9 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
       if (data == null) continue;
       final id = cell.itemId;
       live.add(id);
-      final preset = MediaLayoutPolicy.isBox(cell.kind)
+      final preset = cell.kind.isPicture
           ? MediaBoxCell.presetFor(data)
-          : MediaRowCell.presetOf(MediaRowCell.rowOf(data));
+          : MediaRowCell.presetOf(MediaRowCell.rowOf(context, data));
       if (_presets[id]?.spec == preset.spec && _bindings.containsKey(id)) {
         continue;
       }
@@ -440,7 +442,7 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
     if (icon != MediaStatusIcon.download && icon != MediaStatusIcon.cancel) {
       return null;
     }
-    if (MediaLayoutPolicy.isBox(cell.kind)) {
+    if (cell.kind.isPicture) {
       final diameter = MediaLoadingStyleScope.resolve(context).status.diameter;
       return Rect.fromCenter(
         center: cell.rect.center,
@@ -450,7 +452,7 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
     }
     final data = widget.dataOf(block, cell);
     if (data == null) return null;
-    final row = MediaRowCell.rowOf(data);
+    final row = MediaRowCell.rowOf(context, data);
     final leading = row.leading;
     final mirrored =
         row.mirrorsInRtl && Directionality.of(context) == TextDirection.rtl;
@@ -507,7 +509,10 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
         if (card.hasText &&
             item.kind == MediaItemKind.photo &&
             widget.policy.linkPreview.photoTapOpensPage) {
-          return (_cardPart(LinkPreviewZone.body), card.rect);
+          return switch (_cardPart(LinkPreviewZone.body)) {
+            final part? => (part, card.rect),
+            null => null,
+          };
         }
       }
       return (MediaHitPart(item.id, part: MediaPart.content), cell.rect);
@@ -515,16 +520,28 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
     if (_cardBlock case MediaBlock$LinkPreview(
       card: final card?,
     ) when card.rect.contains(local)) {
-      if (card.button case final button? when button.rect.contains(local)) {
-        return (_cardPart(LinkPreviewZone.button), button.rect);
-      }
-      return (_cardPart(LinkPreviewZone.body), card.rect);
+      final zone = switch (card.button) {
+        final button? when button.rect.contains(local) => (
+          LinkPreviewZone.button,
+          button.rect,
+        ),
+        _ => (LinkPreviewZone.body, card.rect),
+      };
+      return switch (_cardPart(zone.$1)) {
+        final part? => (part, zone.$2),
+        null => null,
+      };
     }
     return null;
   }
 
-  LinkPreviewHitPart _cardPart(LinkPreviewZone zone) =>
-      LinkPreviewHitPart(widget.messageId ?? 0, zone: zone);
+  // A card part names its message: a body with no message id has no card
+  // part, so nothing hits it and no tap reaches the host with a made-up id.
+  LinkPreviewHitPart? _cardPart(LinkPreviewZone zone) =>
+      switch (widget.messageId) {
+        final id? => LinkPreviewHitPart(id, zone: zone),
+        null => null,
+      };
 
   // --- ChatNonTextBody ----------------------------------------------------
 
@@ -614,8 +631,8 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
         'role': part.role,
         'mode': 'normal',
         'outcome': switch (part.zone) {
-          LinkPreviewZone.body => 'open',
-          LinkPreviewZone.button => 'action',
+          LinkPreviewZone.body => MediaHitOutcome.open,
+          LinkPreviewZone.button => MediaHitOutcome.action,
         },
       },
     );
@@ -627,7 +644,7 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
     switch (_gestures.actionOf(part.part, _loadOf(id))) {
       case MediaPartAction.reveal:
         widget.state.revealSpoiler(id, at: _revealOrigin(id));
-        _emitOutcome(part, 'reveal');
+        _emitOutcome(part, MediaHitOutcome.reveal);
       case MediaPartAction.download:
         _bindings[id]?.download();
       case MediaPartAction.cancel:
@@ -636,7 +653,7 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
             (widget.sendState == MediaSendState.sending ||
                 _loadOf(id).status().upload);
         _bindings[id]?.cancelDownload();
-        _emitOutcome(part, 'cancel');
+        _emitOutcome(part, MediaHitOutcome.cancel);
         if (cross) _itemCancelled(id);
       case MediaPartAction.openViewer:
         _openViewer(id, rect);
@@ -683,12 +700,12 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
     if (open == null || messageId == null) return;
     final item = widget.items[id];
     if (item == null) return;
-    final boxes = MediaLayoutPolicy.isBox(item.kind);
+    final boxes = item.kind.isPicture;
     // A message's pictures page together; a file opens alone.
     final pages = boxes
         ? [
             for (final (_, cell) in _cells)
-              if (MediaLayoutPolicy.isBox(cell.kind)) cell.itemId,
+              if (cell.kind.isPicture) cell.itemId,
           ]
         : [id];
     final index = pages.indexOf(id);
@@ -697,7 +714,7 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
         ChatEventLevel.warning,
         MediaOp.originRectMissing,
         id,
-        () => {'at': 'open'},
+        () => {'at': MediaViewerMoment.open},
       );
     }
     _emit(
@@ -722,7 +739,7 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
               ChatEventLevel.warning,
               MediaOp.originRectMissing,
               id,
-              () => {'at': 'close'},
+              () => {'at': MediaViewerMoment.close},
             );
           }
           return found;
@@ -731,7 +748,7 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
     );
   }
 
-  void _emitOutcome(MediaHitPart part, String outcome) => _emit(
+  void _emitOutcome(MediaHitPart part, MediaHitOutcome outcome) => _emit(
     ChatEventLevel.debug,
     MediaOp.hit,
     part.itemId,
@@ -822,15 +839,12 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
     AssetLoadState load,
     Widget child,
   ) {
-    final strings = widget.policy.semantics;
+    final strings = ChromeStringsScope.mediaOf(context);
     final descriptor = item.descriptor;
-    final plays =
-        item.kind == MediaItemKind.video ||
-        item.kind == MediaItemKind.animation;
-    final box = MediaLayoutPolicy.isBox(item.kind);
+    final box = item.kind.isPicture;
     final label = strings.label(
       kind: item.kind,
-      duration: plays ? descriptor.duration : null,
+      duration: item.kind.plays ? descriptor.duration : null,
       size: !box || !load.shown
           ? descriptor.byteSize ?? _bindings[item.id]?.descriptor?.byteSize
           : null,
@@ -876,14 +890,14 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
                 icon == MediaStatusIcon.cancel))
           CustomSemanticsAction(
             label: icon == MediaStatusIcon.download
-                ? strings.download
-                : strings.cancel,
+                ? strings.downloadAction
+                : strings.cancelDownloadAction,
           ): () => _activate(
             MediaHitPart(item.id, part: MediaPart.status),
             _rectOf(item.id),
           ),
         if (affordance != null && onItemMenu != null)
-          CustomSemanticsAction(label: strings.options): () {
+          CustomSemanticsAction(label: strings.optionsAction): () {
             if (_box case final box?) {
               onItemMenu(
                 MediaHitPart(item.id, part: MediaPart.options),
@@ -966,7 +980,7 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
         for (final cell in widget.layout.exiting)
           widget.cellBuilder(
             context,
-            MediaLayoutPolicy.isBox(cell.kind)
+            cell.kind.isPicture
                 ? MediaBlock.mosaic(rect: cell.rect, cells: [cell])
                 : MediaBlock.fileStack(rect: cell.rect, cells: [cell]),
             cell,
@@ -994,7 +1008,7 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
     LinkPreviewCard card,
   ) {
     final page = block.page;
-    final strings = widget.policy.semantics;
+    final strings = ChromeStringsScope.mediaOf(context);
     final selection = widget.selection;
     final messageId = widget.messageId;
     final inSelection = _inSelection && selection != null && messageId != null;
@@ -1003,7 +1017,10 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
         selection.isSelectable(messageId)
             ? () => selection.toggle(messageId)
             : null,
-      _ => () => _activateCard(_cardPart(zone)),
+      _ => switch (_cardPart(zone)) {
+        final part? => () => _activateCard(part),
+        null => null,
+      },
     };
     final media = switch (block.media) {
       final cell? => widget.cellBuilder(
