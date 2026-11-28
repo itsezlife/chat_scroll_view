@@ -20,6 +20,22 @@ package is pre-1.0.
   `ScrimMotion`.
 - `BackdropSnapshot.width` and `height`: the still's size, known at capture.
 
+### Added (scrim glass source)
+
+- A scrim whose preset names a `glassSource` (the `android` preset) makes a
+  second, toned still with its first one and feeds it to a
+  `GlassSourceScope` around the surface: a glass on the scrim frosts the
+  window as it was before the dim, not the dimmed scene. It is disposed with
+  the scrim's still; `ChromeScrimController.glassSource` exposes it, and the
+  owner is told `ChromeScrimPhase.stillReady(glassSource: true)` (or
+  `captureFailed(…, glassSource: true)`).
+- `ChromeScrimTone.saturationScale`: a saturation given as a scale (1 leaves
+  the colour) mapped onto `BackdropSnapshot.toneMatrix`; the Android glass
+  source uses it (2 dark, 3 light).
+- `GlassMaterial.scrimMenu` and `GlassMaterialColors.scrimMenu(palette)`: a
+  menu on such a scrim, with a 4 dp shadow (0x26 black in a light theme) and
+  the backdrop's saturation left to the glass source's tone.
+
 ### Added (width and input classes)
 
 - `ChromeWidthClass` (`compact` ≤ 600, `medium` 601-925, `expanded`

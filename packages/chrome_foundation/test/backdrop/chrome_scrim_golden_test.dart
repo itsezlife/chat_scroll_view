@@ -56,65 +56,112 @@ void main() {
   for (final preset in presets) {
     for (final MapEntry(key: theme, value: palette) in palettes.entries) {
       testWidgets('${preset.name} scrim, $theme', (tester) async {
-        late BuildContext context;
-        ChromeScrimController? scrim;
-        late StateSetter setState;
-        await tester.pumpWidget(
-          ChromeThemeScope(
-            palette: palette,
-            child: Directionality(
-              textDirection: TextDirection.ltr,
-              child: RepaintBoundary(
-                key: const ValueKey('window'),
-                child: BackdropSnapshotSource(
-                  child: StatefulBuilder(
-                    builder: (c, set) {
-                      context = c;
-                      setState = set;
-                      return Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          const _Stripes(),
-                          if (scrim case final scrim?)
-                            ChromeScrim(
-                              controller: scrim,
-                              child: const Center(
-                                child: SizedBox(
-                                  width: 80,
-                                  height: 48,
-                                  child: ColoredBox(color: Color(0xFF43A047)),
-                                ),
-                              ),
-                            ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-              ),
+        await _open(
+          tester,
+          palette: palette,
+          preset: preset,
+          surface: const Center(
+            child: SizedBox(
+              width: 80,
+              height: 48,
+              child: ColoredBox(color: Color(0xFF43A047)),
             ),
           ),
         );
-        final opened = ChromeScrimController(context, preset: preset);
-        addTearDown(opened.cancel);
-        setState(() => scrim = opened);
-        await tester.pump();
-        if (opened.still case final still?) {
-          var done = false;
-          unawaited(still.ready.then((_) => done = true));
-          for (var turn = 0; !done && turn < 200; turn++) {
-            await tester.runAsync(
-              () => Future<void>.delayed(const Duration(milliseconds: 5)),
-            );
-            await tester.pump();
-          }
-        }
         await tester.pump(const Duration(seconds: 1));
         await expectLater(
           find.byKey(const ValueKey('window')),
           matchesGoldenFile('../goldens/scrim_${preset.name}_$theme.png'),
         );
       });
+    }
+  }
+
+  // A menu-sized glass on the Android scrim, frosting the glass source: the
+  // window before the dim, its saturation scaled and its brightness lowered.
+  for (final MapEntry(key: theme, value: palette) in palettes.entries) {
+    testWidgets('a menu on the android scrim, $theme', (tester) async {
+      await _open(
+        tester,
+        palette: palette,
+        preset: ChromeScrimPreset.android,
+        surface: MediaQuery(
+          data: const MediaQueryData(),
+          child: GlassQualityScope(
+            capabilities: GlassCapabilities.all,
+            child: Center(
+              child: SizedBox(
+                width: 160,
+                height: 96,
+                child: GlassSurface(
+                  material: GlassMaterial.scrimMenu,
+                  colors: GlassMaterialColors.scrimMenu(palette),
+                  child: const SizedBox.expand(),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(seconds: 1));
+      await expectLater(
+        find.byKey(const ValueKey('window')),
+        matchesGoldenFile('../goldens/scrim_android_menu_$theme.png'),
+      );
+    });
+  }
+}
+
+/// Opens a scrim of [preset] over the striped window, with [surface] on it,
+/// and waits for its stills to be made.
+Future<void> _open(
+  WidgetTester tester, {
+  required ChromePalette palette,
+  required ChromeScrimPreset preset,
+  required Widget surface,
+}) async {
+  late BuildContext context;
+  ChromeScrimController? scrim;
+  late StateSetter setState;
+  await tester.pumpWidget(
+    ChromeThemeScope(
+      palette: palette,
+      child: Directionality(
+        textDirection: TextDirection.ltr,
+        child: RepaintBoundary(
+          key: const ValueKey('window'),
+          child: BackdropSnapshotSource(
+            child: StatefulBuilder(
+              builder: (c, set) {
+                context = c;
+                setState = set;
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    const _Stripes(),
+                    if (scrim case final scrim?)
+                      ChromeScrim(controller: scrim, child: surface),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  final opened = ChromeScrimController(context, preset: preset);
+  addTearDown(opened.cancel);
+  setState(() => scrim = opened);
+  await tester.pump();
+  for (final still in [?opened.still, ?opened.glassSource]) {
+    var done = false;
+    unawaited(still.ready.then((_) => done = true));
+    for (var turn = 0; !done && turn < 200; turn++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 5)),
+      );
+      await tester.pump();
     }
   }
 }

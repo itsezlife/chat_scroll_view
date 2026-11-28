@@ -25,6 +25,23 @@ final class ChromeScrimTone {
   /// [brightness].
   const ChromeScrimTone({this.saturation = 0, this.brightness = 0});
 
+  /// A tone whose saturation is given as a [scale] of the colour's distance
+  /// from grey (1 leaves it, 2 doubles it, 0 is grey), the way a platform
+  /// colour matrix's saturation is, and brightness by [brightness].
+  ///
+  /// [BackdropSnapshot.toneMatrix] writes each channel as `w * (1 - x) + x`
+  /// on its own weight and `w * (1 - x)` on the others, with `x = 1 +
+  /// saturation`. A platform saturation matrix has the same form with `x =
+  /// scale`, so the two agree at `saturation = scale - 1`. What remains
+  /// apart are the luminance weights: 0.3086, 0.6094 and 0.0820 here, Rec.
+  /// 709's 0.213, 0.715 and 0.072 on a platform matrix. A grey is the same
+  /// under both (each row sums to 1); a saturated colour comes out a little
+  /// different, by at most `0.106 * |1 - scale|` of full scale per channel
+  /// before clamping (0.106 is the green weights' gap, which the red and
+  /// blue gaps balance). The values are matched on a device.
+  const ChromeScrimTone.saturationScale(double scale, {this.brightness = 0})
+    : saturation = scale - 1;
+
   /// The saturation change: 0 leaves it, positive is more vivid.
   final double saturation;
 
@@ -63,16 +80,14 @@ final class ChromeScrimStill {
 
   /// The glass source of the Android overlay: a second still that glass
   /// surfaces on the scrim frost, so they sample the window as it was before
-  /// the dim. 1/15, blurred by `max(15, max(w, h) / 180)`, saturation raised
-  /// (2 dark, 3 light as a multiplier) and brightness lowered (-0.2 dark,
-  /// -0.07 light).
-  ///
-  /// The multiplier becomes [ChromeScrimTone.saturation] as `multiplier -
-  /// 1`; the values are to be matched on a device.
+  /// the dim. 1/15, blurred by `max(15, max(w, h) / 180)`, saturation scaled
+  /// by 2 (dark) and 3 (light) and brightness lowered (-0.2 dark, -0.07
+  /// light); see [ChromeScrimTone.saturationScale] for how the scale maps
+  /// onto the tone. The values are to be matched on a device.
   static const ChromeScrimStill androidGlassSource = ChromeScrimStill(
     blurWindowDivisor: 180,
-    toneDark: ChromeScrimTone(saturation: 1, brightness: -0.2),
-    toneLight: ChromeScrimTone(saturation: 2, brightness: -0.07),
+    toneDark: ChromeScrimTone.saturationScale(2, brightness: -0.2),
+    toneLight: ChromeScrimTone.saturationScale(3, brightness: -0.07),
   );
 
   /// How many device pixels of the window make one pixel of the still.

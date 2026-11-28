@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:chrome_foundation/src/backdrop/backdrop_snapshot.dart';
 import 'package:chrome_foundation/src/backdrop/chrome_scrim_preset.dart';
+import 'package:chrome_foundation/src/glass/glass_source.dart';
 import 'package:chrome_foundation/src/menu/overlay_back_button_listener.dart';
 import 'package:chrome_foundation/src/theme/chrome_theme_scope.dart';
 import 'package:flutter/services.dart';
@@ -45,9 +46,12 @@ sealed class ChromeScrimPhase {
     required ui.Size stillSize,
   }) = ChromeScrimPhase$Captured;
 
-  /// The still was made from the capture.
-  const factory ChromeScrimPhase.stillReady({required Duration makeTime}) =
-      ChromeScrimPhase$StillReady;
+  /// The still was made from the capture; with [glassSource], the glass
+  /// source's still.
+  const factory ChromeScrimPhase.stillReady({
+    required Duration makeTime,
+    bool glassSource,
+  }) = ChromeScrimPhase$StillReady;
 
   /// The scrim has no still.
   const factory ChromeScrimPhase.stillSkipped(ChromeScrimStillSkip why) =
@@ -67,9 +71,12 @@ sealed class ChromeScrimPhase {
   const factory ChromeScrimPhase.disposed({required int stills}) =
       ChromeScrimPhase$Disposed;
 
-  /// The capture threw, or its still could not be made.
-  const factory ChromeScrimPhase.captureFailed(Object error) =
-      ChromeScrimPhase$CaptureFailed;
+  /// The capture threw, or its still could not be made; with [glassSource],
+  /// the glass source's.
+  const factory ChromeScrimPhase.captureFailed(
+    Object error, {
+    bool glassSource,
+  }) = ChromeScrimPhase$CaptureFailed;
 }
 
 /// The window was captured, in [captureTime], at [stillSize] pixels.
@@ -90,7 +97,14 @@ final class ChromeScrimPhase$Captured extends ChromeScrimPhase {
 /// The still was made, [makeTime] after the capture.
 final class ChromeScrimPhase$StillReady extends ChromeScrimPhase {
   /// See [ChromeScrimPhase.stillReady].
-  const ChromeScrimPhase$StillReady({required this.makeTime});
+  const ChromeScrimPhase$StillReady({
+    required this.makeTime,
+    this.glassSource = false,
+  });
+
+  /// Whether this is the glass source's still, not the one under the dim.
+  /// Each is told once, in the order they are made.
+  final bool glassSource;
 
   /// From the capture to the still being made: reading its pixels, the blur
   /// and the tone (off the UI isolate where there is another), the decode.
@@ -136,7 +150,10 @@ final class ChromeScrimPhase$Disposed extends ChromeScrimPhase {
 /// The capture failed with [error].
 final class ChromeScrimPhase$CaptureFailed extends ChromeScrimPhase {
   /// See [ChromeScrimPhase.captureFailed].
-  const ChromeScrimPhase$CaptureFailed(this.error);
+  const ChromeScrimPhase$CaptureFailed(this.error, {this.glassSource = false});
+
+  /// Whether the glass source's capture failed, not the still's.
+  final bool glassSource;
 
   /// What was thrown, or a [StateError] when the still was never made.
   final Object error;
@@ -177,6 +194,7 @@ final class ChromeScrimController implements Listenable {
        _onDismiss = onDismiss,
        _backDispatcher = Router.maybeOf(context)?.backButtonDispatcher {
     _still = _capture(context);
+    _glassSource = _captureGlassSource(context);
   }
 
   /// How the scrim looks and closes.
@@ -192,6 +210,7 @@ final class ChromeScrimController implements Listenable {
   final _ScrimChanges _changes = _ScrimChanges();
   final Completer<void> _done = Completer<void>();
   BackdropSnapshot? _still;
+  BackdropSnapshot? _glassSource;
   bool _stillShown;
   bool _closing = false;
   int _views = 0;
@@ -199,6 +218,13 @@ final class ChromeScrimController implements Listenable {
   /// The still under the dim, or null (see [ChromeScrimStillSkip]); its
   /// image is null until it is made.
   BackdropSnapshot? get still => _still;
+
+  /// The second, toned still that glass surfaces on the scrim sample, or
+  /// null: the preset has none, or the scrim has no still. Its image is null
+  /// until it is made. [ChromeScrim] feeds it to a `GlassSourceScope` around
+  /// the surface, so a glass there frosts the window as it was before the
+  /// dim, not the dimmed scene.
+  BackdropSnapshot? get glassSource => _glassSource;
 
   /// Whether the still is to be shown (once made).
   bool get isStillShown => _stillShown;
@@ -235,19 +261,10 @@ final class ChromeScrimController implements Listenable {
       );
       return null;
     }
-    final palette = ChromeThemeScope.paletteOf(context);
-    final window = View.maybeOf(context)?.physicalSize ?? ui.Size.zero;
     final watch = Stopwatch()..start();
     final BackdropSnapshot? captured;
     try {
-      captured = BackdropSnapshot.capture(
-        context,
-        downscale: still.downscale,
-        blurRadius: still.radiusFor(window),
-        tone: still.toneFor(palette.brightness)?.matrix,
-        // Where the window painted nothing: its base fill.
-        background: palette.surface,
-      );
+      captured = _snapshot(context, still);
     } on Object catch (error) {
       _report(ChromeScrimPhase.captureFailed(error));
       return null;
@@ -272,20 +289,67 @@ final class ChromeScrimController implements Listenable {
       ),
     );
     watch.reset();
-    unawaited(
-      snapshot.ready.then((_) {
-        if (snapshot.isDisposed) return;
-        _report(
-          snapshot.image == null
-              ? ChromeScrimPhase.captureFailed(
-                  StateError('The still could not be made.'),
-                )
-              : ChromeScrimPhase.stillReady(makeTime: watch.elapsed),
-        );
-      }),
-    );
+    _reportReady(snapshot, watch, glassSource: false);
     return snapshot;
   }
+
+  // The glass source is taken with the still, from the same frame, and only
+  // where the still is: under reduce transparency the glass on the scrim has
+  // no frost to sample, and without a source the still's skip was told.
+  BackdropSnapshot? _captureGlassSource(BuildContext context) {
+    final glassSource = preset.glassSource;
+    if (glassSource == null || _still == null) return null;
+    final watch = Stopwatch()..start();
+    final BackdropSnapshot? snapshot;
+    try {
+      snapshot = _snapshot(context, glassSource);
+    } on Object catch (error) {
+      _report(ChromeScrimPhase.captureFailed(error, glassSource: true));
+      return null;
+    }
+    if (snapshot case final snapshot?) {
+      _reportReady(snapshot, watch, glassSource: true);
+    }
+    return snapshot;
+  }
+
+  // One still of the window as [still] says, over the palette's base fill
+  // where the window painted nothing.
+  static BackdropSnapshot? _snapshot(
+    BuildContext context,
+    ChromeScrimStill still,
+  ) {
+    final palette = ChromeThemeScope.paletteOf(context);
+    final window = View.maybeOf(context)?.physicalSize ?? ui.Size.zero;
+    return BackdropSnapshot.capture(
+      context,
+      downscale: still.downscale,
+      blurRadius: still.radiusFor(window),
+      tone: still.toneFor(palette.brightness)?.matrix,
+      background: palette.surface,
+    );
+  }
+
+  void _reportReady(
+    BackdropSnapshot snapshot,
+    Stopwatch watch, {
+    required bool glassSource,
+  }) => unawaited(
+    snapshot.ready.then((_) {
+      if (snapshot.isDisposed) return;
+      _report(
+        snapshot.image == null
+            ? ChromeScrimPhase.captureFailed(
+                StateError('The still could not be made.'),
+                glassSource: glassSource,
+              )
+            : ChromeScrimPhase.stillReady(
+                makeTime: watch.elapsed,
+                glassSource: glassSource,
+              ),
+      );
+    }),
+  );
 
   void _report(ChromeScrimPhase phase) => _onPhase?.call(phase);
 
@@ -339,7 +403,7 @@ final class ChromeScrimController implements Listenable {
     // Done first: disposing the still notifies its view, which reads this.
     _done.complete();
     var stills = 0;
-    if (_still case final still?) {
+    for (final still in [?_still, ?_glassSource]) {
       still.dispose();
       stills++;
     }
@@ -540,9 +604,14 @@ class _ChromeScrimState extends State<ChromeScrim>
           onPointerUp: _onUp,
           onPointerCancel: _onCancel,
         ),
+        if (controller.glassSource case final glassSource?)
+          _GlassSourceStill(snapshot: glassSource),
         widget.child,
       ],
     );
+    if (controller.glassSource != null) {
+      scrim = GlassSourceScope(child: scrim);
+    }
     if (_preset.closesOnEscape) {
       scrim = Focus(autofocus: true, onKeyEvent: _onKey, child: scrim);
     }
@@ -555,4 +624,40 @@ class _ChromeScrimState extends State<ChromeScrim>
       ),
     );
   }
+}
+
+/// The glass source's still as the [GlassSource] of the scrim's scope: laid
+/// out over the whole scrim, so a glass's region of the window is the same
+/// region of the still, and painted into its own layer but never shown.
+///
+/// The source must paint for a glass to capture it, and a capture renders
+/// the source's own layer, not what its ancestors clip. So the still is
+/// clipped to nothing on screen: shown, it would cover the dim and the still
+/// under it; drawn under the scrim's still instead, it would show through
+/// while that one fades in. The clip costs a layer and no pixels.
+class _GlassSourceStill extends StatelessWidget {
+  const _GlassSourceStill({required this.snapshot});
+
+  final BackdropSnapshot snapshot;
+
+  @override
+  Widget build(BuildContext context) => ClipRect(
+    clipper: const _NothingClipper(),
+    child: GlassSource(
+      child: BackdropSnapshotView(
+        snapshot: snapshot,
+        opacity: kAlwaysCompleteAnimation,
+      ),
+    ),
+  );
+}
+
+final class _NothingClipper extends CustomClipper<Rect> {
+  const _NothingClipper();
+
+  @override
+  Rect getClip(Size size) => Rect.zero;
+
+  @override
+  bool shouldReclip(_NothingClipper oldClipper) => false;
 }

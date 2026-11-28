@@ -21,6 +21,29 @@ final class GlassMaterialColors {
     this.backdropSaturation = 3,
   });
 
+  /// The colours of a menu on a chrome scrim that offers a glass source
+  /// (`GlassMaterial.scrimMenu`): the menu's tint, [ChromePalette.surfaceRaised]
+  /// at 0.85 in a dark theme and 0.825 in a light one; in a light theme a
+  /// white top edge at 0x44, a bottom one at 0x22 and a black shadow at
+  /// 0x26, in a dark one neither.
+  ///
+  /// The backdrop's saturation is left at 1: the glass source is a still
+  /// already toned (saturation scaled by 2 dark, 3 light), and raising it
+  /// again would double the tone. Off such a scrim, a menu takes the
+  /// theme's menu colours, which raise the saturation of the scene behind.
+  factory GlassMaterialColors.scrimMenu(ChromePalette palette) {
+    final isDark = palette.brightness == Brightness.dark;
+    const white = Color(0xFFFFFFFF);
+    return GlassMaterialColors(
+      tint: palette.surfaceRaised,
+      strokeTop: white.withAlpha(isDark ? 0 : 0x44),
+      strokeBottom: white.withAlpha(isDark ? 0 : 0x22),
+      shadow: Color(isDark ? 0x00000000 : 0x26000000),
+      tintOpacity: isDark ? 0.85 : 0.825,
+      backdropSaturation: 1,
+    );
+  }
+
   /// The material's surface colour, drawn over the frosted backdrop.
   ///
   /// The glass sets its opacity, not the theme: 0.85 over a refracting
