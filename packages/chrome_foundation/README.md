@@ -36,7 +36,16 @@ under a host quality policy
 | `GlassSurface`, `GlassMaterial` | A **glass material** drawn over what is behind it: a value, from a preset by role (`island`, `button`, `bar`, `menu`, `panel`, `bubble`) adjusted with `copyWith`, or a surface's own. Colours come from `GlassMaterialTokens` by the material's role in the chrome theme scope, or the surface passes its own (`colors`); `borderRadius` gives a surface corners of its own. The backdrop strategy is internal. |
 | `GlassQuality`, `GlassQualityScope`, `GlassCapabilities` | The host's **glass quality** policy (`fullLiquid`, `frosted`, `flat`, `off`), a lite-mode flag, and the capabilities (shader filter, sampled backdrop, backdrop filter) that the strategy chain reads. `GlassCapabilities.detect()` is the default; a host or test can force a row of the matrix. |
 | `GlassSourceScope`, `GlassSource` | Marks the content that sampled glass reads. A scope above the content and the surfaces, a source around the content. |
+| `ChromeWidthClass`, `ChromeWidthClassScope` | The **width class** of the window: `compact` (width ≤ 600), `medium` (601-925), `expanded` (> 925). `ChromeWidthClass.of(context)` reads the `MediaQuery` size, so it follows a resize. A landscape phone (≤ 950 wide and ≤ 450 high) counts as `compact` only under `ChromeWidthClassScope(landscapePhoneIsCompact: true)`; off without a scope. |
+| `ChromeInputClass`, `ChromeInputClassScope` | The **input class**: `touch` or `mouse`. It starts from the operating system (`forPlatform`: Android and iOS are touch; on the web, the browser's OS) and, under a `ChromeInputClassScope`, follows the pointer kind of the last pointer event anywhere in the app. `fromPointerKind` maps one event's kind, for a decision made per gesture. |
 | `package:chrome_foundation/testing.dart` | `ChromeStringsPresets.english` / `.russian` and `ChromeStringsSnapshot.of` for completeness checks. Tests and demos only. |
+
+Web policies take layout and presentation (sizes, a menu's side, docking)
+from the width class and interaction (hover or tap, long press, density) from
+the input class, never one whole family from the platform. The package reads
+neither: they are values for the policies of other packages, and a host may
+hand them to a policy on any platform. Neither emits diagnostics (the package
+depends on no workspace package); a reader reports a change it acts on.
 
 Geometry is not a token here: the menu metrics stay constants owned by
 the component that draws them. Labels are host strings, never tokens. Motion is

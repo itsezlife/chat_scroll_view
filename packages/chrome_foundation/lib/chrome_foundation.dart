@@ -3,6 +3,8 @@
 /// registry.
 library;
 
+export 'src/adaptive/chrome_input_class.dart';
+export 'src/adaptive/chrome_width_class.dart';
 export 'src/backdrop/backdrop_snapshot.dart';
 export 'src/box/chrome_alert.dart';
 export 'src/box/chrome_box_layer.dart';
