@@ -95,4 +95,16 @@ enum OverlayOp implements DiagnosticOp {
   /// `phase` (`open`, `close`, `change`), its `durationMs` after the motion
   /// speed, and `reduceMotion` when the speed is instant.
   motion,
+
+  /// The web's draft options menu opened at the strip (debug): the
+  /// `inputClass` (`touch`, `mouse`) and `widthClass` (`compact`, `medium`,
+  /// `expanded`) at the open, its `trigger` (`hover`, `tap`) and the `side`
+  /// it prefers (`towardEnd`, `towardStart`).
+  webMenuOpened,
+
+  /// The web's draft options menu closed (debug): its `trigger`, `outside`
+  /// (a press on the catcher), `leave` (the mouse left the strip and the
+  /// menu), `secondaryClick`, `choice` (a row applied) or `denied` (link
+  /// previews were denied while it was up).
+  webMenuClosed,
 }

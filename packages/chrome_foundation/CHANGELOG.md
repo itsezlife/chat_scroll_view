@@ -24,6 +24,12 @@ package is pre-1.0.
 - `DraftOptionsStrings.save` and `.cancel`: the desktop box's buttons.
   Required: a host that builds `DraftOptionsStrings` adds them.
 
+### Added (anchored menu timing)
+
+- `ChromeAnchoredMenuTiming` (`hoverOpen` 200 ms, `leaveGrace` 200 ms,
+  `reveal` 0.2 s on the standard easing): a menu anchored at a control and
+  opened by hovering it.
+
 ### Added (keyboard timing)
 
 - `ChromeKeyboardTiming` (`heldReopen` 50 ms, `holdRelease` 15 ms): when a
@@ -35,6 +41,7 @@ package is pre-1.0.
   `moveDown`, `enlargePhoto`, `shrinkPhoto`, `enlargeVideo`, `shrinkVideo`,
   `applyChanges`, `doNotPreview`, `removePreview`) and `chooseLinkHint`.
   Required: a host that builds `DraftOptionsStrings` adds them.
+
 - Stock icons `moveUp`, `moveDown`, `enlarge`, `shrink`, `delete`.
 - `ChromeMenuRowTiming`: a toggle row's label cross-fade (300 ms ease out
   quint) and the instant change.

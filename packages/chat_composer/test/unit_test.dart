@@ -36,6 +36,12 @@ import 'draft_options/draft_options_policy_test.dart'
     as draft_options_policy_test;
 import 'draft_options/draft_options_session_test.dart'
     as draft_options_session_test;
+import 'draft_options/draft_options_web_menu_golden_test.dart'
+    as draft_options_web_menu_golden_test;
+import 'draft_options/draft_options_web_menu_policy_test.dart'
+    as draft_options_web_menu_policy_test;
+import 'draft_options/draft_options_web_menu_test.dart'
+    as draft_options_web_menu_test;
 import 'input/composer_clipboard_test.dart' as input_composer_clipboard_test;
 import 'input/composer_controller_extent_test.dart'
     as composer_controller_extent_test;
@@ -180,6 +186,18 @@ void main() {
   group(
     'draft_options/draft_options_session_test.dart',
     draft_options_session_test.main,
+  );
+  group(
+    'draft_options/draft_options_web_menu_golden_test.dart',
+    draft_options_web_menu_golden_test.main,
+  );
+  group(
+    'draft_options/draft_options_web_menu_policy_test.dart',
+    draft_options_web_menu_policy_test.main,
+  );
+  group(
+    'draft_options/draft_options_web_menu_test.dart',
+    draft_options_web_menu_test.main,
   );
   group(
     'input/composer_clipboard_test.dart',

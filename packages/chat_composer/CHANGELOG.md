@@ -29,6 +29,27 @@ is pre-1.0.
   22 / 8 / 22 / 16, focusable rows and icons that swap at once. Mobile and
   web presets are unchanged.
 
+### Added (web draft options menu)
+
+- `DraftOptionsWebMenuController`: on the web the draft options are a menu
+  anchored at the link preview strip, with no overlay, no scrim and no live
+  preview. With a mouse it opens once the pointer has rested on the strip
+  for 200 ms, with touch on a tap; its rows are the link page's, each
+  choice is reported at once and closes it. A press outside (on a
+  transparent catcher) closes it, and with a mouse also leaving the strip
+  and the menu, or a secondary click. The host passes the draft through
+  `DraftOptionsInput`.
+- `DraftOptionsPolicy$Web.menu`, a `DraftOptionsWebMenuPolicy`: hover
+  delay, leave grace, the reveal (0.2 s, opacity and scale 0.8 to 1),
+  the anchor (8 in from the strip's top end, 8 above it), the side by
+  width class (toward the end up to 600 wide, toward the start beyond) and
+  the style by input class (`DraftOptionsMenuStyle.touch`: solid, 48 rows,
+  16 text; `.mouse`: menu glass, compact rows). `place` is the placement
+  rule.
+- `ComposerHeader.linkPreview(onHover:)`: the strip reports a mouse coming
+  onto it (its rect) and leaving it (null).
+- `OverlayOp.webMenuOpened` and `webMenuClosed`.
+
 ### Added (draft options overlay)
 
 - The Android presentation: `DraftOptionsPolicy$Android` draws the
