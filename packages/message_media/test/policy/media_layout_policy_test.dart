@@ -142,10 +142,10 @@ void main() {
       final block = layout.blocks.single as MediaBlock$FileStack;
       // A stack is min(364 − 50, 300) wide. Each name ("secret-f1.pdf",
       // 13 glyphs of the 15 px test font) wraps at 300 − 108 onto two lines
-      // (+16); the second row pulls up 6 and the first gives up 6, and the
+      // (+16); the rows meet, the first 53 high and the second 57, and the
       // last row grows 4 for the time.
-      expect(block.rect, const Rect.fromLTWH(0, 0, 300, 72 + 72 - 12 + 4));
-      expect(block.cells.map((cell) => cell.rect.top), [0, 60]);
+      expect(block.rect, const Rect.fromLTWH(0, 0, 300, 69 + 73 + 4));
+      expect(block.cells.map((cell) => cell.rect.top), [0, 69]);
       expect(block.rows.map((row) => row.itemId), [
         const MediaItemId('f1'),
         const MediaItemId('f2'),

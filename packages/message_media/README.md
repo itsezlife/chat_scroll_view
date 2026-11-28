@@ -36,8 +36,8 @@ Beside the layout step, the policy holds the parts every step lays out by
 and the cells draw by: `fileStack` (`MediaFileStackPolicy`: file and custom
 items as rows in a vertical stack, with the bubble width rule
 (`MediaFileStackWidth`), row metrics with and without a thumbnail
-(`MediaFileRowMetrics`, grouped variants on desktop), name lines, pull-ups
-between rows, the time's growth, the desktop footer line, thumbnail corners
+(`MediaFileRowMetrics`, grouped variants for a row inside a stack, so each
+thumbnail stays inside its row), name lines, pull-ups between rows, the time's growth, the desktop footer line, thumbnail corners
 (`MediaFileThumbCorners`), mirroring in right-to-left lists and the type
 (`MediaFileText`)) and `linkPreview` (`LinkPreviewCardPolicy`, below). A
 host's own step is handed both, so replacing the step keeps them. Then the

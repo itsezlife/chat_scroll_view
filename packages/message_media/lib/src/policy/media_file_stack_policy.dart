@@ -480,11 +480,17 @@ final class MediaFileTimeGrowth {
 /// | [width] | single: max text width, widened; stack: `min(list − 50 − avatar, 300)`; both ≤ content width | text + control area, ≤ content width | 268 to 430 |
 /// | [plain] | 56 high, 44 control at (14, 6), text at 67, name + 4, info + 27 | 65 high (insets 15, 9, 15, 12), 44 control at (18, 9), text at 70, centred | 60 high, padding (12, 8, 10, 8), 44 thumb, skip 11, name 12, status 34 |
 /// | [thumbnail] | 86 thumb at (4, 0), text at 100, name 8, info under it + 13 | 74 thumb at (14, 2), control area 86 | 84 high, padding (6, 6, 10, 6), 72 thumb, skip 14, name 11, status 31, link 55 |
-/// | [groupedPlain] / [groupedThumbnail] | as alone | as alone | padding (12, 5, 10, 5) / (6, 3, 10, 3), name 9 / 8, status 31 / 28, link 52 |
+/// | [groupedPlain] / [groupedThumbnail] | 54 high, control at (14, 7) / 90 high, thumb at (4, 2) | as alone | padding (12, 5, 10, 5) / (6, 3, 10, 3), name 9 / 8, status 31 / 28, link 52 |
 /// | Name | 15, 2 lines, middle ellipsis, + 16 per extra line | 16, 1 line (2 with a thumbnail) | 13 semibold, 1 line, tooltip when elided |
 /// | Info | `"<size> <EXT>"`, 12 | size, 13, monospaced digits | size, 12 |
 /// | [thumbCorners] | leading from the cell, trailing 4 | 8 | 4 small / 12 large |
-/// | Stack | non-top rows pull up 3 (thumbnail) / 6, non-bottom rows trimmed the same | rows overlap 4 | rows pull up 6, an extra footer line |
+/// | Stack | rows meet | rows overlap 4 | rows meet, an extra footer line |
+///
+/// In a stack of two or more, rows take the grouped metrics, except at the
+/// stack's outer edges: the first row keeps a lone row's margin above its
+/// control or thumbnail, the last row a lone row's margin below it
+/// ([layout]). A row's control or thumbnail therefore always fits inside
+/// its own row.
 /// | Time | last row + 12 or + 4 | — | — |
 /// | RTL | not mirrored | not mirrored | mirrored |
 ///
@@ -538,14 +544,32 @@ final class MediaFileStackPolicy {
           infoTop: 37,
           extraNameLineHeight: 16,
         ),
+        // A row inside a stack gives up 6 (3 with a thumbnail) at each side
+        // it shares with another row: the control or thumbnail keeps its
+        // size and the row stays around it.
+        groupedPlain: const MediaFileRowMetrics(
+          height: 54,
+          leading: Rect.fromLTWH(14, 7, 44, 44),
+          textLeft: 67,
+          trailingPadding: 41,
+          nameTop: 11,
+          infoTop: 34,
+          extraNameLineHeight: 16,
+          heightGrowsWithNameLines: true,
+        ),
+        groupedThumbnail: const MediaFileRowMetrics(
+          height: 90,
+          leading: Rect.fromLTWH(4, 2, 86, 86),
+          textLeft: 100,
+          trailingPadding: 38,
+          nameTop: 10,
+          infoTop: 39,
+          extraNameLineHeight: 16,
+        ),
         text: const MediaFileText(nameSize: 15, infoSize: 12),
         thumbCorners: const MediaFileThumbCorners.leadingFromCell(),
         nameMaxLines: 2,
         nameMaxLinesWithThumbnail: 2,
-        pullUp: 6,
-        pullUpWithThumbnail: 3,
-        trimBelow: 6,
-        trimBelowWithThumbnail: 3,
         timeGrowth: const MediaFileTimeGrowth(),
         infoShowsExtension: true,
       );
@@ -625,8 +649,6 @@ final class MediaFileStackPolicy {
           infoSize: 12,
         ),
         thumbCorners: const MediaFileThumbCorners.byPosition(),
-        pullUp: 6,
-        pullUpWithThumbnail: 6,
         footerLineHeight: 13,
         tooltipWhenElided: true,
         mirrorsInRtl: true,
@@ -728,6 +750,46 @@ final class MediaFileStackPolicy {
     (false, false) => plain,
   };
 
+  /// The metrics of a row in a stack of [count] rows at [index]: a lone
+  /// row's, or the grouped ones with the stack's outer edges kept as a lone
+  /// row's (the first row's margin above its control or thumbnail, the last
+  /// row's below it).
+  ///
+  /// The grouped metrics are a row between two others. Taking them for the
+  /// first and last rows too would bring the stack's control or thumbnail
+  /// nearer the bubble's edge than a single file's; giving every row the
+  /// lone metrics and pulling rows up over each other instead put each
+  /// thumbnail over its neighbour.
+  MediaFileRowMetrics stackedMetricsOf({
+    required bool thumbnail,
+    required int index,
+    required int count,
+  }) {
+    final alone = metricsOf(thumbnail: thumbnail, grouped: false);
+    if (count < 2) return alone;
+    var metrics = metricsOf(thumbnail: thumbnail, grouped: true);
+    if (index == 0) {
+      final above = alone.leading.top - metrics.leading.top;
+      metrics = metrics.copyWith(
+        height: metrics.height + above,
+        leading: metrics.leading.translate(0, above),
+        nameTop: metrics.nameTop + above,
+        infoTop: metrics.infoTop + above,
+        linkTop: switch (metrics.linkTop) {
+          final linkTop? => linkTop + above,
+          null => null,
+        },
+      );
+    }
+    if (index == count - 1) {
+      final below =
+          (alone.height - alone.leading.bottom) -
+          (metrics.height - metrics.leading.bottom);
+      metrics = metrics.copyWith(height: metrics.height + below);
+    }
+    return metrics;
+  }
+
   /// Lays [items] out as one stack whose top is at [top], its outer top and
   /// bottom sides touching [topSide] and [bottomSide]; [isLastBlock] when
   /// nothing follows it in the layout (the time may sit on its last row).
@@ -771,8 +833,12 @@ final class MediaFileStackPolicy {
     var y = top;
     final last = items.length - 1;
     for (final (index, row) in prepared.indexed) {
-      final metrics = metricsOf(thumbnail: row.thumbnail, grouped: grouped);
-      // Rows meet each other; a row under the caption of the row above
+      final metrics = stackedMetricsOf(
+        thumbnail: row.thumbnail,
+        index: index,
+        count: items.length,
+      );
+      // Rows meet, or overlap where the policy pulls them up; a row under the caption of the row above
       // starts at the caption's bottom.
       if (index > 0 &&
           !input.fileCaptionHeights.containsKey(prepared[index - 1].item.id)) {
