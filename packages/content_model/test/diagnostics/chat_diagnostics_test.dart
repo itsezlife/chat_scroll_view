@@ -92,6 +92,22 @@ void main() {
       );
     });
 
+    test('the categories are the closed set the ADR records', () {
+      expect(ChatEventCategory.values.map((category) => category.name), [
+        'capabilities',
+        'media',
+        'linkPreview',
+        'outbox',
+        'rebase',
+        'save',
+        'overlay',
+        'diagnostics',
+      ]);
+      expect(diagnostics.isEnabled(ChatEventLevel.trace), isTrue);
+      diagnostics.report(_event(category: ChatEventCategory.overlay));
+      expect(lines.single.name, 'chat.overlay');
+    });
+
     test('logs under one name per category', () {
       for (final category in ChatEventCategory.values) {
         diagnostics.report(_event(category: category));

@@ -11,6 +11,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'adaptive/chrome_input_class_test.dart' as chrome_input_class_test;
 import 'adaptive/chrome_width_class_test.dart' as chrome_width_class_test;
 import 'backdrop/backdrop_snapshot_test.dart' as backdrop_snapshot_test;
+import 'backdrop/chrome_scrim_golden_test.dart' as chrome_scrim_golden_test;
+import 'backdrop/chrome_scrim_preset_test.dart' as chrome_scrim_preset_test;
+import 'backdrop/chrome_scrim_test.dart' as chrome_scrim_test;
 import 'backdrop/stack_blur_test.dart' as stack_blur_test;
 import 'box/chrome_box_layer_test.dart' as chrome_box_layer_test;
 import 'box/chrome_tooltip_test.dart' as chrome_tooltip_test;
@@ -76,6 +79,15 @@ void main() {
   group('adaptive/chrome_input_class_test.dart', chrome_input_class_test.main);
   group('adaptive/chrome_width_class_test.dart', chrome_width_class_test.main);
   group('backdrop/backdrop_snapshot_test.dart', backdrop_snapshot_test.main);
+  group(
+    'backdrop/chrome_scrim_golden_test.dart',
+    chrome_scrim_golden_test.main,
+  );
+  group(
+    'backdrop/chrome_scrim_preset_test.dart',
+    chrome_scrim_preset_test.main,
+  );
+  group('backdrop/chrome_scrim_test.dart', chrome_scrim_test.main);
   group('backdrop/stack_blur_test.dart', stack_blur_test.main);
   group('box/chrome_box_layer_test.dart', chrome_box_layer_test.main);
   group('box/chrome_tooltip_test.dart', chrome_tooltip_test.main);
