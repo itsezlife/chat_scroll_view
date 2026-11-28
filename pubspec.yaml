@@ -11,6 +11,7 @@ workspace:
   - packages/attach_sheet
   - packages/bulletins
   - packages/chat_capabilities
+  - packages/chat_outbox
   - packages/chat_composer
   - packages/chat_wallpaper
   - packages/chrome_foundation
@@ -61,7 +62,7 @@ dependencies:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_core
-      ref: 855f4c2832cc1a22c5cb21e49b8fd9840cd51994
+      ref: 645a44248c1f68224fcbb8e521d024171b124546
   flutter_md:
     git:
       url: https://github.com/itsezlife/md.git
