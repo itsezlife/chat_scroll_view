@@ -14,6 +14,7 @@ import 'package:chat_outbox/src/message/outgoing_status.dart';
 import 'package:chat_outbox/src/outbox/chat_send_publisher.dart';
 import 'package:chat_outbox/src/outbox/job_projection.dart';
 import 'package:chat_outbox/src/outbox/outbox_projection.dart';
+import 'package:chat_outbox/src/outbox/outgoing_cancel.dart';
 import 'package:chat_outbox/src/send/outgoing_message_sender.dart';
 import 'package:chat_outbox/src/send/outgoing_send_item.dart';
 import 'package:chat_outbox/src/send/send_check.dart';
@@ -65,6 +66,12 @@ final class ChatOutbox<M> {
   /// the confirmed message (see [OutgoingSent]), before the chat's next
   /// outgoing row publishes.
   ///
+  /// [onCancelled] hears of each message the outbox cancelled, whoever
+  /// asked (the host's [cancel] or [cancelItem], or a cell's status
+  /// control through the engine), and [onItemDropped] of each item that
+  /// left a message that goes on: the host's duty there is to drop the item
+  /// from its row.
+  ///
   /// [localKeyOf] and [undecodableRowOf] serve [pendingFor] after a restart,
   /// when a message is known only from its job: [localKeyOf] maps an item's
   /// media key back to its local content key (the inverse of the mapping
@@ -82,6 +89,8 @@ final class ChatOutbox<M> {
     String Function()? clientMessageIds,
     DateTime Function() now = DateTime.now,
     void Function(OutgoingSent<M> sent)? onSent,
+    void Function(OutgoingCancelled cancelled)? onCancelled,
+    void Function(OutgoingItemDropped dropped)? onItemDropped,
     ContentKey Function(MediaKey mediaKey)? localKeyOf,
     IChatMessage Function(OutgoingMessage message)? undecodableRowOf,
   }) : this.over(
@@ -96,6 +105,8 @@ final class ChatOutbox<M> {
          clientMessageIds: clientMessageIds,
          now: now,
          onSent: onSent,
+         onCancelled: onCancelled,
+         onItemDropped: onItemDropped,
          localKeyOf: localKeyOf,
          undecodableRowOf: undecodableRowOf,
        );
@@ -114,11 +125,15 @@ final class ChatOutbox<M> {
     String Function()? clientMessageIds,
     DateTime Function() now = DateTime.now,
     void Function(OutgoingSent<M> sent)? onSent,
+    void Function(OutgoingCancelled cancelled)? onCancelled,
+    void Function(OutgoingItemDropped dropped)? onItemDropped,
     ContentKey Function(MediaKey mediaKey)? localKeyOf,
     IChatMessage Function(OutgoingMessage message)? undecodableRowOf,
-  }) : _transfers = transfers,
+  }) : _onCancelled = onCancelled,
+       _onItemDropped = onItemDropped,
        _localKeyOf = localKeyOf,
        _undecodableRowOf = undecodableRowOf,
+       _transfers = transfers,
        _codec = codec,
        _itemOf = itemOf,
        _makeIdStrategy = idStrategyOf,
@@ -164,6 +179,25 @@ final class ChatOutbox<M> {
   final String Function() _issueClientMessageId;
   final DateTime Function() _now;
   final void Function(OutgoingSent<M> sent)? _onSent;
+  final void Function(OutgoingCancelled cancelled)? _onCancelled;
+  final void Function(OutgoingItemDropped dropped)? _onItemDropped;
+
+  /// The cancels accepted so far, by (chat id, client message id, item id or
+  /// null for the whole message), with when: the input guard drops a repeat,
+  /// and an id issued again after its message was cancelled is refused.
+  final Map<(String, String, String?), DateTime> _$cancelsAccepted = {};
+
+  /// Messages that lost an item already: the last one going then is
+  /// `lastItemNoText`, not `onlyItem`.
+  final Set<(String, String)> _$itemsDropped = {};
+
+  /// Jobs the outbox committed after they lost their last item, so a late
+  /// snapshot of them waiting for their owner is not decided twice.
+  final Set<PublishJobId> _$committed = {};
+
+  int _$cancels = 0;
+  int _$tooLate = 0;
+  int _$droppedItems = 0;
   final ContentKey Function(MediaKey mediaKey)? _localKeyOf;
   final IChatMessage Function(OutgoingMessage message)? _undecodableRowOf;
 
@@ -255,6 +289,14 @@ final class ChatOutbox<M> {
       );
     }
     final clientMessageId = _issueClientMessageId();
+    if (_$cancelsAccepted.containsKey((chatId, clientMessageId, null))) {
+      // A cancelled message's id stays its own: reusing it would match the
+      // server's late echo of the old message to the new one.
+      throw StateError(
+        'The client message id $clientMessageId was issued before and its '
+        'message cancelled; an id is never reused.',
+      );
+    }
     final correlation = ChatCorrelation(
       chatId: chatId,
       clientMessageId: clientMessageId,
@@ -327,7 +369,13 @@ final class ChatOutbox<M> {
         (position) => _rowOf(at(position), payload),
       ),
     );
-    _projection.put(message, fresh: true, job: OutboxJobView(jobId));
+    _projection
+      ..put(message, fresh: true, job: OutboxJobView(jobId))
+      ..putSendFacts(
+        message,
+        hasText: _hasTextOf(send),
+        mediaKeys: [for (final item in sendItems) item.mediaKey],
+      );
     if (origins != null) _storeOrigins(message, origins);
     _$accepted++;
     _watch(chatId);
@@ -494,6 +542,17 @@ final class ChatOutbox<M> {
     );
   }
 
+  /// Whether [send] carries text besides its items: a caption, the batch's
+  /// or an item's own, that is not empty.
+  static bool _hasTextOf(PlannedSend send) => switch (send) {
+    PlannedSend$Text() => true,
+    PlannedSend$Single(:final caption) => !(caption?.isEmpty ?? true),
+    PlannedSend$Group(:final caption, :final itemCaptions) => [
+      caption,
+      ...itemCaptions,
+    ].any((text) => !(text?.isEmpty ?? true)),
+  };
+
   /// The status of a job not seen yet: its first stage, preparing when an
   /// item needs preparing, uploading when one is ready to upload, and
   /// publishing when nothing is to upload (a text, or content the server
@@ -564,6 +623,305 @@ final class ChatOutbox<M> {
         correlation: correlation,
         fields: () => {'waiting': waiting},
       );
+
+  // --- Cancel ----------------------------------------------------------------
+
+  /// Cancels the outgoing message [clientMessageId] of [chatId] (the
+  /// message menu's cancel): its job is cancelled, its status is
+  /// `cancelled`, and it becomes Absent, its row leaving the provisional
+  /// tail in one `rebaseTail` (the rows after it move down; under
+  /// `SequentialServerIds` the next row may take its position). Its client
+  /// message id is never issued again.
+  ///
+  /// While the server's answer to the message's publish is in flight the
+  /// cancel waits for it ([OutgoingCancelOutcome.pending]): a message the
+  /// server accepted stays sent, as does one the cancel finds sent
+  /// ([OutgoingCancelOutcome.tooLate]); the host may delete it as any sent
+  /// message. The host's `onCancelled` hears of the message once it is
+  /// cancelled.
+  ///
+  /// Guarded against a burst: once a cancel of the message is accepted,
+  /// another one changes nothing ([OutgoingCancelOutcome.dropped]).
+  /// Reports `cancelled` (trigger `menu`), `cancelTooLate` or
+  /// `actionDropped`.
+  OutgoingCancelOutcome cancel(String chatId, String clientMessageId) {
+    _checkNotDisposed();
+    return _cancelMessage(chatId, clientMessageId, trigger: _Trigger.menu);
+  }
+
+  /// Cancels item [itemId] of the outgoing message [clientMessageId] of
+  /// [chatId] (the cross on its media cell).
+  ///
+  /// | The message | Effect |
+  /// | --- | --- |
+  /// | an album | the item drops and the rest publish ([OutgoingCancelOutcome.itemDropped]) |
+  /// | its only item, no text | the message is cancelled, as [cancel] does |
+  /// | its last item, with text | the item drops and the text publishes alone, joining the end of the chat's sending messages |
+  /// | its last item of an album, no text | the message is cancelled |
+  ///
+  /// The host's `onItemDropped` hears of each item that drops, so it drops
+  /// it from its row; `onCancelled` of a message cancelled. While the
+  /// server's answer is in flight an item drops from the message all the
+  /// same (whether the server used it is its own concern), and a cancel of
+  /// the message waits as [cancel]'s does. An item of a job that ended (a
+  /// failed message) cannot leave it ([OutgoingCancelOutcome.unknown]):
+  /// the host deletes the message instead.
+  ///
+  /// Guarded as [cancel] is, per item. Reports `itemDropped` (trigger
+  /// `cross`), `awaitingOwner`, `cancelled` (trigger `onlyItem` or
+  /// `lastItemNoText`), `cancelTooLate` or `actionDropped`.
+  OutgoingCancelOutcome cancelItem(
+    String chatId,
+    String clientMessageId,
+    MediaItemId itemId,
+  ) {
+    _checkNotDisposed();
+    if (_repeated(chatId, clientMessageId, null) ||
+        _repeated(chatId, clientMessageId, '$itemId')) {
+      return OutgoingCancelOutcome.dropped;
+    }
+    final message = switch (_projection.lookup(chatId, clientMessageId)) {
+      final message? => _current(message),
+      null => null,
+    };
+    final index = message?.items.indexWhere((item) => item.id == itemId) ?? -1;
+    if (message == null || index < 0) return OutgoingCancelOutcome.unknown;
+    if (_tooLate(message)) return OutgoingCancelOutcome.tooLate;
+    final key = (chatId, clientMessageId);
+    final hasText = _projection.hasText(chatId, clientMessageId);
+    if (message.items.length == 1 && !hasText) {
+      return _cancelMessage(
+        chatId,
+        clientMessageId,
+        trigger: _$itemsDropped.contains(key)
+            ? _Trigger.lastItemNoText
+            : _Trigger.onlyItem,
+      );
+    }
+    final job = _projection.jobOf(chatId, clientMessageId);
+    if (job == null || !_transfers.removeItem(job.id, '$itemId')) {
+      return OutgoingCancelOutcome.unknown;
+    }
+    _$cancelsAccepted[(chatId, clientMessageId, '$itemId')] = _now();
+    final left = _dropItem(message, index, trigger: _Trigger.cross);
+    if (left.items.isEmpty) _awaitingOwner(left, job.id);
+    return OutgoingCancelOutcome.itemDropped;
+  }
+
+  OutgoingCancelOutcome _cancelMessage(
+    String chatId,
+    String clientMessageId, {
+    required _Trigger trigger,
+  }) {
+    if (_repeated(chatId, clientMessageId, null)) {
+      return OutgoingCancelOutcome.dropped;
+    }
+    final message = switch (_projection.lookup(chatId, clientMessageId)) {
+      final message? => _current(message),
+      null => null,
+    };
+    if (message == null) return OutgoingCancelOutcome.unknown;
+    if (_tooLate(message)) return OutgoingCancelOutcome.tooLate;
+    _$cancelsAccepted[(chatId, clientMessageId, null)] = _now();
+    final key = (chatId, clientMessageId);
+    if (_projection.sending.contains(key)) {
+      // The server may be accepting it now: the publisher runs the cancel
+      // once it answers, unless the answer is an accept.
+      _projection.cancelRequests[key] = () {
+        if (_projection.lookup(chatId, clientMessageId) case final message?) {
+          _cancelNow(_current(message), trigger);
+        }
+      };
+      return OutgoingCancelOutcome.pending;
+    }
+    _cancelNow(message, trigger);
+    return OutgoingCancelOutcome.cancelled;
+  }
+
+  /// Whether [message] is past cancelling, the server having accepted it;
+  /// reports `cancelTooLate` when it is.
+  bool _tooLate(OutgoingMessage message) {
+    final accepted = _projection.accepted.contains((
+      message.chatId,
+      message.clientMessageId,
+    ));
+    final sent = message.status is OutgoingStatus$Sent;
+    if (!accepted && !sent) return false;
+    _$tooLate++;
+    ChatDiagnostics.current.emit(
+      ChatEventLevel.info,
+      ChatEventCategory.outbox,
+      OutboxOp.cancelTooLate,
+      correlation: ChatCorrelation(
+        chatId: message.chatId,
+        clientMessageId: message.clientMessageId,
+        jobId: _projection.jobOf(message.chatId, message.clientMessageId)?.id,
+      ),
+      fields: () => {'stage': sent ? 'sent' : 'publish'},
+    );
+    return true;
+  }
+
+  /// Whether a cancel of the message ([itemId] null) or of its item
+  /// [itemId] was accepted already; reports `actionDropped` when it was.
+  bool _repeated(String chatId, String clientMessageId, String? itemId) {
+    final accepted = _$cancelsAccepted[(chatId, clientMessageId, itemId)];
+    if (accepted == null) return false;
+    ChatDiagnostics.current.emit(
+      ChatEventLevel.debug,
+      ChatEventCategory.outbox,
+      OutboxOp.actionDropped,
+      correlation: ChatCorrelation(
+        chatId: chatId,
+        clientMessageId: clientMessageId,
+        mediaItemId: itemId,
+      ),
+      fields: () => {
+        'action': 'cancel',
+        'msSinceAccepted': _now().difference(accepted).inMilliseconds,
+      },
+    );
+    return true;
+  }
+
+  /// Cancels [message]'s job and makes the message Absent, its row leaving
+  /// the tail.
+  void _cancelNow(OutgoingMessage message, _Trigger trigger) {
+    final OutgoingMessage(:chatId, :clientMessageId) = message;
+    final job = _projection.jobOf(chatId, clientMessageId);
+    // The engine may have dropped the job already (it lost its last item,
+    // or ended); the message goes all the same.
+    if (job != null) _transfers.cancel(job.id);
+    final rowRemoved = _$strategies[chatId]?.remove(clientMessageId) ?? false;
+    _projection.remove(chatId, clientMessageId);
+    _$itemsDropped.remove((chatId, clientMessageId));
+    _$cancelsAccepted[(chatId, clientMessageId, null)] ??= _now();
+    _$cancels++;
+    ChatDiagnostics.current.emit(
+      ChatEventLevel.info,
+      ChatEventCategory.outbox,
+      OutboxOp.cancelled,
+      correlation: ChatCorrelation(
+        chatId: chatId,
+        clientMessageId: clientMessageId,
+        jobId: job?.id,
+      ),
+      fields: () => {
+        'trigger': trigger.name,
+        'stage': switch (message.status) {
+          OutgoingStatus$Preparing() => PublishStage.prepare.name,
+          OutgoingStatus$Uploading() => PublishStage.upload.name,
+          OutgoingStatus$Publishing() => PublishStage.publish.name,
+          final status => status.name,
+        },
+      },
+    );
+    _syncInFlight(chatId);
+    _onCancelled?.call(
+      OutgoingCancelled(
+        message: message.withStatus(const OutgoingStatus.cancelled()),
+        rowRemoved: rowRemoved,
+      ),
+    );
+  }
+
+  /// Takes item [index] out of [message] and answers the message without
+  /// it; reports `itemDropped` and tells the host.
+  OutgoingMessage _dropItem(
+    OutgoingMessage message,
+    int index, {
+    required _Trigger trigger,
+  }) {
+    final item = message.items[index];
+    final left = OutgoingMessage(
+      chatId: message.chatId,
+      clientMessageId: message.clientMessageId,
+      position: message.position,
+      status: message.status,
+      payload: message.payload,
+      items: [...message.items]..removeAt(index),
+    );
+    _projection.put(left);
+    _$itemsDropped.add((message.chatId, message.clientMessageId));
+    _$droppedItems++;
+    final hasText = _projection.hasText(
+      message.chatId,
+      message.clientMessageId,
+    );
+    ChatDiagnostics.current.emit(
+      ChatEventLevel.info,
+      ChatEventCategory.outbox,
+      OutboxOp.itemDropped,
+      correlation: ChatCorrelation(
+        chatId: message.chatId,
+        clientMessageId: message.clientMessageId,
+        jobId: _projection.jobOf(message.chatId, message.clientMessageId)?.id,
+        mediaItemId: '${item.id}',
+        mediaKey: switch (_projection.mediaKeyOf(item.id)) {
+          // An external key's id may be a URL, which is user content.
+          MediaKey$External() => 'external',
+          final key? => key.encoded,
+          null => null,
+        },
+      ),
+      fields: () => {
+        'index': index,
+        'itemsLeft': left.items.length,
+        'hasText': hasText,
+        'trigger': trigger.name,
+      },
+    );
+    _onItemDropped?.call(
+      OutgoingItemDropped(message: left, item: item, index: index),
+    );
+    return left;
+  }
+
+  /// [message]'s job [jobId] lost its last item and waits for the outbox:
+  /// a message with text publishes it alone, joining the end of the chat's
+  /// sending messages as the job joins the end of its ordering group; one
+  /// without is cancelled. Reports `awaitingOwner`.
+  void _awaitingOwner(
+    OutgoingMessage message,
+    PublishJobId jobId, {
+    _Trigger trigger = _Trigger.lastItemNoText,
+  }) {
+    final OutgoingMessage(:chatId, :clientMessageId) = message;
+    final hasText = _projection.hasText(chatId, clientMessageId);
+    // While the publisher's call is in flight the job is the server's
+    // answer's to end: committing it then would publish it twice.
+    final inFlight = _projection.sending.contains((chatId, clientMessageId));
+    final action = switch ((hasText, inFlight)) {
+      (_, true) => _OwnerAction.none,
+      (true, false) => _OwnerAction.commit,
+      (false, false) => _OwnerAction.cancel,
+    };
+    ChatDiagnostics.current.emit(
+      ChatEventLevel.warning,
+      ChatEventCategory.outbox,
+      OutboxOp.awaitingOwner,
+      correlation: ChatCorrelation(
+        chatId: chatId,
+        clientMessageId: clientMessageId,
+        jobId: jobId,
+      ),
+      fields: () => {
+        'itemsLeft': message.items.length,
+        'hasText': hasText,
+        'action': action.name,
+      },
+    );
+    _$committed.add(jobId);
+    switch (action) {
+      case _OwnerAction.commit:
+        _transfers.commit(jobId);
+        _$strategies[chatId]?.retry(clientMessageId);
+      case _OwnerAction.cancel:
+        _cancelMessage(chatId, clientMessageId, trigger: trigger);
+      case _OwnerAction.none:
+        break;
+    }
+  }
 
   // --- Restart ---------------------------------------------------------------
 
@@ -848,6 +1206,53 @@ final class ChatOutbox<M> {
         _projection.jobOf(chatId, clientMessageId)?.id != job.id) {
       return;
     }
+    final kept = _dropRemovedItems(message, job);
+    if (job.state is PublishJobState$AwaitingOwner &&
+        kept.items.isEmpty &&
+        !_$committed.contains(job.id)) {
+      _awaitingOwner(kept, job.id, trigger: _Trigger.statusControl);
+      if (_projection.lookup(chatId, clientMessageId) == null) return;
+    }
+    _projectStatus(chatId, clientMessageId, kept, job);
+  }
+
+  /// Drops from [message] each item [job] no longer lists: an item a
+  /// cell's status control cancelled the upload of, which the engine took
+  /// out of the job. Answers the message as it is left.
+  OutgoingMessage _dropRemovedItems(
+    OutgoingMessage message,
+    PublishJobSnapshot job,
+  ) {
+    final inJob = {for (final item in job.items) item.itemId};
+    final emptied = !message.items.any((item) => inJob.contains('${item.id}'));
+    if (message.items.isNotEmpty &&
+        emptied &&
+        job.state is PublishJobState$AwaitingOwner &&
+        !_projection.hasText(message.chatId, message.clientMessageId)) {
+      // Nothing is left to send: the message is cancelled as a whole, and
+      // its items go with it, not one by one.
+      return OutgoingMessage(
+        chatId: message.chatId,
+        clientMessageId: message.clientMessageId,
+        position: message.position,
+        status: message.status,
+        payload: message.payload,
+      );
+    }
+    var left = message;
+    for (var index = left.items.length - 1; index >= 0; index--) {
+      if (inJob.contains('${left.items[index].id}')) continue;
+      left = _dropItem(left, index, trigger: _Trigger.statusControl);
+    }
+    return left;
+  }
+
+  void _projectStatus(
+    String chatId,
+    String clientMessageId,
+    OutgoingMessage message,
+    PublishJobSnapshot job,
+  ) {
     final (status: projected, :stage) = JobProjection.of(job, message.status);
     // A message whose payload did not decode stays failed: its row cannot
     // show it sending, and its publish fails at the decode anyway.
@@ -983,6 +1388,9 @@ final class ChatOutbox<M> {
         accepted: _$accepted,
         rebases: strategy?.rebases ?? const {},
         conflicts: _$publishCounters.conflicts,
+        cancels: _$cancels,
+        itemsDropped: _$droppedItems,
+        cancelsTooLate: _$tooLate + _$publishCounters.cancelsTooLate,
         restores: _$restored,
       ),
     );
@@ -1019,6 +1427,38 @@ final class ChatOutbox<M> {
     for (var i = 0; i < 16; i++)
       _$random.nextInt(256).toRadixString(16).padLeft(2, '0'),
   ].join();
+}
+
+/// Who asked for a cancel: the `trigger` of a `cancelled` or `itemDropped`
+/// event.
+enum _Trigger {
+  /// The message menu's cancel.
+  menu,
+
+  /// The cross on the message's only item, with no text.
+  onlyItem,
+
+  /// The cross on the last item left of an album, with no text.
+  lastItemNoText,
+
+  /// The cross on one item of a message that goes on.
+  cross,
+
+  /// A cell's status control cancelled an item's upload, which the engine
+  /// took out of the job.
+  statusControl,
+}
+
+/// What the outbox does with a job that lost its last item.
+enum _OwnerAction {
+  /// The text publishes alone.
+  commit,
+
+  /// Nothing is left to send: the message is cancelled.
+  cancel,
+
+  /// The publisher's call is in flight and ends the job.
+  none,
 }
 
 /// One message read back from its job by a restore, before its row is

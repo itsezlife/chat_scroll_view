@@ -79,6 +79,22 @@ this package is pre-1.0.
   `publishConflictExhausted`, `published`, `replayRebased`,
   `reuploadRequested`, `rejected`, `denied`, `senderFailed`,
   `payloadDecodeFailed`.
+- Cancel: `ChatOutbox.cancel(chatId, id)` cancels the message's job and
+  makes it Absent, its row leaving the tail; `cancelItem(chatId, id,
+  itemId)` drops one item (the rest publish), cancels a message whose only
+  or last item goes with no text, and publishes the text alone when it has
+  some. A cell's status control cancel reaches the outbox through the
+  jobs and applies the same rules. A cancel waits while the server's
+  answer is in flight, and one the server's accept beat is too late: the
+  message stays sent. Both answer an `OutgoingCancelOutcome`; the host
+  hears `onCancelled` (`OutgoingCancelled`) and `onItemDropped`
+  (`OutgoingItemDropped`). A burst cancels once, and a cancelled client
+  message id is never issued again.
+- `OutboxTransfers.cancel`, `removeItem` and `commit`; `FakeOutboxTransfers`
+  records them and scripts a status control cancel with `cancelUpload`.
+- The snapshot's `cancels`, `itemsDropped` and `cancelsTooLate` counters.
+- `OutboxOp`: `cancelled`, `itemDropped`, `cancelTooLate`,
+  `awaitingOwner`, `actionDropped`.
 - `ChatOutbox.pendingFor(chatId)`: after a restart, the chat's outgoing
   messages read back from its jobs, at fresh tail positions (sending ones,
   then failed ones, each in creation order), each row built again from the

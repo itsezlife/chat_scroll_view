@@ -17,6 +17,7 @@ import 'message/outgoing_message_test.dart' as message_outgoing_message_test;
 import 'message/outgoing_payload_codec_test.dart'
     as message_outgoing_payload_codec_test;
 import 'message/outgoing_status_test.dart' as message_outgoing_status_test;
+import 'outbox/chat_outbox_cancel_test.dart' as outbox_chat_outbox_cancel_test;
 import 'outbox/chat_outbox_capabilities_test.dart'
     as outbox_chat_outbox_capabilities_test;
 import 'outbox/chat_outbox_ids_test.dart' as outbox_chat_outbox_ids_test;
@@ -54,6 +55,10 @@ void main() {
     message_outgoing_payload_codec_test.main,
   );
   group('message/outgoing_status_test.dart', message_outgoing_status_test.main);
+  group(
+    'outbox/chat_outbox_cancel_test.dart',
+    outbox_chat_outbox_cancel_test.main,
+  );
   group(
     'outbox/chat_outbox_capabilities_test.dart',
     outbox_chat_outbox_capabilities_test.main,

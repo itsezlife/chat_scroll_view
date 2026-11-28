@@ -21,6 +21,7 @@ export 'src/message/outgoing_message.dart';
 export 'src/message/outgoing_payload_codec.dart';
 export 'src/message/outgoing_status.dart';
 export 'src/outbox/chat_outbox.dart';
+export 'src/outbox/outgoing_cancel.dart';
 export 'src/send/outgoing_message_sender.dart';
 export 'src/send/outgoing_send_item.dart';
 export 'src/transfers/outbox_transfers.dart';

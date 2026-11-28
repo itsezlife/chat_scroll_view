@@ -3,6 +3,7 @@ import 'package:chat_outbox/src/message/outgoing_status.dart';
 import 'package:chat_outbox/src/outbox/outbox_send_origins.dart';
 import 'package:content_model/content_model.dart';
 import 'package:meta/meta.dart';
+import 'package:mpx_core/mpx_core.dart';
 import 'package:mpx_transfer/mpx_transfer.dart';
 
 /// The outbox's in-memory view of each chat's outgoing messages, by client
@@ -39,6 +40,47 @@ final class OutboxProjection {
   /// cancelled or made Absent takes its untaken origins with it.
   final OutboxSendOrigins origins = OutboxSendOrigins();
 
+  /// Messages that carry text besides their items (a caption): with their
+  /// last item gone they still publish, as a text.
+  final Set<(String, String)> _$withText = {};
+
+  /// Each item's media key, from the send, for the events of an item that
+  /// left its job (the job's snapshot no longer lists it).
+  final Map<MediaItemId, MediaKey> _$mediaKeys = {};
+
+  /// Messages whose sender call is in flight: a cancel then waits for the
+  /// server's answer.
+  final Set<(String, String)> sending = {};
+
+  /// Messages the server accepted, whose job may not have completed yet: a
+  /// cancel of one is too late.
+  final Set<(String, String)> accepted = {};
+
+  /// Cancels waiting for the answer of a sender call in flight: the
+  /// publisher runs one when the answer is not an accept.
+  final Map<(String, String), void Function()> cancelRequests = {};
+
+  /// Records what the send of [message] said that its job does not keep:
+  /// whether it [hasText], and its items' [mediaKeys] in item order.
+  void putSendFacts(
+    OutgoingMessage message, {
+    required bool hasText,
+    List<MediaKey> mediaKeys = const [],
+  }) {
+    final key = (message.chatId, message.clientMessageId);
+    if (hasText) _$withText.add(key);
+    for (final (index, item) in message.items.indexed) {
+      if (index < mediaKeys.length) _$mediaKeys[item.id] = mediaKeys[index];
+    }
+  }
+
+  /// Whether the message [clientMessageId] of [chatId] carries text.
+  bool hasText(String chatId, String clientMessageId) =>
+      _$withText.contains((chatId, clientMessageId));
+
+  /// The media key of item [id], when its send gave one.
+  MediaKey? mediaKeyOf(MediaItemId id) => _$mediaKeys[id];
+
   /// Puts [message] in its chat, in place of the one with its client
   /// message id if any.
   ///
@@ -70,11 +112,19 @@ final class OutboxProjection {
   void remove(String chatId, String clientMessageId) {
     final chat = _$chats[chatId];
     if (chat == null) return;
-    chat.remove(clientMessageId);
+    if (chat.remove(clientMessageId) case final message?) {
+      for (final item in message.items) {
+        _$mediaKeys.remove(item.id);
+      }
+    }
     if (chat.isEmpty) _$chats.remove(chatId);
-    _$fresh.remove((chatId, clientMessageId));
-    _$jobs.remove((chatId, clientMessageId));
-    _$undecodable.remove((chatId, clientMessageId));
+    final key = (chatId, clientMessageId);
+    _$fresh.remove(key);
+    _$jobs.remove(key);
+    _$undecodable.remove(key);
+    _$withText.remove(key);
+    accepted.remove(key);
+    cancelRequests.remove(key);
     origins.dropMessage(chatId, clientMessageId, SendOriginDrop.cancelled);
   }
 
