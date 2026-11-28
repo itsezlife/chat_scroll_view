@@ -6,6 +6,12 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed (Android message wraps to two lines)
+
+- On the Android card a message alone (no title, no action) wraps to two
+  lines, and the card grows to hold them. Before, it took one line and
+  ended in an ellipsis, so a longer notice (slow mode, say) was cut.
+
 ### Added (a host can track an animated obstruction)
 
 - `BulletinHost.tracksObstruction`: the bulletin sits at the obstruction's value on the frame it changes instead of following it on the policy's follow spring, so it moves with content laid out against the same animated inset rather than trailing it. Defaults to false (the spring).

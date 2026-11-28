@@ -43,8 +43,9 @@ final class Bulletin {
   /// Where the bulletin appears; null for the policy's placement.
   final BulletinPlacement? placement;
 
-  /// The most lines [message] takes; null for the default (one line without a
-  /// title, two under one).
+  /// The most lines [message] takes; null for the builders' default
+  /// ([effectiveMaxLines] for the stock card; two for a message alone on the
+  /// Android card, up to five on iOS).
   final int? maxLines;
 
   /// Called when the body (not the action) is tapped. The bulletin stays: the
@@ -82,7 +83,8 @@ final class Bulletin {
         null => message,
       };
 
-  /// The most lines [message] takes.
+  /// The most lines [message] takes on the stock card: one line without a
+  /// title, two under one.
   int get effectiveMaxLines => maxLines ?? (title == null ? 1 : 2);
 }
 

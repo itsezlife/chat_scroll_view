@@ -97,15 +97,29 @@ void main() {
   });
 
   group('text', () {
-    testWidgets('a message alone is one 15 line, 16 from the start', (
+    testWidgets('a message alone is 15, up to two lines, 16 from the start', (
       tester,
     ) async {
       h = AndroidHarness();
       final card = await show(tester, const Bulletin(message: 'Copied'));
       expect(styleOf(tester, 'Copied').fontSize, 15);
       expect(styleOf(tester, 'Copied').color, const Color(0xFFFFFFFF));
-      expect(maxLinesOf(tester, 'Copied'), 1);
+      expect(maxLinesOf(tester, 'Copied'), 2);
       expect(tester.getRect(find.text('Copied')).left, card.left + 16);
+    });
+
+    testWidgets('a long message alone wraps to a second line and the card '
+        'holds both', (tester) async {
+      h = AndroidHarness();
+      const long =
+          'Slow mode is on. You can send your next message in a few minutes.';
+      final card = await show(tester, const Bulletin(message: long));
+      final line = styleOf(tester, long).fontSize!;
+      expect(tester.getSize(find.text(long)).height, greaterThan(line * 1.5));
+      // Its 8 above and below stay inside the card.
+      final text = tester.getRect(find.text(long));
+      expect(text.top - card.top, greaterThanOrEqualTo(8));
+      expect(card.bottom - text.bottom, greaterThanOrEqualTo(8));
     });
 
     testWidgets('a title is 14 medium over a 13 subtitle of two lines', (
