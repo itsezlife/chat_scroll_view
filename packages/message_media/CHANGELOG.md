@@ -54,6 +54,10 @@ their changes.
   `LinkPreviewAppearForm`, `LinkPreviewCardPress`,
   `LinkPreviewEnlargeButton` and `LinkPreviewTimePlacement`; its media is an
   ordinary cell keyed by `MediaItemId.linkPreviewOf`.
+  `LinkPreviewMediaSizeRule.offersSwitch` says whether a draft may switch a
+  page's media size: for any shrinkable photo on Android, and on iOS and
+  desktop only for a page whose media is large by default
+  (`hasLargeMedia`).
 
 ### The paint
 
@@ -87,7 +91,9 @@ their changes.
   browser): boxes by the window's width class (`MediaLayoutInput.widthClass`,
   else its `displaySize`), 340 compact and 420 wider, re-laid out at once on
   a resize; the hover highlight and the click cursor only for a mouse-class
-  pointer (`MediaGesturePolicy.web`, `hoverNeedsMouse`).
+  pointer (`MediaGesturePolicy.web`, `hoverNeedsMouse`). `isWeb` reads the
+  web box sizing; its view reports a change of the width or input class
+  after the frame (`webClassChanged`, the classes by name).
 - One semantics node per item and one per card, worded by the host's media
   strings.
 - `MediaItemAction.allowedItemActions`: the per-item actions an item allows
