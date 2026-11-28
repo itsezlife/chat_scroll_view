@@ -6,6 +6,14 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed (no send under a write-access panel)
+
+- While a write-access panel replaces the row, the row draws none of the
+  spec's actions and the submit shortcut does nothing. Before, a draft
+  kept in the controller still showed the host's send button beside the
+  panel, and it could be sent. The draft is kept and comes back with the
+  field. `ComposerCapabilityState.offersActions` tells a host's own skin.
+
 ### Added (draft options)
 
 - `DraftOptionsEntry`: the draft options a host binds the link preview

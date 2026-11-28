@@ -58,7 +58,10 @@ import 'package:listen/listen.dart' as listen;
 /// - a write access other than `canWrite` puts its default panel in the
 ///   row in place of [ComposerSpec.panel] (`ComposerPanelId.forWriteAccess`),
 ///   built by [panelResolver] when it knows the id, else as a plain text
-///   node with the host's denial text and [accessAction];
+///   node with the host's denial text and [accessAction]. The panel takes
+///   the whole row: no action is drawn and the submit shortcut does
+///   nothing, so a draft is kept but cannot be sent
+///   (`ComposerCapabilityState.offersActions`);
 /// - `sending.text` denied locks the field: disabled, the host's denial text
 ///   as its placeholder (after a lock on Android), still focusable and
 ///   announced as not available with that text as its hint, a tap (or
@@ -504,6 +507,11 @@ class _ComposerViewState extends State<ComposerView>
 
   // --- Actions ---
 
+  // The actions the row draws at [placement]: none while a write-access
+  // panel replaces the row, so a kept draft shows no send.
+  List<ActionDescriptor> _rowActions(ActionPlacement placement) =>
+      _capabilities.offersActions ? _spec.visibleActions(placement) : const [];
+
   bool _usable(ActionDescriptor action) =>
       _spec.enabled &&
       action.isTappable &&
@@ -776,7 +784,7 @@ class _ComposerViewState extends State<ComposerView>
     final row = Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        for (final action in _spec.visibleActions(ActionPlacement.leading))
+        for (final action in _rowActions(ActionPlacement.leading))
           _button(action),
         Expanded(
           child: KeyedSubtree(
@@ -784,7 +792,7 @@ class _ComposerViewState extends State<ComposerView>
             child: _panel(context),
           ),
         ),
-        for (final action in _spec.visibleActions(ActionPlacement.trailing))
+        for (final action in _rowActions(ActionPlacement.trailing))
           _button(action),
       ],
     );
@@ -845,7 +853,8 @@ class _ComposerViewState extends State<ComposerView>
                       ),
                       // Over the primary button, at the row's end: drawn
                       // above the island, taking none of its room.
-                      if (_messageLengthLimit case final limit?)
+                      if (_messageLengthLimit case final limit?
+                          when _capabilities.offersActions)
                         PositionedDirectional(
                           end: _rowInset,
                           bottom: ComposerMetrics.actionSize,
@@ -876,6 +885,8 @@ class _SubmitAction extends Action<SubmitComposerIntent> {
   final _ComposerViewState _state;
 
   ActionDescriptor? get _target {
+    // No send while a write-access panel replaces the row.
+    if (!_state._capabilities.offersActions) return null;
     final primary = _state._spec.primaryAction;
     if (primary == null || !_state._usable(primary)) return null;
     return primary;

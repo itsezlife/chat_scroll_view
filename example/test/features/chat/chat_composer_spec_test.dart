@@ -7,19 +7,25 @@ library;
 import 'package:chat_capabilities/chat_capabilities.dart' show CapabilityAction;
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_composer_spec.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:chrome_foundation/testing.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 ComposerSpec _spec({
   required ActionPlacement panelPlacement,
   ComposerDeniedForms deniedForms = ComposerDeniedForms.android,
   bool panelReplacesKeyboard = false,
+  ChatEditTarget? editing,
+  bool hasText = false,
+  VoidCallback? onSubmit,
+  VoidCallback? onVoice,
 }) => buildChatComposerSpec(
   deniedForms: deniedForms,
   strings: ChromeStringsPresets.english,
-  editing: null,
-  hasText: false,
+  editing: editing,
+  hasText: hasText,
   busy: false,
   messageLengthLimit: 4096,
   panelReplacesKeyboard: panelReplacesKeyboard,
@@ -28,9 +34,9 @@ ComposerSpec _spec({
   wrapPanelToggle: null,
   pageIcon: ChromeIconId.emoji,
   onTogglePanel: () {},
-  onSubmit: () {},
+  onSubmit: onSubmit ?? () {},
   onAttach: () {},
-  onVoice: () {},
+  onVoice: onVoice ?? () {},
   onCancelEdit: () {},
 );
 
@@ -113,6 +119,45 @@ void main() {
         ),
         isNull,
       );
+    });
+  });
+
+  group('while editing', () {
+    ActionDescriptor primary(ComposerSpec spec) => spec.actions.firstWhere(
+      (action) => action.id == ChatComposerActions.primary,
+    );
+
+    test('an emptied caption is confirmed: the primary saves it', () {
+      var saved = 0;
+      var voice = 0;
+      final spec = _spec(
+        panelPlacement: ActionPlacement.leading,
+        editing: const ChatEditTarget(id: 7, preview: 'cat', caption: true),
+        onSubmit: () => saved++,
+        onVoice: () => voice++,
+      );
+      final action = primary(spec);
+      expect(action.icon, ChromeIconId.confirm);
+      expect(action.primary, isTrue);
+      action.onTap!();
+      expect((saved, voice), (1, 0));
+    });
+
+    test('emptied text is inert: no save, never the voice action', () {
+      var saved = 0;
+      var voice = 0;
+      final spec = _spec(
+        panelPlacement: ActionPlacement.leading,
+        editing: const ChatEditTarget(id: 7, preview: 'hello'),
+        onSubmit: () => saved++,
+        onVoice: () => voice++,
+      );
+      final action = primary(spec);
+      expect(action.icon, ChromeIconId.confirm);
+      expect(action.capability, isNull);
+      expect(action.isTappable, isFalse);
+      action.onTap?.call();
+      expect((saved, voice), (0, 0));
     });
   });
 }

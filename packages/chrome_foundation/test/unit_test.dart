@@ -58,6 +58,7 @@ import 'palette/chrome_contrast_test.dart' as chrome_contrast_test;
 import 'palette/chrome_palette_test.dart' as chrome_palette_test;
 import 'palette/palette_contrast_test.dart' as palette_contrast_test;
 import 'palette/palette_swatch_golden_test.dart' as palette_swatch_golden_test;
+import 'sheet/chrome_sheet_drag_test.dart' as chrome_sheet_drag_test;
 import 'sheet/chrome_sheet_pull_test.dart' as chrome_sheet_pull_test;
 import 'strings/chrome_strings_presets_test.dart'
     as chrome_strings_presets_test;
@@ -150,6 +151,7 @@ void main() {
     'palette/palette_swatch_golden_test.dart',
     palette_swatch_golden_test.main,
   );
+  group('sheet/chrome_sheet_drag_test.dart', chrome_sheet_drag_test.main);
   group('sheet/chrome_sheet_pull_test.dart', chrome_sheet_pull_test.main);
   group(
     'strings/chrome_strings_presets_test.dart',

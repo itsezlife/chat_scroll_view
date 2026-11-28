@@ -138,15 +138,15 @@ abstract final class BulletinBuilders$Android {
       (null, BulletinAction$Button()) => _buttonMessageSize,
       (null, _) => policy.messageTextSize,
     };
-    // An undo message wraps to two lines, one beside a button to three; a
-    // subtitle to two.
+    // A message alone or beside Undo wraps to two lines, one beside a
+    // button to three; a subtitle to two. The card grows with the lines.
     final maxLines =
         bulletin.maxLines ??
         switch ((title, action)) {
           (_?, _) => 2,
           (null, BulletinAction$Undo()) => 2,
           (null, BulletinAction$Button()) => 3,
-          (null, null) => 1,
+          (null, null) => 2,
         };
     final messageStyle = TextStyle(color: foreground, fontSize: messageSize);
     final text = ExcludeSemantics(
