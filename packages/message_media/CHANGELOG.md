@@ -110,7 +110,8 @@ their changes.
   `MessageMediaTransition` and `MessageMediaBubbleLayout`: the host's
   chrome over the media (an error badge by the time pill) is asked before
   the media's own parts, inside the media's registration with the facade,
-  and a cell under it is not hovered.
+  and a cell under it is not hovered. One pointer position asks it once,
+  for its hover and its hit alike.
 
 ### Diagnostics
 

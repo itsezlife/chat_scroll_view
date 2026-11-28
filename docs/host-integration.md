@@ -1220,10 +1220,14 @@ the package README has every duty). In order:
    provisional row's client message id), `await pendingFor(chatId)` before
    the chat's first send of the run, hand incoming messages to
    `idStrategy(chatId).incoming`, skip a server echo that `byClientMessageId`
-   holds, and fold `sendInFlight(chatId)` into the capabilities' `slowMode.pending`.
-4. In the chat's rows: settle a published row in `onSent`, follow
+   holds, hand fetched history it holds to `settleFromHistory`, give the
+   chat its own denial feedback (`feedbackOf`), and fold
+   `sendInFlight(chatId)` into the capabilities' `slowMode.pending`.
+4. In the chat's rows: settle a published row in `onSent` (required, and in
+   the call; a row that left the tail is placed at the server's id), follow
    `onCancelled` and `onItemDropped`, draw the time pill and the error badge
-   from `onStatusChanged`, animate a fresh row with `appearanceOf`, close an
+   from `onStatusChanged`, animate a fresh row with `appearanceOf` (on the
+   web with the policy the live width and input class pick), close an
    open message menu through `ChatDataSource.rowPresence`, and wire
    `MessageMediaState(sendOrigin: outbox.takeSendOrigin)`.
 

@@ -14,12 +14,12 @@ and `example/lib/src/features/chat/outbox/`.
 
 | Type | Role |
 | --- | --- |
-| `ChatOutbox<M>` | The facade. `send(chatId, plannedSend, payload:)` and `sendText` make one publish job per send, after slow mode and the chat's limits let it through (a refusal reaches `onDenied` and makes no job); `idStrategy(chatId)` is the chat's id strategy, which places each accepted message's row; `sendInFlight(chatId)` is on while one of the chat's messages is sending; `byClientMessageId(chatId, id)` matches the server's echo of the host's own message, so the host inserts no twin row; `isFreshOutgoing(chatId, id)` answers true once per message the user just sent, and `appearanceOf(chatId, id, …)` how that row appears; `takeSendOrigin(mediaItemId)` answers an item's send origin once; `registerSender(sender)` makes the host's sender the chats' publisher; `cancel(chatId, id)` and `cancelItem(chatId, id, itemId)` cancel a message or one of its items (see Cancel); `pendingFor(chatId)` reads a chat's outgoing messages back from the engine's jobs after a restart; `debugSnapshot(chatId)` describes what it holds. |
+| `ChatOutbox<M>` | The facade. `send(chatId, plannedSend, payload:)` and `sendText` make one publish job per send, after slow mode and the chat's limits let it through (a refusal reaches `onDenied` and makes no job); `idStrategy(chatId)` is the chat's id strategy, which places each accepted message's row; `sendInFlight(chatId)` is on while one of the chat's messages is sending; `byClientMessageId(chatId, id)` matches the server's echo of the host's own message, so the host inserts no twin row; `isFreshOutgoing(chatId, id)` answers true once per message the user just sent, and `appearanceOf(chatId, id, …)` how that row appears; `takeSendOrigin(mediaItemId)` answers an item's send origin once; `registerSender(sender)` makes the host's sender the chats' publisher; `cancel(chatId, id)` and `cancelItem(chatId, id, itemId)` cancel a message or one of its items (see Cancel); `pendingFor(chatId)` reads a chat's outgoing messages back from the engine's jobs after a restart, and `settleFromHistory(chatId, id, serverId:)` settles one the server already had; `debugSnapshot(chatId)` describes what it holds. Chats and messages are named by `ChatId` and `ClientMessageId`, nominal strings. |
 | `OutgoingMessageSender<M>` | The host's transport: `send(OutgoingSendRequest)` once per attempt, with the chat, the `clientMessageId` (the idempotency key), the decoded payload, each item's remote references and, under `SequentialServerIds`, `proposedId`. |
 | `OutgoingSendAnswer<M>` | What the server said: `sent` (`OutgoingSendResult(serverMessageId, serverKeys, payloadAsStored, missing)`), `reuploadItems(ids)`, `conflict(nextId, missing)`, `rejected(reason, retryable)` or `denied(action, reason)`. |
 | `OutgoingSent<M>` | What `onSent` hands the host for a published message: its id from now on, the row to replace (`rowAt`), the payload as sent and as stored, the server keys. |
 | `OutgoingMessage` | Chat id, `clientMessageId` (its identity), its current position in the provisional tail, its items (`OutgoingItem`: `MediaItemId` and local `ContentKey`), status and payload bytes. |
-| `OutgoingIdStrategy` | The `allocate` / `rebase` seam of one chat's provisional tail: `allocate` places a new row, `incoming`, `publishStart`, `fail`, `retry`, `remove`, `removeAll` and `confirm` move it, each move one `rebaseTail`. It writes through `OutgoingTailTarget` (`OutgoingTailTarget.of(dataSource)`). A host may supply its own, held to `OutgoingIdStrategyContract` (`testing.dart`). |
+| `OutgoingIdStrategy` | The `allocate` / `rebase` seam of one chat's provisional tail: `allocate` places a new row, `incoming`, `publishStart`, `fail`, `retry`, `remove`, `removeAll` and `confirm` move it, each move one `rebaseTail`; its getters (`tip`, `proposedId`, `positionOf`) only read, and `sync()` brings it up to rows a range fetch moved. It writes through `OutgoingTailTarget` (`OutgoingTailTarget.of(dataSource)`). A host may supply its own, held to `OutgoingIdStrategyContract` (`testing.dart`). |
 | `SequentialServerIds` | For a server with one sequential id counter per chat that accepts a proposed id only if it is the next one: `proposedId` is `tip+1`, read at publish. |
 | `LocalIds` | For global or UUID server ids: the host numbers rows with local ids (`nextIncomingId` for an incoming message) and keeps the server id in its model. `appendIncoming` puts incoming messages after the outgoing rows, which then stop moving. |
 | `OutgoingStatus` | `preparing`, `uploading`, `publishing`, `sent`, `failed(OutgoingFailure)`, `cancelled`. |
@@ -37,22 +37,23 @@ and `example/lib/src/features/chat/outbox/`.
 
 | Duty | How |
 | --- | --- |
-| Make the outbox | `ChatOutbox(transfers: OutboxTransfers.of(transfers), codec:, itemOf:, idStrategyOf:, rowOf:, capabilitiesOf:, feedback:)` in the composition root. |
+| Make the outbox | `ChatOutbox(transfers: OutboxTransfers.of(transfers), codec:, itemOf:, idStrategyOf:, rowOf:, onSent:, capabilitiesOf:, feedbackOf:)` in the composition root. |
 | Choose the ids | `idStrategyOf(chatId)` returns the chat's strategy over its data source: `SequentialServerIds(chatId:, tail: OutgoingTailTarget.of(dataSource))` or `LocalIds(…)`. Set the data source's `identityOf` to answer a row's client message id. |
 | Build the row | `rowOf(message, payload)` returns the host's row for an accepted message, at `message.position`. |
 | Say which rows are outgoing | Set `identityOf` on the chat's `ChatDataSource`: it answers a provisional row's `clientMessageId` and null for every other row. The data source reads the provisional tail through it, so `rebaseTail` needs nothing else. The outbox's `OutgoingTailTarget.of(dataSource)` is how a strategy writes. |
 | Hand incoming messages | An incoming message whose id falls inside the provisional tail goes to `idStrategy(chatId).incoming([...])`; when it answers false, insert it as usual. |
 | Register the sender | `registerSender(sender)` once at start; jobs wait at their publish stage until then, after a restart too. |
-| Restore after a restart | `await pendingFor(chatId)` for each chat that may hold outgoing messages, before the chat's first send of the run: each message the engine still holds gets a fresh row (sending ones first, then failed ones, each in creation order). A job of an earlier run waits at its publish stage until its chat is restored. Pass `localKeyOf(mediaKey)` (the inverse of the media key `itemOf` gives) to restore media items, and `undecodableRowOf(message)` for the row of a message whose payload the codec cannot read: it reads as failed, and without that builder it is left out. |
-| Settle a sent row | `onSent(sent)` (a `ChatOutbox` argument) runs inside the publish call: replace the row at `sent.rowAt` with the confirmed message (`updateMessage`, a message `identityOf` answers null for), from `payloadAsStored` when given (the rich-text reconcile). With `rowAt` null the row has left; place the confirmed message at `sent.position` when the history reaches it. Address a provisional row by its current position (`positionOf`). |
+| Restore after a restart | `await pendingFor(chatId)` for each chat that may hold outgoing messages, before the chat's first send of the run: each message the engine still holds gets a fresh row (sending ones first, then failed ones, each in creation order), inserted with no self-insert follow, so a reader scrolled up stays put. A job of an earlier run waits at its publish stage until its chat is restored. Pass `localKeyOf(mediaKey)` (the inverse of the media key `itemOf` gives) to restore media items, and `undecodableRowOf(message)` for the row of a message whose payload the codec cannot read: it reads as failed, and without that builder it is left out. |
+| Match fetched history | Once `pendingFor` answered, hand each message of fetched history whose client message id `byClientMessageId` answers for to `settleFromHistory(chatId, id, serverId:)`: the server stored it before the app went, the restored row leaves and the history's row is its one row, so it does not show twice until the job's replay answers. |
+| Settle a sent row | `onSent(sent)` (a required `ChatOutbox` argument) runs inside the publish call: replace the row at `sent.rowAt` with the confirmed message, synchronously (`updateMessage`, a message `identityOf` answers null for), from `payloadAsStored` when given (the rich-text reconcile); a row left provisional would leave the chat at the tail's next move. With `rowAt` null the row has left, since it could not sit at the server's id (a peer's message or a fetch moved the tail past it while the call was out, or a replay at another id): place the confirmed message at `sent.position`, in the slot the move left unloaded, unless a fetch brought it there already, or when the history reaches it. Address a provisional row by its current position (`positionOf`). |
 | Follow a cancel | `onCancelled(cancelled)`: the row has left the tail; when `rowRemoved` is false (a row an appended message settled), remove the row at `message.position`. `onItemDropped(dropped)`: drop the item from the row at `message.position`. Both fire for the status control's cancel too, which reaches the outbox through the jobs. |
 | Draw the status | `onStatusChanged(message)` hears each change of a message's status after its send (the job moving on, a failure, a retry, the server's accept), with the message as it is now: the time pill and the error badge redraw on it, since a change need not move the row. A cancel is `onCancelled`'s. |
-| Animate a fresh row | As a row is first built, `appearanceOf(chatId, id, atBottom:, reduceMotion:)` answers once how it appears (see Appearance), null for a row that is not fresh; the host animates its own row with the answer's values. |
+| Animate a fresh row | As a row is first built, `appearanceOf(chatId, id, atBottom:, reduceMotion:, policy:)` answers once how it appears (see Appearance), null for a row that is not fresh; the host animates its own row with the answer's values. On the web pass the policy of the moment, `OutgoingAppearancePolicy.web(compactTouch:)` from the live width class and input class. |
 | Draw the time pill and the error badge | The pill reads the status: a clock while sending, one check on `sent`; the second check is the server's read state, which the host owns. A `failed` message shows an error badge by the time, and a tap or click on it opens the message menu through the viewport's selection facade. |
-| Offer Retry and Delete | For a `failed` message the menu calls `retry(chatId, id)` and `delete(chatId, id)`. Whether a denial offers Retry is the host's per-platform choice; an `undecodable` answer means only Delete helps. For `failed(sourceLost)` ask the user for the file again and pass its bytes: `retry(chatId, id, sources: {itemId: SourceBytes.blob(file)})`. Delete is followed by `onCancelled`, as a cancel is. |
-| Say why a send was refused | Pass `feedback:` so a refusal before the job and a server denial reach `onDenied`, with the host's `denialText`. |
+| Offer Retry and Delete | For a `failed` message the menu calls `retry(chatId, id)` and `delete(chatId, id)`. Whether a denial offers Retry is the host's per-platform choice; an `undecodable` answer means only Delete helps. For `failed(sourceLost)` ask the user for the file again and pass its bytes: `retry(chatId, id, sources: {itemId: SourceBytes.blob(file)})`. A retry is one more send unit: slow mode holds it as it holds a send (`refused`, with `onDenied(sendNow)`). Delete is followed by `onCancelled`, as a cancel is. |
+| Say why a send was refused | Pass `feedbackOf: (chatId) => …` so a refusal before the job and a server denial reach that chat's `onDenied`, with the host's `denialText`, whichever chat is on screen. |
 | Answer the server | Return a conflict or a replay with the confirmed messages between the tip and the server's id in `missing` when you have them, so the row can move to the server's id; return a server denial as `denied(action, reason)`, not a rejection. |
-| Resolve attach items | `itemOf(item, form)` returns the item's keys (the media key through the content assets' key mapping) and its source: a preparation input with its intent, a prepared file, or `remote`. |
+| Resolve attach items | `itemOf(item, form)` returns the item's keys (the media key through the content assets' key mapping) and its source: a preparation input with its intent, a prepared file, or `remote`. What only one send knows (the files prepared for it, the keys its payload names) goes with that send: `send(..., itemOf:)`. |
 | Pass the chat's capabilities | `capabilitiesOf(chatId)` returns the listenable the chat's other consumers read; the outbox checks slow mode and the limits against it before each job. |
 | Fold the send in flight | Put `sendInFlight(chatId)` into the chat's capabilities as `slowMode.pending`, so the composer and the picker hold the next send. |
 | Hand the send origins | Pass the picker's rects by item order with the send (`send(..., origins:)`), and the outbox's `takeSendOrigin` to the media state as its one-shot origin lookup. |
@@ -78,15 +79,17 @@ then:
 
 | The sender answers | The engine hears | The outbox does |
 | --- | --- | --- |
-| `sent` at the proposal | `published(payloadAsStored, serverKeys)` | confirms the row, calls `onSent`; the job completes as `sent` |
+| `sent` at the proposal | `published(payloadAsStored, serverKeys)` | confirms the row where it sits at the proposal, or takes it out when a peer's message or a fetch moved it past while the call was out; calls `onSent`; the job completes as `sent` |
 | `sent` at another id (a replay) | `published` | moves the row to that id (after `missing`) and confirms it, or takes it out when it cannot reach it |
 | `reuploadItems(ids)` | `reuploadItems` | the engine uploads them once more and calls again |
 | `conflict(nextId, missing)` | nothing yet | places `missing` before the row and sends again in the same call; the third conflict is `rejected(chat.conflict, retryable)` |
-| `rejected(reason)` | `rejected(reason)` | `failed(rejected(reason))` |
+| `rejected(reason)` | `rejected(chat.rejected:<reason>)` | `failed(rejected(reason))` |
 | `denied(action, reason)` | `rejected(chat.denied:<action>)` | `failed(denied(action))` and one `onDenied` |
 | a throw | the publisher's error | `failed(unknown)` |
 
-Codes starting with `chat.` are the outbox's own.
+Every code of the chat publisher carries the `chat.` prefix, apart from the
+engine's own reasons, so a server's rejection code reads back as that
+rejection whatever it spells (`network` included), after a restart too.
 
 A job's state is the message's status: `preparing`, `uploading` and
 `publishing` as they are, `completed` as `sent`, `failed` with its closed
@@ -153,8 +156,16 @@ nor the media cells depend on the outbox: the lookup is a plain
 ## Appearance
 
 `OutgoingAppearancePolicy` holds how a fresh row appears on each platform
-(`android()`, `ios()`, `desktop()`, `platform()`, the outbox's `appearance`)
-and resolves a row's situation to an `OutgoingAppearance`:
+(`android()`, `ios()`, `desktop()`, `web(compactTouch:)`, `platform()`, the
+outbox's `appearance`) and resolves a row's situation to an
+`OutgoingAppearance`. A policy's own row motions are `OutgoingRowMotion`s
+(`slideUp`, `fadeScale`, `none`): a flight comes from a send origin only.
+
+The web is not the desktop: a page takes its form from its window and its
+input, live. A compact window used by touch moves as Android does (no
+flight); any other window is still. `platform()` gives the web's wide form
+on the web whatever the system, and the host passes the live one to
+`appearanceOf`.
 
 | | Android | iOS | Desktop |
 | --- | --- | --- | --- |
@@ -179,7 +190,8 @@ failed message is always at the bottom of the chat; a retried row joins the
 end of the sending rows. A cancelled row's position may be taken by the
 next row; confirmed ids are never reused. Rows the data source puts before
 the tail on its own (a range fetch returning rows inside it) move the
-strategy's positions and tip with them.
+strategy's positions and tip with them, at its next `sync()`, which every
+move and every outbox entry point runs first.
 
 ## Diagnostics
 

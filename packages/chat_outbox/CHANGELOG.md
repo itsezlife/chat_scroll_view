@@ -16,6 +16,8 @@ is for `testing.dart` only.
 
 **Messages and status**
 
+- `ChatId` and `ClientMessageId`, nominal strings (extension types), name a
+  chat and an outgoing message across the API, so the two never swap.
 - `OutgoingMessage` (chat id, `clientMessageId`, position in the
   provisional tail, `OutgoingItem`s, status, payload bytes) and
   `OutgoingStatus` (`preparing`, `uploading`, `publishing`, `sent`,
@@ -40,7 +42,12 @@ is for `testing.dart` only.
   `outbox`) and makes no job.
 - `sendInFlight(chatId)`, for the host to fold into `slowMode.pending`.
 - `OutgoingSendItem`, the host's keys and source for an attach item
-  (`itemOf`, with `localKeyOf` for a restart).
+  (`itemOf`, with `localKeyOf` for a restart); `send(..., itemOf:)` answers
+  for one send's items with what the host knows of that send alone.
+- `ChatOutbox(feedbackOf:)` gives each chat's denial feedback, so a refusal
+  or a server's denial reaches the chat it happened in.
+- A row builder that throws cancels the job made for the send, so no job
+  waits for a row that never comes and holds the chat's ordering group.
 - `OutboxTransfers`, the seam over mpx's `Transfers`
   (`OutboxTransfers.of`), and `FakeOutboxTransfers` in `testing.dart`.
 
@@ -52,8 +59,16 @@ is for `testing.dart` only.
   host's sender as `chat.send`; each attempt moves the row to `tip+1` and
   proposes it. A conflict sends again within the call, at most three
   conflicts, then `rejected(chat.conflict, retryable)`. A replay at another
-  id moves the row there. A denial fails the message as `denied` with one
-  `onDenied`. The host settles a published row in `onSent`.
+  id moves the row there. An accept confirms the row only where it sits at
+  the server's id: when a peer's message or a fetch moved the tail past it
+  while the call was out, the row leaves and `onSent` (`rowAt` null) has the
+  host place the message at that id. A denial fails the message as `denied`
+  with one `onDenied`. The host settles a published row in `onSent`, a
+  required argument.
+- Every code the chat publisher journals carries the `chat.` prefix
+  (`chat.rejected:<code>`, `chat.denied:<action>`, `chat.conflict`), apart
+  from the engine's own reasons: a server's rejection code reads back as
+  `rejected(code)` whatever it spells, and `rejected` takes any code.
 - `RecordingOutgoingSender` in `testing.dart`.
 
 **Id strategies**
@@ -62,8 +77,10 @@ is for `testing.dart` only.
   `retry`, `remove`, `removeAll`, `confirm`, `proposedId`, `positionOf`) over
   `OutgoingTailTarget` (`OutgoingTailTarget.of` a `ChatDataSource`), with
   `SequentialServerIds` and `LocalIds` (`nextIncomingId`, `appendIncoming`).
-  Each move is one `rebaseTail`. A strategy reads its tail's first position
-  back from the rows, so rows a range fetch put before the tail move it.
+  Each move is one `rebaseTail`. Its getters only read; `sync()` reads the
+  tail's first position back from the rows, so rows a range fetch put
+  before the tail move it, and every move and outbox entry point runs it.
+  `OutgoingTailTarget.insertMessage` takes `followSelf`.
 - `ChatOutbox.idStrategy(chatId)`; an accepted send places its row through
   it, and lookups and the snapshot read the row's current position.
 - `OutgoingIdStrategyContract`, `FakeOutgoingTail` and
@@ -90,7 +107,9 @@ is for `testing.dart` only.
   (journaled uploads kept; a publish failure publishes again only), and the
   row joins the end of the sending rows; `sources` gives a lost source's
   bytes again. It answers `OutgoingRetryOutcome`; a burst retries once
-  until the message fails again. `delete(chatId, id)` cancels as `cancel`.
+  until the message fails again, and slow mode holds it as it holds a send
+  (`refused`, with `onDenied(sendNow)`). `delete(chatId, id)` cancels as
+  `cancel`.
 - `OutboxTransfers.cancel`, `removeItem`, `commit`, `retry` and `retryItem`.
 
 **Restart and the system envelope**
@@ -102,6 +121,11 @@ is for `testing.dart` only.
   read is failed (unknown); a job under the prefix that is not a message's
   is left alone. A job of an earlier run waits at its publish stage until
   its chat is restored. `OutboxTransfers.payloadOf` reads the job's payload.
+  Restored rows go in without the self-insert follow: a reader scrolled up
+  stays put.
+- `settleFromHistory(chatId, id, serverId:)` settles a message the server
+  stored before the app went, met in fetched history: its restored row
+  leaves, so it does not show twice until the job's replay answers.
 - A job the system's end of the envelope paused (`paused(systemInterrupted)`)
   keeps its message sending and resumes;
   `ChatOutbox(deleteOnSystemInterruption: true)` deletes the message
@@ -115,11 +139,15 @@ is for `testing.dart` only.
   answers each once. An untaken origin goes when its message is sent or
   cancelled, or after `ChatOutbox.sendOriginLifetime`.
 - `OutgoingAppearancePolicy` (`android()`, `ios()`, `desktop()`,
-  `platform()`) and the sealed `OutgoingAppearance` it resolves to
-  (`slideUp`, `fadeScale` with `delayAt`, `flight`, `none`), reduce motion
-  answering `none`. `ChatOutbox(appearance:)` and
-  `appearanceOf(chatId, id, atBottom:, reduceMotion:)`, which answers once
-  per fresh message and reads its items and held send origins.
+  `web(compactTouch:)`, `platform()`) and the sealed `OutgoingAppearance` it
+  resolves to (`slideUp`, `fadeScale` with `delayAt`, `flight`, `none`),
+  reduce motion answering `none`; a policy's own row motions are
+  `OutgoingRowMotion`s, a flight coming from a send origin only. The web is
+  not the desktop: `platform()` gives the web's form there whatever the
+  system, and the host passes the live one. `ChatOutbox(appearance:)` and
+  `appearanceOf(chatId, id, atBottom:, reduceMotion:, policy:)`, which
+  answers once per fresh message and reads its items and held send
+  origins.
 
 **Diagnostics**
 
