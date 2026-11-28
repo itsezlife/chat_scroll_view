@@ -316,7 +316,9 @@ class _ChromeSheetDragState extends State<ChromeSheetDrag>
   @override
   void initState() {
     super.initState();
-    _back = AnimationController(vsync: this)
+    // Unbounded: the value is the pull in pixels, and a bounded controller
+    // would clamp it to one, so the sheet jumped up before it moved.
+    _back = AnimationController.unbounded(vsync: this)
       ..addListener(() => _moveTo(_back.value));
   }
 
@@ -355,7 +357,7 @@ class _ChromeSheetDragState extends State<ChromeSheetDrag>
           ..animateTo(
             0,
             duration: speed?.scale(back) ?? back,
-            curve: Curves.easeOut,
+            curve: widget.spec.springBackCurve,
           );
     }
     return true;

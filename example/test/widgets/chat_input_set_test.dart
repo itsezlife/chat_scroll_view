@@ -1862,6 +1862,38 @@ void main() {
       expect(rig.set.composer.text.text, isEmpty);
     });
 
+    testWidgets('a caption may be cleared: the empty edit is saved', (
+      tester,
+    ) async {
+      final rig = await _mobileRig(tester);
+      rig.set.beginEdit(7, 'a caption', caption: true);
+      await tester.pump();
+      rig.set.composer.text.text = '';
+      await tester.pump();
+
+      await rig.tapAction(tester, ChatComposerActions.primary);
+      await tester.pump();
+
+      expect(rig.edited, ['7:']);
+      expect(rig.set.editing.value, isNull);
+    });
+
+    testWidgets('text alone cannot be cleared: the empty edit is not saved '
+        'and the edit stays', (tester) async {
+      final rig = await _mobileRig(tester);
+      rig.set.beginEdit(7, 'hello');
+      await tester.pump();
+      rig.set.composer.text.text = '';
+      await tester.pump();
+
+      await rig.tapAction(tester, ChatComposerActions.primary);
+      await rig.set.submit();
+      await tester.pump();
+
+      expect(rig.edited, isEmpty);
+      expect(rig.set.editing.value?.id, 7);
+    });
+
     testWidgets('a selection leaves edit mode and hides the composer', (
       tester,
     ) async {

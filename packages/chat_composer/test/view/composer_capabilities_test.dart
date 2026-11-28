@@ -317,6 +317,49 @@ void main() {
       expect(find.byType(ExtendedTextField), findsOneWidget);
       expect(controller.text.text, 'draft');
     });
+
+    testWidgets('a draft under a panel is kept but offers no send: the row '
+        'draws no action and the submit shortcut does nothing', (tester) async {
+      var sends = 0;
+      Widget withSend() => composerHarness(
+        ComposerView(
+          controller: controller,
+          capabilities: source,
+          spec: ComposerSpec(
+            actions: [
+              ...actions(),
+              ActionDescriptor(
+                id: 'send',
+                icon: ChromeIconId.send,
+                semanticLabel: 'Send',
+                primary: true,
+                onTap: () => sends++,
+              ),
+            ],
+          ),
+          autofocus: false,
+        ),
+      );
+      Finder send() => find.byKey(const ValueKey<String>('send'));
+      await tester.pumpWidget(withSend());
+      await enterFieldText(tester, 'draft');
+      expect(send(), findsOneWidget);
+
+      source.update(writeAccess: const WriteAccess.readOnly());
+      await tester.pumpAndSettle();
+      expect(send(), findsNothing);
+      expect(find.byKey(const ValueKey<String>('attach')), findsNothing);
+      expect(voice(), findsNothing);
+      final panel = find.text('sendText noWriteAccess(readOnly)');
+      Actions.maybeInvoke(tester.element(panel), const SubmitComposerIntent());
+      expect(sends, 0);
+      expect(controller.text.text, 'draft');
+
+      source.update(writeAccess: const WriteAccess.canWrite());
+      await tester.pumpAndSettle();
+      expect(send(), findsOneWidget);
+      expect(controller.text.text, 'draft');
+    });
   });
 
   group('locked field', () {

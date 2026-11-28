@@ -28,6 +28,11 @@ abstract final class MessageEditability {
     _ => true,
   };
 
+  /// Whether editing [message] edits a caption: the message carries media
+  /// items, so an emptied text is a valid edit (the media stays, uncaptioned).
+  /// Text alone, a link preview included, keeps some text.
+  static bool editsCaption(IChatMessage message) => message.media.isNotEmpty;
+
   /// Whether a message with the markdown [body] may be edited.
   static bool canEditBody(String body) =>
       !_isStickerOrGif(EmojiOnlyText.of(RichTextMarkdown.decode(body)));
