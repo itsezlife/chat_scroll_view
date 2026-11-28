@@ -44,8 +44,9 @@ their changes.
   `GroupedMessagePosition`, `GroupedPositionFlags`), `MosaicLayout.project`
   (`MosaicCellLayout`) and `MediaLayoutMetrics`.
 - The file stack, `MediaFileStackPolicy`: rows in a vertical stack with each
-  platform's bubble width, row metrics with and without a thumbnail, name
-  lines, pull-ups, the time's growth and the desktop footer line; each file
+  platform's bubble width, row metrics with and without a thumbnail, alone or
+  inside a stack (a thumbnail never reaches past its row), name lines,
+  pull-ups, the time's growth and the desktop footer line; each file
   keeps a caption slot of its own (`MediaLayoutInput.fileCaptionHeights`).
   `MediaFileRow` per row, type from `MediaFileText`.
 - The link preview card, `LinkPreviewCardPolicy` with
