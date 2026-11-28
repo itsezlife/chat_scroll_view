@@ -12,7 +12,7 @@ environment:
 
 dependencies:
   # PlannedSend and AttachItem, the send the outbox turns into a publish job
-  # (spec §5.3).
+  # (ADR 048).
   attach_model:
     path: ../attach_model
   # CapabilityAction, the action a server denial names in a failed message's
@@ -20,7 +20,7 @@ dependencies:
   chat_capabilities:
     path: ../chat_capabilities
   # ChatDataSource.rebaseTail, the one move of the provisional tail, and the
-  # IChatMessage rows an id strategy places (spec §5.3; map 25 §7). The root
+  # IChatMessage rows an id strategy places (ADR 048; ADR 020 amendment). The root
   # never depends on chat_outbox, so the graph stays a DAG.
   chat_scroll_view:
     path: ../..

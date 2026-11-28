@@ -13,6 +13,7 @@ import 'package:chat_outbox/src/outbox/publish_rejection_codec.dart';
 import 'package:chat_outbox/src/send/outgoing_message_sender.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:content_model/content_model.dart';
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:meta/meta.dart';
 import 'package:mpx_transfer/mpx_transfer.dart';
 
@@ -417,7 +418,7 @@ final class ChatSendPublisher<M> implements Publisher {
         'durationMs': _now().difference(started).inMilliseconds,
         'serverKeys': result.serverKeys.length,
         'payloadAsStoredDiffers':
-            stored != null && !_sameBytes(stored, message.payload),
+            stored != null && !listEquals(stored, message.payload),
       },
     );
     return PublishOutcome.published(
@@ -442,14 +443,6 @@ final class ChatSendPublisher<M> implements Publisher {
         if (message.id >= start) message,
     ];
     if (inside.isNotEmpty) strategy.incoming(inside);
-  }
-
-  static bool _sameBytes(Uint8List a, Uint8List b) {
-    if (a.length != b.length) return false;
-    for (var i = 0; i < a.length; i++) {
-      if (a[i] != b[i]) return false;
-    }
-    return true;
   }
 
   static void _report(
