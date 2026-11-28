@@ -22,6 +22,8 @@ import 'package:message_media/message_media.dart';
 import 'package:mpx_core/mpx_core.dart';
 import 'package:mpx_core/testing.dart' hide RecordingDiagnostics;
 
+import '../support/media_scopes.dart';
+
 MediaItem _item(
   String id, {
   MediaItemKind kind = MediaItemKind.photo,
@@ -114,6 +116,7 @@ void main() {
 
   MediaLayout layoutOf(List<MediaItem> items) => media.layout(
     MediaLayoutInput(
+      text: MediaScopes.text,
       items: items,
       availableWidth: 300,
       displaySize: const Size(400, 640),
@@ -140,40 +143,42 @@ void main() {
     addTearDown(source.dispose);
     final items = itemsOf ?? defaultItemsOf;
     await tester.pumpWidget(
-      MaterialApp(
-        home: ContentAssetProvider(
-          scope: scope,
-          child: MessageMediaStateScope(
-            state: state,
-            child: Scaffold(
-              body: SizedBox(
-                width: 400,
-                height: 600,
-                child: ChatScrollView(
-                  dataSource: source,
-                  controller: controller,
-                  selectionController: selection,
-                  onIdleMessageTap: idleMenus.add,
-                  onSecondaryMessageTap: secondaryMenus.add,
-                  messageBuilder: (context, id, message, status, runLayout) {
-                    final list = items(id);
-                    return Align(
-                      alignment: Alignment.centerLeft,
-                      child: MessageMediaView(
-                        layout: layoutOf(list),
-                        items: list,
-                        policy: policy,
-                        selection: selection,
-                        messageId: id,
-                        onOpenViewer: opened.add,
-                        onItemMenu: onItemMenu,
-                        correlation: ChatCorrelation(
-                          chatId: 'chat-1',
-                          scrollId: '$id',
+      MediaScopes.wrap(
+        MaterialApp(
+          home: ContentAssetProvider(
+            scope: scope,
+            child: MessageMediaStateScope(
+              state: state,
+              child: Scaffold(
+                body: SizedBox(
+                  width: 400,
+                  height: 600,
+                  child: ChatScrollView(
+                    dataSource: source,
+                    controller: controller,
+                    selectionController: selection,
+                    onIdleMessageTap: idleMenus.add,
+                    onSecondaryMessageTap: secondaryMenus.add,
+                    messageBuilder: (context, id, message, status, runLayout) {
+                      final list = items(id);
+                      return Align(
+                        alignment: Alignment.centerLeft,
+                        child: MessageMediaView(
+                          layout: layoutOf(list),
+                          items: list,
+                          policy: policy,
+                          selection: selection,
+                          messageId: id,
+                          onOpenViewer: opened.add,
+                          onItemMenu: onItemMenu,
+                          correlation: ChatCorrelation(
+                            chatId: 'chat-1',
+                            scrollId: '$id',
+                          ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
@@ -322,7 +327,7 @@ void main() {
       expect(attemptOf('$_last-a').isCancelled, isTrue);
       expect(opened, hasLength(1));
       final event = diagnostics.whereOp(MediaOp.hit).single;
-      expect(event.fields['outcome'], 'cancel');
+      expect(event.fields['outcome'], MediaHitOutcome.cancel);
       expect(event.fields['part'], 'status');
     });
 
@@ -342,7 +347,7 @@ void main() {
         expect(opened, isEmpty);
         expect(
           diagnostics.whereOp(MediaOp.hit).single.fields['outcome'],
-          'cancel',
+          MediaHitOutcome.cancel,
         );
       });
     }
@@ -379,7 +384,7 @@ void main() {
       expect(state.isSpoilerRevealed(item), isTrue);
       expect(opened, isEmpty);
       final event = diagnostics.whereOp(MediaOp.hit).single;
-      expect(event.fields['outcome'], 'reveal');
+      expect(event.fields['outcome'], MediaHitOutcome.reveal);
       expect(event.fields['part'], 'spoiler');
 
       await tester.pump(const Duration(seconds: 1));
@@ -528,7 +533,7 @@ void main() {
       expect(request.rectOf(const MediaItemId('$_last-b')), isNull);
       final missing = diagnostics.whereOp(MediaOp.originRectMissing).single;
       expect(missing.level, ChatEventLevel.warning);
-      expect(missing.fields, {'at': 'close'});
+      expect(missing.fields, {'at': MediaViewerMoment.close});
     });
   });
 

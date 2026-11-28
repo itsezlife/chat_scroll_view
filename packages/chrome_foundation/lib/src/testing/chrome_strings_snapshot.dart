@@ -19,6 +19,7 @@ abstract final class ChromeStringsSnapshot {
     final pack = strings.packSheet;
     final bulletin = strings.bulletin;
     final attach = strings.attach;
+    final media = strings.media;
     return {
       for (final id in _knownPageIds) 'panel.tabLabel[$id]': panel.tabLabel(id),
       for (final id in _knownCategoryIds)
@@ -289,6 +290,26 @@ abstract final class ChromeStringsSnapshot {
         'attach.sendVideos[$n]': attach.sendVideos(n),
       for (final n in _pluralSamples)
         'attach.sendFiles[$n]': attach.sendFiles(n),
+      'media.photoKind': media.photoKind,
+      'media.videoKind': media.videoKind,
+      'media.animationKind': media.animationKind,
+      'media.fileKind': media.fileKind,
+      'media.duration[90s]': media.duration(
+        ChromeCountdownTiming.placeholder * 180,
+      ),
+      for (final bytes in const [512, 2048, 3 << 20, 5 << 30])
+        'media.size[$bytes]': media.size(bytes),
+      'media.downloadProgress[0.4]': media.downloadProgress(0.4),
+      'media.downloadProgress[null]': media.downloadProgress(null),
+      'media.downloadAction': media.downloadAction,
+      'media.cancelDownloadAction': media.cancelDownloadAction,
+      'media.optionsAction': media.optionsAction,
+      'media.pagePreview': media.pagePreview,
+      'media.fileProgress[a,b]': media.fileProgress('a', 'b'),
+      'media.fileInfo[size,EXT]': media.fileInfo('size', 'EXT'),
+      'media.fileDownload': media.fileDownload,
+      'media.fileOpenWith': media.fileOpenWith,
+      'media.fileCancel': media.fileCancel,
       'semantics.panelOpened': semantics.panelOpened,
       'semantics.panelClosed': semantics.panelClosed,
       'semantics.pageSelected[label]': semantics.pageSelected('label'),

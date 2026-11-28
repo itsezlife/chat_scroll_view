@@ -6,53 +6,53 @@
 /// numbers do not depend on a font.
 library;
 
-import 'dart:ui';
-
+import 'package:chrome_foundation/testing.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
+import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:message_media/message_media.dart';
 
+import '../support/media_scopes.dart';
+
 /// A measure of fixed glyph widths: a name glyph is 10 wide and its line
-/// 20 high, an info glyph 6 wide and its line 16 high.
-final class _FixedMeasure implements MediaFileTextMeasure {
+/// 20 high, an info glyph 6 wide and its line 16 high. A name is told from
+/// an info line by its type: 14 or more, or a weight above normal (the
+/// desktop's 13 semibold name).
+final class _FixedMeasure implements MediaTextMeasure {
   const _FixedMeasure();
 
   @override
-  MediaFileTextSize name(
-    String text,
-    MediaFileText type, {
-    required double maxWidth,
-    required int maxLines,
+  MediaTextSize measure(
+    InlineSpan text, {
+    required TextScaler scaler,
+    double maxWidth = double.infinity,
+    int maxLines = 1,
+    bool ellipsis = false,
   }) {
-    final natural = text.length * 10.0;
+    final plain = text.toPlainText();
+    final style = text.style;
+    final isName =
+        (style?.fontSize ?? 0) >= 14 ||
+        (style?.fontWeight ?? FontWeight.normal) != FontWeight.normal;
+    if (!isName) return MediaTextSize(width: plain.length * 6.0, height: 16);
+    final natural = plain.length * 10.0;
     final lines = maxWidth.isInfinite || natural <= maxWidth
         ? 1
         : (natural / maxWidth).ceil().clamp(1, maxLines);
-    return MediaFileTextSize(
+    return MediaTextSize(
       width: lines == 1 ? natural : maxWidth,
       height: lines * 20.0,
       lines: lines,
     );
   }
-
-  @override
-  MediaFileTextSize info(String text, MediaFileText type) =>
-      MediaFileTextSize(width: text.length * 6.0, height: 16);
 }
 
-MessageMediaPolicy _fixed(MessageMediaPolicy policy) {
-  final step = policy.layoutStep as MediaLayoutPolicy;
-  return policy.copyWith(
-    layoutStep: step.copyWith(
-      fileStack: step.fileStack.copyWith(measure: const _FixedMeasure()),
-    ),
-  );
-}
+final _text = MediaScopes.text.copyWith(measure: const _FixedMeasure());
 
-final _android = _fixed(const MessageMediaPolicy.android());
-final _ios = _fixed(const MessageMediaPolicy.ios());
-final _desktop = _fixed(const MessageMediaPolicy.desktop());
+const _android = MessageMediaPolicy.android();
+const _ios = MessageMediaPolicy.ios();
+const _desktop = MessageMediaPolicy.desktop();
 
 /// A file "a.pdf" of 2048 bytes (info "2.0 KB PDF" on Android, "2.0 KB"
 /// elsewhere), or [name] / [mimeType] as given.
@@ -83,6 +83,7 @@ MediaLayoutInput _input(
   Map<MediaItemId, double> fileCaptionHeights = const {},
   MediaLayoutChrome chrome = MediaLayoutChrome.none,
 }) => MediaLayoutInput(
+  text: _text,
   items: items,
   availableWidth: availableWidth,
   showsAvatar: showsAvatar,
@@ -361,32 +362,21 @@ void main() {
   });
 
   group('strings', () {
-    test('the size comes from the host strings', () {
-      final step = _android.layoutStep as MediaLayoutPolicy;
-      final policy = _android.copyWith(
-        layoutStep: step.copyWith(
-          fileStack: step.fileStack.copyWith(
-            strings: MediaFileStrings.english.copyWith(
-              size: (bytes) => '$bytes octets',
-              info: (size, extension) => '${extension ?? ''} · ${size ?? ''}',
-            ),
-          ),
-        ),
+    test('the size and the info line come from the input\'s strings', () {
+      final russian = _input([_file('f')]).copyWith(
+        text: _text.copyWith(strings: ChromeStringsPresets.russian.media),
       );
-      expect(
-        _row(_stack(policy, _input([_file('f')])), 'f').infoText,
-        'PDF · 2048 octets',
-      );
+      expect(_row(_stack(_android, russian), 'f').infoText, '2.0 КБ PDF');
     });
 
     test('English sizes', () {
-      const strings = MediaFileStrings.english;
+      final strings = MediaScopes.strings;
       expect(strings.size(512), '512 B');
       expect(strings.size(1536), '1.5 KB');
       expect(strings.size(3 * 1024 * 1024), '3.0 MB');
       expect(strings.size(5 * 1024 * 1024 * 1024 ~/ 4), '1.25 GB');
-      expect(strings.progress('1.0 MB', '3.0 MB'), '1.0 MB / 3.0 MB');
-      expect(strings.info(null, 'ZIP'), 'ZIP');
+      expect(strings.fileProgress('1.0 MB', '3.0 MB'), '1.0 MB / 3.0 MB');
+      expect(strings.fileInfo(null, 'ZIP'), 'ZIP');
       expect(MediaFileStackPolicy.extensionOf('archive.tar.gz'), 'GZ');
       expect(MediaFileStackPolicy.extensionOf('.hidden'), isNull);
       expect(MediaFileStackPolicy.extensionOf('README'), isNull);
@@ -457,6 +447,7 @@ void main() {
 
 extension on MediaLayoutInput {
   MediaLayoutInput withContentWidth(double width) => MediaLayoutInput(
+    text: _text,
     items: items,
     availableWidth: availableWidth,
     maxContentWidth: width,

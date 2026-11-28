@@ -8,6 +8,8 @@ import 'package:content_model/content_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:message_media/message_media.dart';
 
+import '../support/media_scopes.dart';
+
 MediaItem _item(
   MediaItemKind kind, {
   int? width,
@@ -38,6 +40,7 @@ MediaLayoutInput _input({
   bool inBubble = true,
   MediaLayoutChrome chrome = MediaLayoutChrome.none,
 }) => MediaLayoutInput(
+  text: MediaScopes.text,
   items: const [],
   availableWidth: availableWidth,
   displaySize: displaySize,

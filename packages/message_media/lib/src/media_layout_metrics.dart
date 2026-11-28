@@ -35,7 +35,7 @@ abstract final class MediaLayoutMetrics {
   /// that maps `spanSize / 1000` of its width fills the row.
   static const int firstSpanAdditionalSize = 200;
 
-  /// Floor height after the aspect scale in [computeSingleMediaSize].
+  /// Floor height after the aspect scale in [SingleMediaLayout.compute].
   static const double minMediaHeight = 120;
 
   /// The side of a single box whose picture gives no usable size, and of a

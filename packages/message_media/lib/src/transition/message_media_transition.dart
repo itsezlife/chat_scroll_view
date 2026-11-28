@@ -74,7 +74,7 @@ class MessageMediaTransition extends StatefulWidget {
     this.onOpenViewer,
     this.onItemMenu,
     this.onLinkPreview,
-    this.linkPreviewColors = LinkPreviewCardColors.fallback,
+    this.linkPreviewColors,
     this.sendState = MediaSendState.none,
     this.onItemCancelled,
     super.key,
@@ -135,7 +135,7 @@ class MessageMediaTransition extends StatefulWidget {
   final LinkPreviewActivated? onLinkPreview;
 
   /// See `MessageMediaView.linkPreviewColors`.
-  final LinkPreviewCardColors linkPreviewColors;
+  final LinkPreviewCardColors? linkPreviewColors;
 
   /// See `MessageMediaView.sendState`.
   final MediaSendState sendState;

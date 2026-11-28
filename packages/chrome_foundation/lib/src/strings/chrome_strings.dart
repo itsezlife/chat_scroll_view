@@ -3,13 +3,14 @@ import 'package:chrome_foundation/src/strings/bulletin_strings.dart';
 import 'package:chrome_foundation/src/strings/composer_strings.dart';
 import 'package:chrome_foundation/src/strings/edit_menu_strings.dart';
 import 'package:chrome_foundation/src/strings/formatting_strings.dart';
+import 'package:chrome_foundation/src/strings/media_strings.dart';
 import 'package:chrome_foundation/src/strings/pack_sheet_strings.dart';
 import 'package:chrome_foundation/src/strings/panel_strings.dart';
 import 'package:chrome_foundation/src/strings/semantics_strings.dart';
 
 /// All **chrome strings**: grouped, host-provided text for the panel, the
 /// composer, the formatting menu, the pointer menu, the pack sheets, the
-/// bulletins, the attach sheet and assistive technology.
+/// bulletins, the attach sheet, message media and assistive technology.
 ///
 /// Labels are never tokens and no package here owns a language: the host fills
 /// this from its own localisation or server language packs and supplies it
@@ -18,7 +19,7 @@ import 'package:chrome_foundation/src/strings/semantics_strings.dart';
 ///
 /// The UI locale is independent of the search language set.
 final class ChromeStrings {
-  /// Strings made of the eight groups.
+  /// Strings made of the nine groups.
   const ChromeStrings({
     required this.panel,
     required this.composer,
@@ -27,6 +28,7 @@ final class ChromeStrings {
     required this.packSheet,
     required this.bulletin,
     required this.attach,
+    required this.media,
     required this.semantics,
   });
 
@@ -50,6 +52,9 @@ final class ChromeStrings {
 
   /// Attach sheet chrome copy: the discard questions and stock tab labels.
   final AttachStrings attach;
+
+  /// Message media copy: spoken item and card labels, file row words.
+  final MediaStrings media;
 
   /// Announcements and labels for assistive technology.
   final SemanticsStrings semantics;

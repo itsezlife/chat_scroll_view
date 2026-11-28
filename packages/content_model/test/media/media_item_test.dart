@@ -130,6 +130,20 @@ void main() {
       }
     });
 
+    test('photo, video and animation are pictures; video and animation '
+        'play; a file or a custom kind does neither', () {
+      expect(
+        [for (final kind in MediaItemKind.builtIns) kind.isPicture],
+        [true, true, true, false],
+      );
+      expect(
+        [for (final kind in MediaItemKind.builtIns) kind.plays],
+        [false, true, true, false],
+      );
+      expect(const MediaItemKind.custom('sticker').isPicture, isFalse);
+      expect(const MediaItemKind.custom('sticker').plays, isFalse);
+    });
+
     test('an unknown value round-trips as custom with its tag', () {
       final kind = MediaItemKind.fromValue('voice_note');
 

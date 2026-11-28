@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:content_model/content_model.dart';
+import 'package:message_media/src/layout/media_layout_text.dart';
 import 'package:meta/meta.dart';
 
 /// Where a message's text sits against its media blocks.
@@ -153,6 +154,7 @@ final class MediaLayoutInput {
   MediaLayoutInput({
     required List<MediaItem> items,
     required this.availableWidth,
+    required this.text,
     this.displaySize,
     this.tabletMinSide,
     this.maxContentWidth,
@@ -179,6 +181,10 @@ final class MediaLayoutInput {
 
   /// The width of the list the bubble lives in.
   final double availableWidth;
+
+  /// What the layout measures text with: build it with
+  /// `MediaLayoutText.of` where the media view is built.
+  final MediaLayoutText text;
 
   /// The screen's size; null reads as a square of [availableWidth].
   final Size? displaySize;
@@ -260,6 +266,7 @@ final class MediaLayoutInput {
   MediaLayoutInput copyWith({
     List<MediaItem>? items,
     double? availableWidth,
+    MediaLayoutText? text,
     MediaCaptionPosition? captionPosition,
     double? captionWidth,
     bool? isOutgoing,
@@ -272,6 +279,7 @@ final class MediaLayoutInput {
   }) => MediaLayoutInput(
     items: items ?? this.items,
     availableWidth: availableWidth ?? this.availableWidth,
+    text: text ?? this.text,
     displaySize: displaySize,
     tabletMinSide: tabletMinSide,
     maxContentWidth: maxContentWidth,
@@ -296,6 +304,7 @@ final class MediaLayoutInput {
       other is MediaLayoutInput &&
       _listEquals(other.items, items) &&
       other.availableWidth == availableWidth &&
+      other.text == text &&
       other.displaySize == displaySize &&
       other.tabletMinSide == tabletMinSide &&
       other.maxContentWidth == maxContentWidth &&
@@ -318,6 +327,7 @@ final class MediaLayoutInput {
   int get hashCode => Object.hash(
     Object.hashAll(items),
     availableWidth,
+    text,
     displaySize,
     tabletMinSide,
     maxContentWidth,

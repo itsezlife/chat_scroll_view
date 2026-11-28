@@ -4,6 +4,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:message_media/message_media.dart';
 
+import 'support/media_scopes.dart';
+
 void main() {
   const a = MediaItemId('a');
   const b = MediaItemId('b');
@@ -71,25 +73,27 @@ void main() {
       MessageMediaState? inside;
       MessageMediaState? outside = state;
       await tester.pumpWidget(
-        Column(
-          textDirection: TextDirection.ltr,
-          children: [
-            Builder(
-              builder: (context) {
-                outside = MessageMediaStateScope.maybeOf(context);
-                return const SizedBox();
-              },
-            ),
-            MessageMediaStateScope(
-              state: state,
-              child: Builder(
+        MediaScopes.wrap(
+          Column(
+            textDirection: TextDirection.ltr,
+            children: [
+              Builder(
                 builder: (context) {
-                  inside = MessageMediaStateScope.of(context);
+                  outside = MessageMediaStateScope.maybeOf(context);
                   return const SizedBox();
                 },
               ),
-            ),
-          ],
+              MessageMediaStateScope(
+                state: state,
+                child: Builder(
+                  builder: (context) {
+                    inside = MessageMediaStateScope.of(context);
+                    return const SizedBox();
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       );
       expect(inside, same(state));
@@ -106,14 +110,16 @@ void main() {
       addTearDown(state.dispose);
       MessageMediaState? got;
       await tester.pumpWidget(
-        MessageMediaStateScope(
-          state: state,
-          child: MessageMediaStateBuilder(
-            scrollId: 's1',
-            builder: (_, s) {
-              got = s;
-              return const SizedBox();
-            },
+        MediaScopes.wrap(
+          MessageMediaStateScope(
+            state: state,
+            child: MessageMediaStateBuilder(
+              scrollId: 's1',
+              builder: (_, s) {
+                got = s;
+                return const SizedBox();
+              },
+            ),
           ),
         ),
       );
@@ -135,12 +141,14 @@ void main() {
               },
             );
         await tester.pumpWidget(
-          Column(
-            textDirection: TextDirection.ltr,
-            children: [
-              cell('s1', (s) => first = s),
-              cell('s2', (s) => second = s),
-            ],
+          MediaScopes.wrap(
+            Column(
+              textDirection: TextDirection.ltr,
+              children: [
+                cell('s1', (s) => first = s),
+                cell('s2', (s) => second = s),
+              ],
+            ),
           ),
         );
         expect(first, isNot(same(second)));
@@ -151,12 +159,14 @@ void main() {
         // Rebuilding keeps the cell's state.
         final kept = first;
         await tester.pumpWidget(
-          Column(
-            textDirection: TextDirection.ltr,
-            children: [
-              cell('s1', (s) => first = s),
-              cell('s2', (s) => second = s),
-            ],
+          MediaScopes.wrap(
+            Column(
+              textDirection: TextDirection.ltr,
+              children: [
+                cell('s1', (s) => first = s),
+                cell('s2', (s) => second = s),
+              ],
+            ),
           ),
         );
         expect(first, same(kept));
@@ -172,7 +182,7 @@ void main() {
           ),
         );
 
-        await tester.pumpWidget(const SizedBox());
+        await tester.pumpWidget(MediaScopes.wrap(const SizedBox()));
         expect(() => kept!.isSpoilerRevealed(a), throwsAssertionError);
       },
     );

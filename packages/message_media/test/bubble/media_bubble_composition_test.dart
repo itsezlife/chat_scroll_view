@@ -11,6 +11,8 @@ import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:message_media/message_media.dart';
 
+import '../support/media_scopes.dart';
+
 MediaItem _photo(String id, {ContentSize size = const ContentSize(800, 600)}) =>
     MediaItem(
       id: MediaItemId(id),
@@ -39,6 +41,7 @@ MediaLayoutInput _base(
   double? maxContentWidth,
   MediaLayoutChrome chrome = const MediaLayoutChrome(timeWidth: 30),
 }) => MediaLayoutInput(
+  text: MediaScopes.text,
   items: items,
   availableWidth: width,
   displaySize: Size(width, 640),

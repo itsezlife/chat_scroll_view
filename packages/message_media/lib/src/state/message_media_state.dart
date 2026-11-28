@@ -4,16 +4,15 @@ import 'package:content_model/content_model.dart';
 import 'package:listen/listen.dart';
 import 'package:meta/meta.dart';
 
-/// The one-shot send origin: the rect an outgoing item was picked from, or
-/// null when there is none (or it was already handed out).
+/// A rect of one media item in global coordinates, or null where there is
+/// none: the one-shot send origin an outgoing item was picked from (null
+/// when there is none or it was already handed out), or a mounted view's
+/// answer to where one of its items is drawn (null for one it does not
+/// show).
 ///
 /// Declared here so that the host wires its outbox's `takeSendOrigin` in one
 /// line and neither package depends on the other.
-typedef MediaSendOrigin = Rect? Function(MediaItemId id);
-
-/// A mounted view's answer to where one of its items is drawn, in global
-/// coordinates, or null for an item it does not show.
-typedef MediaOriginRect = Rect? Function(MediaItemId id);
+typedef MediaItemRect = Rect? Function(MediaItemId id);
 
 /// What the chat remembers about one media item.
 @immutable
@@ -44,12 +43,12 @@ final class MessageMediaState {
   ///
   /// [sendOrigin] is the host's one-shot lookup of an outgoing item's origin
   /// rect (usually its outbox's `takeSendOrigin`).
-  MessageMediaState({MediaSendOrigin? sendOrigin}) : _sendOrigin = sendOrigin;
+  MessageMediaState({MediaItemRect? sendOrigin}) : _sendOrigin = sendOrigin;
 
-  final MediaSendOrigin? _sendOrigin;
+  final MediaItemRect? _sendOrigin;
   final Map<MediaItemId, ValueNotifier<MediaItemState>> _items = {};
   final Map<MediaItemId, Offset> _revealOrigins = {};
-  final List<MediaOriginRect> _origins = [];
+  final List<MediaItemRect> _origins = [];
   bool _disposed = false;
 
   /// The state of [id]; notifies only when that item's state changes.
@@ -108,14 +107,14 @@ final class MessageMediaState {
 
   /// Adds a mounted view's lookup to [rectOf]; [detachOrigins] removes it.
   @internal
-  void attachOrigins(MediaOriginRect lookup) {
+  void attachOrigins(MediaItemRect lookup) {
     if (_disposed || _origins.contains(lookup)) return;
     _origins.add(lookup);
   }
 
   /// Removes a lookup [attachOrigins] added.
   @internal
-  void detachOrigins(MediaOriginRect lookup) => _origins.remove(lookup);
+  void detachOrigins(MediaItemRect lookup) => _origins.remove(lookup);
 
   /// Releases the item notifiers; the state is unusable afterwards.
   void dispose() {

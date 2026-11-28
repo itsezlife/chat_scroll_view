@@ -20,6 +20,8 @@ import 'package:golden_baseline/golden_baseline.dart';
 import 'package:message_media/message_media.dart';
 import 'package:mpx_core/mpx_core.dart';
 
+import '../support/media_scopes.dart';
+
 const Color _backdrop = Color(0xFF121215);
 
 /// A picture of [size] painted as a diagonal gradient with a frame, placed
@@ -155,6 +157,7 @@ void main() {
     addTearDown(scope.dispose);
     final layout = policy.layout(
       MediaLayoutInput(
+        text: MediaScopes.text,
         items: items,
         availableWidth: 375,
         displaySize: const Size(375, 640),
@@ -162,20 +165,22 @@ void main() {
       ),
     );
     await tester.pumpWidget(
-      Directionality(
-        textDirection: TextDirection.ltr,
-        child: ContentAssetProvider(
-          scope: scope,
-          child: ColoredBox(
-            color: _backdrop,
-            child: Center(
-              child: RepaintBoundary(
-                child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: MessageMediaView(
-                    layout: layout,
-                    items: items,
-                    policy: policy,
+      MediaScopes.wrap(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: ContentAssetProvider(
+            scope: scope,
+            child: ColoredBox(
+              color: _backdrop,
+              child: Center(
+                child: RepaintBoundary(
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: MessageMediaView(
+                      layout: layout,
+                      items: items,
+                      policy: policy,
+                    ),
                   ),
                 ),
               ),

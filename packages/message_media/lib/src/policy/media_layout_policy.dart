@@ -18,10 +18,19 @@ import 'package:meta/meta.dart';
 /// out. Pure: the same input gives an equal layout.
 ///
 /// [MediaLayoutPolicy] is the default; a host that lays media out its own
-/// way implements this and hands it to the policy whole.
+/// way implements this and hands it to the policy whole. The file rows and
+/// the link preview card are the message media policy's own parts, which
+/// the cells draw by too, so every step is handed them: a step that lays
+/// files or cards out lays them by [fileStack] and [linkPreview], and what
+/// it lays out is what the cells draw.
 abstract interface class MediaLayoutStep {
-  /// Lays [input] out.
-  MediaLayout layout(MediaLayoutInput input);
+  /// Lays [input] out, its file stacks by [fileStack] and its card by
+  /// [linkPreview].
+  MediaLayout layout(
+    MediaLayoutInput input, {
+    required MediaFileStackPolicy fileStack,
+    required LinkPreviewCardPolicy linkPreview,
+  });
 }
 
 /// The fit mode of each box kind alone, and of every box in an album.
@@ -126,19 +135,18 @@ final class MediaFitPolicy {
 /// | [box] | A single box's size and a block's width |
 /// | [mosaicAlgorithm] | Two or more boxes into a mosaic |
 /// | [fit] | Each box kind's fit mode alone, and the album boxes' fit |
-/// | [fileStack] | File and custom items as rows in a vertical stack |
 /// | [captionWidth] | The caption's width metrics (`widenMedia` / `wrapAtMedia`) |
-/// | [card] | The link preview card's geometry |
 ///
 /// ## Blocks
 ///
-/// Consecutive boxes (photo, video, animation) make one mosaic block: one
-/// box laid out alone, two or more by [mosaicAlgorithm] at the block width.
-/// Consecutive file and custom items make one file stack. A list mixing
-/// them gives consecutive blocks in item order, so every item has exactly
-/// one cell. [fileStack] lays a stack's rows out, its width by its own rule
-/// rather than the box budget. The link preview's card comes last, laid
-/// out by [card]; a removed or empty page makes no block.
+/// Consecutive boxes (pictures: photo, video, animation) make one mosaic
+/// block: one box laid out alone, two or more by [mosaicAlgorithm] at the
+/// block width. Consecutive file and custom items make one file stack. A
+/// list mixing them gives consecutive blocks in item order, so every item
+/// has exactly one cell. The file stack policy [layout] is handed lays a
+/// stack's rows out, its width by its own rule rather than the box budget.
+/// The link preview's card comes last, laid out by the card policy it is
+/// handed; a removed or empty page makes no block.
 ///
 /// ## Neighbours
 ///
@@ -151,7 +159,8 @@ final class MediaFitPolicy {
 ///
 /// ## Diagnostics
 ///
-/// A custom kind laid out as a file row reports `media` / `unknownKind`; a
+/// A custom kind laid out as a file row reports `media` / `unknownKind`
+/// once per kind for each diagnostics sink (not on every layout pass); a
 /// box that takes a fallback rule reports `media` / `layoutFallback`, both
 /// with the item's id.
 @immutable
@@ -160,10 +169,8 @@ final class MediaLayoutPolicy implements MediaLayoutStep {
   const MediaLayoutPolicy({
     required this.box,
     required this.fit,
-    required this.fileStack,
     this.mosaicAlgorithm = const GroupedMosaicAlgorithm(),
     this.captionWidth = const MediaCaptionWidthPolicy.android(),
-    this.card = const LinkPreviewCardPolicy.android(),
   });
 
   /// The Android family's layout.
@@ -171,7 +178,6 @@ final class MediaLayoutPolicy implements MediaLayoutStep {
     : this(
         box: const MediaBoxSizing.android(),
         fit: const MediaFitPolicy.android(),
-        fileStack: const MediaFileStackPolicy.android(),
       );
 
   /// The iOS family's layout, with its own mosaic ([IosMosaicAlgorithm]).
@@ -179,10 +185,8 @@ final class MediaLayoutPolicy implements MediaLayoutStep {
     : this(
         box: const MediaBoxSizing.ios(),
         fit: const MediaFitPolicy.ios(),
-        fileStack: const MediaFileStackPolicy.ios(),
         mosaicAlgorithm: const IosMosaicAlgorithm(),
         captionWidth: const MediaCaptionWidthPolicy.ios(),
-        card: const LinkPreviewCardPolicy.ios(),
       );
 
   /// The desktop family's layout, albums by [DesktopMosaicAlgorithm].
@@ -190,10 +194,8 @@ final class MediaLayoutPolicy implements MediaLayoutStep {
     : this(
         box: const MediaBoxSizing.desktop(),
         fit: const MediaFitPolicy.desktop(),
-        fileStack: const MediaFileStackPolicy.desktop(),
         mosaicAlgorithm: const DesktopMosaicAlgorithm(),
         captionWidth: const MediaCaptionWidthPolicy.desktop(),
-        card: const LinkPreviewCardPolicy.desktop(),
       );
 
   /// Box sizing.
@@ -205,23 +207,20 @@ final class MediaLayoutPolicy implements MediaLayoutStep {
   /// Fit modes.
   final MediaFitPolicy fit;
 
-  /// File rows.
-  final MediaFileStackPolicy fileStack;
-
   /// The caption's width metrics.
   final MediaCaptionWidthPolicy captionWidth;
 
-  /// The link preview card.
-  final LinkPreviewCardPolicy card;
-
-  /// Whether [kind] is laid out as a box (else a file row).
-  static bool isBox(MediaItemKind kind) =>
-      kind == MediaItemKind.photo ||
-      kind == MediaItemKind.video ||
-      kind == MediaItemKind.animation;
+  // The custom kinds already reported as unknown, per diagnostics sink: a
+  // layout runs on every rebuild, and one warning per kind says it all.
+  static final Expando<Set<String>> _$reportedKinds = Expando();
 
   @override
-  MediaLayout layout(MediaLayoutInput input) {
+  MediaLayout layout(
+    MediaLayoutInput input, {
+    required MediaFileStackPolicy fileStack,
+    required LinkPreviewCardPolicy linkPreview,
+  }) {
+    final card = linkPreview;
     final runs = _runsOf(input);
     final showsCard = switch (input.linkPreview) {
       MediaLinkPreviewInput(:final page, :final options) =>
@@ -269,8 +268,8 @@ final class MediaLayoutPolicy implements MediaLayoutStep {
   List<({bool boxes, List<MediaItem> items})> _runsOf(MediaLayoutInput input) {
     final runs = <({bool boxes, List<MediaItem> items})>[];
     for (final item in input.items) {
-      final boxes = isBox(item.kind);
-      if (item.kind.isCustom) {
+      final boxes = item.kind.isPicture;
+      if (item.kind.isCustom && _firstReportOf(item.kind)) {
         ChatDiagnostics.current.emit(
           ChatEventLevel.warning,
           ChatEventCategory.media,
@@ -289,6 +288,14 @@ final class MediaLayoutPolicy implements MediaLayoutStep {
       }
     }
     return runs;
+  }
+
+  // Whether [kind] is not yet reported to the current diagnostics sink;
+  // marks it reported.
+  static bool _firstReportOf(MediaItemKind kind) {
+    final sink = ChatDiagnostics.current;
+    final reported = _$reportedKinds[sink] ??= <String>{};
+    return reported.add(kind.value);
   }
 
   MediaBlock _mosaic(
@@ -402,16 +409,12 @@ final class MediaLayoutPolicy implements MediaLayoutStep {
     MediaBoxSizing? box,
     MosaicAlgorithm? mosaicAlgorithm,
     MediaFitPolicy? fit,
-    MediaFileStackPolicy? fileStack,
     MediaCaptionWidthPolicy? captionWidth,
-    LinkPreviewCardPolicy? card,
   }) => MediaLayoutPolicy(
     box: box ?? this.box,
     mosaicAlgorithm: mosaicAlgorithm ?? this.mosaicAlgorithm,
     fit: fit ?? this.fit,
-    fileStack: fileStack ?? this.fileStack,
     captionWidth: captionWidth ?? this.captionWidth,
-    card: card ?? this.card,
   );
 }
 

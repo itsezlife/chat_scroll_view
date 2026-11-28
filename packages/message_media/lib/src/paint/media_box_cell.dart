@@ -6,6 +6,8 @@ import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart';
 import 'package:message_media/src/chrome/media_cell_chrome.dart';
 import 'package:message_media/src/chrome/media_chrome_slots.dart';
+import 'package:message_media/src/diagnostics/media_build_guard.dart';
+import 'package:message_media/src/diagnostics/media_op.dart';
 import 'package:message_media/src/layout/media_corner_radii.dart';
 import 'package:message_media/src/layout/media_layout.dart';
 import 'package:message_media/src/outgoing/media_send_state.dart';
@@ -100,37 +102,36 @@ class MediaBoxCell extends StatelessWidget {
     );
     final slots = data.chrome;
     Widget guarded(
-      String name,
+      MediaBuilder name,
       MediaLoadSlotBuilder? slot,
       BuildContext context,
       AssetLoadState state,
       Widget stock,
-    ) {
-      if (slot == null) return stock;
-      try {
-        return slot(context, chrome, state, stock);
-      } on Object catch (error, stackTrace) {
-        reportMediaChromeFailure(
-          builder: name,
-          itemId: data.item.id,
-          item: data.item,
-          correlation: data.correlation,
-          error: error,
-          stackTrace: stackTrace,
-        );
-        return stock;
-      }
-    }
+    ) => switch (slot) {
+      final slot? => MediaBuildGuard.run(
+        name,
+        item: data.item,
+        correlation: data.correlation,
+        build: () => slot(context, chrome, state, stock),
+        fallback: stock,
+      ),
+      null => stock,
+    };
 
     return AssetViewSkin(
-      badge: (context, state, stock) =>
-          guarded('infoBadge', slots?.infoBadge, context, state, stock),
+      badge: (context, state, stock) => guarded(
+        MediaBuilder.infoBadge,
+        slots?.infoBadge,
+        context,
+        state,
+        stock,
+      ),
       status: (context, state, stock) =>
           switch ((data.sendState, state.transfer)) {
             (MediaSendState.failed, _) => const SizedBox.shrink(),
             (_, AssetTransfer$Sent()) => _ControlsFade(
               child: guarded(
-                'sentCheck',
+                MediaBuilder.sentCheck,
                 slots?.sentCheck ?? MediaSentCheck.builder,
                 context,
                 state,
@@ -139,7 +140,7 @@ class MediaBoxCell extends StatelessWidget {
             ),
             _ => _ControlsFade(
               child: guarded(
-                'statusControl',
+                MediaBuilder.statusControl,
                 slots?.statusControl,
                 context,
                 state,
@@ -200,8 +201,7 @@ class MediaBoxCell extends StatelessWidget {
     null => null,
   };
 
-  bool get _plays =>
-      item.kind == MediaItemKind.video || item.kind == MediaItemKind.animation;
+  bool get _plays => item.kind.plays;
 
   bool get _animates => autoplay && _plays;
 

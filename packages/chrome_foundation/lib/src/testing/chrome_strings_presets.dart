@@ -4,6 +4,7 @@ import 'package:chrome_foundation/src/strings/chrome_strings.dart';
 import 'package:chrome_foundation/src/strings/composer_strings.dart';
 import 'package:chrome_foundation/src/strings/edit_menu_strings.dart';
 import 'package:chrome_foundation/src/strings/formatting_strings.dart';
+import 'package:chrome_foundation/src/strings/media_strings.dart';
 import 'package:chrome_foundation/src/strings/pack_sheet_strings.dart';
 import 'package:chrome_foundation/src/strings/panel_strings.dart';
 import 'package:chrome_foundation/src/strings/semantics_strings.dart';
@@ -290,6 +291,27 @@ abstract final class ChromeStringsPresets {
       selectedMedia: (n) => '$n media selected',
       selectionPreviewTitle: 'Message preview',
       closeSheet: 'Close',
+    ),
+    media: MediaStrings(
+      photoKind: 'Photo',
+      videoKind: 'Video',
+      animationKind: 'GIF',
+      fileKind: 'File',
+      duration: _clockDuration,
+      size: (bytes) => _byteSize(bytes, const ['B', 'KB', 'MB', 'GB']),
+      downloadProgress: (fraction) => switch (fraction) {
+        final measured? => 'Downloading, ${(measured * 100).round()}%',
+        null => 'Downloading',
+      },
+      downloadAction: 'Download',
+      cancelDownloadAction: 'Cancel download',
+      optionsAction: 'More options',
+      pagePreview: 'Page preview',
+      fileProgress: (received, total) => '$received / $total',
+      fileInfo: (size, extension) => [?size, ?extension].join(' '),
+      fileDownload: 'DOWNLOAD',
+      fileOpenWith: 'OPEN WITH',
+      fileCancel: 'CANCEL',
     ),
     semantics: SemanticsStrings(
       panelOpened: 'Panel opened',
@@ -583,6 +605,27 @@ abstract final class ChromeStringsPresets {
       selectionPreviewTitle: 'Предпросмотр сообщения',
       closeSheet: 'Закрыть',
     ),
+    media: MediaStrings(
+      photoKind: 'Фото',
+      videoKind: 'Видео',
+      animationKind: 'GIF',
+      fileKind: 'Файл',
+      duration: _clockDuration,
+      size: (bytes) => _byteSize(bytes, const ['Б', 'КБ', 'МБ', 'ГБ']),
+      downloadProgress: (fraction) => switch (fraction) {
+        final measured? => 'Загрузка, ${(measured * 100).round()}%',
+        null => 'Загрузка',
+      },
+      downloadAction: 'Скачать',
+      cancelDownloadAction: 'Отменить загрузку',
+      optionsAction: 'Другие действия',
+      pagePreview: 'Предпросмотр страницы',
+      fileProgress: (received, total) => '$received / $total',
+      fileInfo: (size, extension) => [?size, ?extension].join(' '),
+      fileDownload: 'СКАЧАТЬ',
+      fileOpenWith: 'ОТКРЫТЬ В',
+      fileCancel: 'ОТМЕНА',
+    ),
     semantics: SemanticsStrings(
       panelOpened: 'Панель открыта',
       panelClosed: 'Панель закрыта',
@@ -622,6 +665,26 @@ String _ru(int n, String one, String few, String many) =>
       _RussianPlural.few => few,
       _RussianPlural.many => many,
     };
+
+// A playback length as a clock: `1:05`, `1:02:05`.
+String _clockDuration(Duration duration) {
+  final seconds = duration.inSeconds;
+  final minutes = seconds ~/ 60;
+  final rest = (seconds % 60).toString().padLeft(2, '0');
+  if (minutes < 60) return '$minutes:$rest';
+  final hours = minutes ~/ 60;
+  return '$hours:${(minutes % 60).toString().padLeft(2, '0')}:$rest';
+}
+
+// A byte count in [units] (bytes, then kilo, mega and giga): `512 B`,
+// `1.2 KB`, `3.4 MB`, `1.25 GB`.
+String _byteSize(int bytes, List<String> units) => switch (bytes) {
+  < 1024 => '$bytes ${units[0]}',
+  < 1024 * 1024 => '${(bytes / 1024).toStringAsFixed(1)} ${units[1]}',
+  < 1024 * 1024 * 1024 =>
+    '${(bytes / (1024 * 1024)).toStringAsFixed(1)} ${units[2]}',
+  _ => '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} ${units[3]}',
+};
 
 const _englishMonths = [
   'January',

@@ -1,12 +1,13 @@
 import 'dart:math' as math;
-import 'dart:ui';
 
+import 'package:chrome_foundation/chrome_foundation.dart' show MediaStrings;
 import 'package:content_model/content_model.dart';
+import 'package:flutter/painting.dart';
 import 'package:message_media/src/layout/media_corner_radii.dart';
 import 'package:message_media/src/layout/media_file_row.dart';
 import 'package:message_media/src/layout/media_layout.dart';
 import 'package:message_media/src/layout/media_layout_input.dart';
-import 'package:message_media/src/policy/media_file_strings.dart';
+import 'package:message_media/src/layout/media_layout_text.dart';
 import 'package:message_media/src/policy/media_file_text.dart';
 import 'package:meta/meta.dart';
 
@@ -508,8 +509,6 @@ final class MediaFileStackPolicy {
     this.infoShowsExtension = false,
     this.tooltipWhenElided = false,
     this.mirrorsInRtl = false,
-    this.strings = MediaFileStrings.english,
-    this.measure = const MediaFileTextMeasure.painter(),
   });
 
   /// The Android family's file rows.
@@ -690,12 +689,6 @@ final class MediaFileStackPolicy {
   /// The thumbnail's corners.
   final MediaFileThumbCorners thumbCorners;
 
-  /// The host's words.
-  final MediaFileStrings strings;
-
-  /// How the layout measures row text.
-  final MediaFileTextMeasure measure;
-
   /// Whether [item] draws a thumbnail: an `image/*` or `video/mp4` file, or
   /// one whose descriptor carries a thumbnail.
   static bool hasThumbnail(MediaItem item) {
@@ -713,9 +706,9 @@ final class MediaFileStackPolicy {
     return fileName.substring(dot + 1).toUpperCase();
   }
 
-  /// [item]'s info line at rest.
-  String infoTextOf(MediaItem item) =>
-      strings.info(switch (item.descriptor.byteSize) {
+  /// [item]'s info line at rest, worded by the host's [strings].
+  String infoTextOf(MediaItem item, MediaStrings strings) =>
+      strings.fileInfo(switch (item.descriptor.byteSize) {
         final bytes? => strings.size(bytes),
         null => null,
       }, infoShowsExtension ? extensionOf(item.descriptor.fileName) : null);
@@ -743,25 +736,23 @@ final class MediaFileStackPolicy {
     required bool isLastBlock,
   }) {
     final grouped = items.length > 1;
+    final type = input.text;
+    final nameStyle = text.nameOver(type.style);
+    final infoStyle = text.infoOver(type.style);
     final prepared = [
       for (final item in items)
         (
           item: item,
           thumbnail: hasThumbnail(item),
           name: item.descriptor.fileName ?? '',
-          info: infoTextOf(item),
+          info: infoTextOf(item, type.strings),
         ),
     ];
     var need = 0.0;
     for (final row in prepared) {
       final metrics = metricsOf(thumbnail: row.thumbnail, grouped: grouped);
-      final name = measure.name(
-        row.name,
-        text,
-        maxWidth: double.infinity,
-        maxLines: 1,
-      );
-      final info = measure.info(row.info, text);
+      final name = type.measureOf(TextSpan(text: row.name, style: nameStyle));
+      final info = type.measureOf(TextSpan(text: row.info, style: infoStyle));
       need = math.max(
         need,
         metrics.textLeft +
@@ -791,13 +782,12 @@ final class MediaFileStackPolicy {
         0,
         stackWidth - metrics.textLeft - metrics.trailingPadding,
       );
-      final name = measure.name(
-        row.name,
-        text,
+      final name = type.measureOf(
+        TextSpan(text: row.name, style: nameStyle),
         maxWidth: textWidth,
         maxLines: row.thumbnail ? nameMaxLinesWithThumbnail : nameMaxLines,
       );
-      final info = measure.info(row.info, text);
+      final info = type.measureOf(TextSpan(text: row.info, style: infoStyle));
       final extra = (name.lines - 1) * metrics.extraNameLineHeight;
       final ownCaption = input.fileCaptionHeights[row.item.id];
       final captionBelow =
@@ -910,8 +900,8 @@ final class MediaFileStackPolicy {
   static (Rect, Rect) _centred(
     MediaFileRowMetrics metrics,
     double textWidth,
-    MediaFileTextSize name,
-    MediaFileTextSize info,
+    MediaTextSize name,
+    MediaTextSize info,
   ) {
     final nameTop =
         metrics.leading.center.dy -
@@ -948,8 +938,6 @@ final class MediaFileStackPolicy {
     bool? mirrorsInRtl,
     MediaFileText? text,
     MediaFileThumbCorners? thumbCorners,
-    MediaFileStrings? strings,
-    MediaFileTextMeasure? measure,
   }) => MediaFileStackPolicy(
     width: width ?? this.width,
     plain: plain ?? this.plain,
@@ -972,8 +960,6 @@ final class MediaFileStackPolicy {
     mirrorsInRtl: mirrorsInRtl ?? this.mirrorsInRtl,
     text: text ?? this.text,
     thumbCorners: thumbCorners ?? this.thumbCorners,
-    strings: strings ?? this.strings,
-    measure: measure ?? this.measure,
   );
 
   @override
@@ -997,9 +983,7 @@ final class MediaFileStackPolicy {
       other.tooltipWhenElided == tooltipWhenElided &&
       other.mirrorsInRtl == mirrorsInRtl &&
       other.text == text &&
-      other.thumbCorners == thumbCorners &&
-      other.strings == strings &&
-      identical(other.measure, measure);
+      other.thumbCorners == thumbCorners;
 
   @override
   int get hashCode => Object.hashAll([
@@ -1022,7 +1006,5 @@ final class MediaFileStackPolicy {
     mirrorsInRtl,
     text,
     thumbCorners,
-    strings,
-    measure,
   ]);
 }

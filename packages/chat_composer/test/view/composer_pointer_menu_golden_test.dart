@@ -58,6 +58,7 @@ final _baselineStrings = ChromeStrings(
   packSheet: _english.packSheet,
   bulletin: _english.bulletin,
   attach: _english.attach,
+  media: _english.media,
   semantics: _english.semantics,
   editMenu: EditMenuStrings(
     undoAction: _english.editMenu.undoAction,

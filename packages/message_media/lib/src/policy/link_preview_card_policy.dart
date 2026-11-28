@@ -9,8 +9,8 @@ import 'package:message_media/src/layout/link_preview_card.dart';
 import 'package:message_media/src/layout/media_corner_radii.dart';
 import 'package:message_media/src/layout/media_layout.dart';
 import 'package:message_media/src/layout/media_layout_input.dart';
+import 'package:message_media/src/layout/media_layout_text.dart';
 import 'package:message_media/src/policy/media_box_sizing.dart';
-import 'package:message_media/src/policy/media_layout_policy.dart';
 import 'package:meta/meta.dart';
 
 // --- Choices ---
@@ -595,7 +595,7 @@ final class LinkPreviewMediaSizeRule {
     LinkPreview page,
   ) {
     if (page.media case final media?
-        when MediaLayoutPolicy.isBox(MediaItemKind.fromDescriptor(media))) {
+        when MediaItemKind.fromDescriptor(media).isPicture) {
       return (descriptor: media, slot: LinkPreviewMediaSlot.media);
     }
     if (page.photo case final photo?) {
@@ -811,98 +811,6 @@ final class LinkPreviewEnlargeButton {
   int get hashCode => Object.hash(size, radius, inset);
 }
 
-/// How a card's text is measured: a piece wrapped at a width within a line
-/// limit.
-///
-/// The layout step is pure but a card's height grows with its text, so it
-/// measures. The default ([LinkPreviewTextMeasure.painter]) lays the text
-/// out with the framework's painter in the default family; a host drawing
-/// in a family of its own passes a measure over it.
-abstract interface class LinkPreviewTextMeasure {
-  /// The framework painter's measure.
-  const factory LinkPreviewTextMeasure.painter() = _PainterTextMeasure;
-
-  /// [text] at [maxWidth] within [maxLines]: its widest line, height and
-  /// line count.
-  ({double width, double height, int lines}) measure(
-    InlineSpan text, {
-    required double maxWidth,
-    required int maxLines,
-  });
-}
-
-final class _PainterTextMeasure implements LinkPreviewTextMeasure {
-  const _PainterTextMeasure();
-
-  @override
-  ({double width, double height, int lines}) measure(
-    InlineSpan text, {
-    required double maxWidth,
-    required int maxLines,
-  }) {
-    final painter = TextPainter(
-      text: text,
-      textDirection: TextDirection.ltr,
-      maxLines: maxLines,
-      ellipsis: '…',
-    )..layout(maxWidth: math.max(0, maxWidth));
-    final lines = painter.computeLineMetrics().length.clamp(1, maxLines);
-    final result = (width: painter.width, height: painter.height, lines: lines);
-    painter.dispose();
-    return result;
-  }
-}
-
-/// The span of a card's description: its text with bold, italic and
-/// strike styles, links in [linkColor].
-///
-/// The layout measures and the card paints the same span, so the lines the
-/// layout counts are the lines drawn.
-TextSpan linkPreviewDescriptionSpan(
-  RichText description,
-  TextStyle style, {
-  Color? linkColor,
-}) {
-  final text = description.plain;
-  if (description.entities.isEmpty) return TextSpan(text: text, style: style);
-  // Cut points at every entity edge, then each run's style from the
-  // entities covering it.
-  final cuts = <int>{0, text.length};
-  for (final entity in description.entities) {
-    cuts
-      ..add(entity.offset.clamp(0, text.length))
-      ..add(entity.end.clamp(0, text.length));
-  }
-  final points = cuts.toList()..sort();
-  final children = <TextSpan>[];
-  for (var i = 0; i + 1 < points.length; i++) {
-    final start = points[i];
-    final end = points[i + 1];
-    if (start == end) continue;
-    var run = style;
-    for (final entity in description.entities) {
-      if (entity.offset > start || entity.end < end) continue;
-      run = switch (entity.kind) {
-        EntityKind$Style(style: EntityStyle.bold) => run.copyWith(
-          fontWeight: FontWeight.w600,
-        ),
-        EntityKind$Style(style: EntityStyle.italic) => run.copyWith(
-          fontStyle: FontStyle.italic,
-        ),
-        EntityKind$Style(style: EntityStyle.strike) => run.copyWith(
-          decoration: TextDecoration.lineThrough,
-        ),
-        EntityKind$Link() when linkColor != null => run.copyWith(
-          color: linkColor,
-        ),
-        _ => run,
-      };
-    }
-    children.add(TextSpan(text: text.substring(start, end), style: run));
-  }
-  return TextSpan(style: style, children: children);
-}
-
 // --- The policy ---
 
 /// How a message's link preview card is laid out and drawn, per platform.
@@ -942,7 +850,6 @@ final class LinkPreviewCardPolicy {
     this.timeSpacing = 0,
     this.defaultTimeHeight = 14,
     this.mirrorsInRtl = false,
-    this.measure = const LinkPreviewTextMeasure.painter(),
   });
 
   /// Android: fill the budget, jump on appear, ripple and bounce, the
@@ -1051,9 +958,6 @@ final class LinkPreviewCardPolicy {
   /// right-to-left chat; the bar is on the leading edge either way.
   final bool mirrorsInRtl;
 
-  /// How the text is measured.
-  final LinkPreviewTextMeasure measure;
-
   /// The card of [input]'s link preview at [top], with [box] the layout's
   /// box sizing (iOS large media follows the box rules); null when there is
   /// no card to draw (no preview, a removed or an empty page).
@@ -1070,6 +974,58 @@ final class LinkPreviewCardPolicy {
     final block = _layout(input, preview, top: top, box: box);
     MediaTrace.end(MediaTrace.cardLayout);
     return block;
+  }
+
+  /// The span of a card's description: its text with bold, italic and
+  /// strike styles, links in [linkColor].
+  ///
+  /// The layout measures and the card paints the same span, so the lines
+  /// the layout counts are the lines drawn.
+  static TextSpan descriptionSpan(
+    RichText description,
+    TextStyle style, {
+    Color? linkColor,
+  }) {
+    final text = description.plain;
+    if (description.entities.isEmpty) {
+      return TextSpan(text: text, style: style);
+    }
+    // Cut points at every entity edge, then each run's style from the
+    // entities covering it.
+    final cuts = <int>{0, text.length};
+    for (final entity in description.entities) {
+      cuts
+        ..add(entity.offset.clamp(0, text.length))
+        ..add(entity.end.clamp(0, text.length));
+    }
+    final points = cuts.toList()..sort();
+    final children = <TextSpan>[];
+    for (var i = 0; i + 1 < points.length; i++) {
+      final start = points[i];
+      final end = points[i + 1];
+      if (start == end) continue;
+      var run = style;
+      for (final entity in description.entities) {
+        if (entity.offset > start || entity.end < end) continue;
+        run = switch (entity.kind) {
+          EntityKind$Style(style: EntityStyle.bold) => run.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+          EntityKind$Style(style: EntityStyle.italic) => run.copyWith(
+            fontStyle: FontStyle.italic,
+          ),
+          EntityKind$Style(style: EntityStyle.strike) => run.copyWith(
+            decoration: TextDecoration.lineThrough,
+          ),
+          EntityKind$Link() when linkColor != null => run.copyWith(
+            color: linkColor,
+          ),
+          _ => run,
+        };
+      }
+      children.add(TextSpan(text: text.substring(start, end), style: run));
+    }
+    return TextSpan(style: style, children: children);
   }
 
   /// Whether [page] has nothing to show: no card is drawn for it.
@@ -1122,7 +1078,8 @@ final class LinkPreviewCardPolicy {
     );
 
     // The pieces of text, in order.
-    const base = TextStyle();
+    final type = input.text;
+    final base = type.style;
     final pieces = <(LinkPreviewCardPart, InlineSpan, int)>[
       if (page.siteName case final site? when site.isNotEmpty)
         (
@@ -1151,19 +1108,15 @@ final class LinkPreviewCardPolicy {
       if (page.description.plain.isNotEmpty)
         (
           LinkPreviewCardPart.description,
-          linkPreviewDescriptionSpan(page.description, text.over(base)),
+          descriptionSpan(page.description, text.over(base)),
           preview.compact
               ? text.descriptionLinesCompact ?? text.descriptionLines
               : text.descriptionLines,
         ),
     ];
     final hasText = pieces.isNotEmpty;
-    final lineHeight = measure
-        .measure(
-          TextSpan(text: 'M', style: text.over(base)),
-          maxWidth: double.infinity,
-          maxLines: 1,
-        )
+    final lineHeight = type
+        .measureOf(TextSpan(text: 'M', style: text.over(base)), ellipsis: true)
         .height;
     final thumb = small
         ? m.thumbnailSize ??
@@ -1173,10 +1126,9 @@ final class LinkPreviewCardPolicy {
               )
         : 0.0;
     final button = switch (preview.buttonLabel) {
-      final label? when label.isNotEmpty => measure.measure(
+      final label? when label.isNotEmpty => type.measureOf(
         TextSpan(text: label, style: text.buttonOver(base)),
-        maxWidth: double.infinity,
-        maxLines: 1,
+        ellipsis: true,
       ),
       _ => null,
     };
@@ -1191,7 +1143,13 @@ final class LinkPreviewCardPolicy {
     };
     final textMax = cardMax - m.textInset.horizontal;
     final beside = thumb > 0 ? thumb + m.thumbnailGap : 0.0;
-    final widest = _layoutText(pieces, textMax, beside, thumb).widest;
+    final widest = _layoutText(
+      input.text,
+      pieces,
+      textMax,
+      beside,
+      thumb,
+    ).widest;
     final contentWidth = hasText
         ? widest + beside + m.textInset.horizontal
         : 0.0;
@@ -1227,7 +1185,7 @@ final class LinkPreviewCardPolicy {
     final cardTop = top + outerTop;
     final textLeft = cardLeft + m.textInset.left;
     final textWidth = cardWidth - m.textInset.horizontal;
-    final laid = _layoutText(pieces, textWidth, beside, thumb);
+    final laid = _layoutText(input.text, pieces, textWidth, beside, thumb);
     final texts = <LinkPreviewCardPiece>[];
     var y = cardTop + m.textInset.top;
     for (final (index, piece) in laid.pieces.indexed) {
@@ -1421,6 +1379,7 @@ final class LinkPreviewCardPolicy {
     pieces,
   })
   _layoutText(
+    MediaLayoutText type,
     List<(LinkPreviewCardPart, InlineSpan, int)> pieces,
     double maxWidth,
     double beside,
@@ -1452,10 +1411,11 @@ final class LinkPreviewCardPolicy {
       );
       var maxLines = lines;
       if (budget != null) maxLines = math.max(1, math.min(maxLines, budget));
-      final measured = measure.measure(
+      final measured = type.measureOf(
         span,
         maxWidth: width,
         maxLines: maxLines,
+        ellipsis: true,
       );
       if (budget != null) budget = math.max(1, budget - measured.lines);
       widest = math.max(widest, measured.width);
@@ -1536,7 +1496,6 @@ final class LinkPreviewCardPolicy {
     double? timeSpacing,
     double? defaultTimeHeight,
     bool? mirrorsInRtl,
-    LinkPreviewTextMeasure? measure,
   }) => LinkPreviewCardPolicy(
     style: style ?? this.style,
     metrics: metrics ?? this.metrics,
@@ -1553,7 +1512,6 @@ final class LinkPreviewCardPolicy {
     timeSpacing: timeSpacing ?? this.timeSpacing,
     defaultTimeHeight: defaultTimeHeight ?? this.defaultTimeHeight,
     mirrorsInRtl: mirrorsInRtl ?? this.mirrorsInRtl,
-    measure: measure ?? this.measure,
   );
 
   @override
@@ -1573,8 +1531,7 @@ final class LinkPreviewCardPolicy {
       other.timeLineHeight == timeLineHeight &&
       other.timeSpacing == timeSpacing &&
       other.defaultTimeHeight == defaultTimeHeight &&
-      other.mirrorsInRtl == mirrorsInRtl &&
-      other.measure == measure;
+      other.mirrorsInRtl == mirrorsInRtl;
 
   @override
   int get hashCode => Object.hash(
@@ -1593,7 +1550,6 @@ final class LinkPreviewCardPolicy {
     timeSpacing,
     defaultTimeHeight,
     mirrorsInRtl,
-    measure,
   );
 }
 

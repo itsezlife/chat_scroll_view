@@ -23,12 +23,34 @@ keeps the default `MediaLayoutPolicy` and replaces one part:
 | `box` (`MediaBoxSizing`) | A single box's size and the width of a block spanning the media budget. `MediaBoxSizing$Android`, `$IOS` and `$Desktop` each list their values, each a field with `copyWith`. |
 | `mosaicAlgorithm` (`MosaicAlgorithm`) | Two or more boxes into a mosaic. `GroupedMosaicAlgorithm` is the default, with rows bounded by half of `max(list width, screen height)`. The iOS policy uses `IosMosaicAlgorithm`: a fixed pattern by orientation for two to four boxes, else the best split into two to four rows, within the list class's max size (300 × 380 compact, 440 × 440 regular). The desktop policy uses `DesktopMosaicAlgorithm`, laid out at 430 and scaled to the block width. |
 | `fit` (`MediaFitPolicy`) | Each box kind's fit mode alone: `crop`, `blurFit`, `cropIfVisible(fraction)`; and `album`, the fit of every box in a mosaic of two or more (`crop` on every platform). |
-| `fileStack` (`MediaFileStackPolicy`) | File and custom items as rows in a vertical stack: the bubble width rule (`MediaFileStackWidth`), row metrics with and without a thumbnail (`MediaFileRowMetrics`, grouped variants on desktop), name lines, pull-ups between rows, the time's growth, the desktop footer line, thumbnail corners (`MediaFileThumbCorners`), mirroring in right-to-left lists, the type (`MediaFileText`), the host's words (`MediaFileStrings`) and the text measure (`MediaFileTextMeasure`). |
+| `captionWidth` (`MediaCaptionWidthPolicy`) | The caption's width metrics. |
 
-Beside the layout step, the policy holds the paint step's parts, each
-replaceable with `copyWith`: `corners` (`MediaCornerPolicy`), `autoplay`
-(`MediaAutoplayPolicy`, a host flag), `cells` (`MediaCellBuilders`),
-`chrome` (`MediaChromeSlots`) and `transition` (`MediaTransitionPolicy`).
+Beside the layout step, the policy holds the parts every step lays out by
+and the cells draw by: `fileStack` (`MediaFileStackPolicy`: file and custom
+items as rows in a vertical stack, with the bubble width rule
+(`MediaFileStackWidth`), row metrics with and without a thumbnail
+(`MediaFileRowMetrics`, grouped variants on desktop), name lines, pull-ups
+between rows, the time's growth, the desktop footer line, thumbnail corners
+(`MediaFileThumbCorners`), mirroring in right-to-left lists and the type
+(`MediaFileText`)) and `linkPreview` (`LinkPreviewCardPolicy`, below). A
+host's own step is handed both, so replacing the step keeps them. Then the
+paint step's parts, each replaceable with `copyWith`: `corners`
+(`MediaCornerPolicy`), `autoplay` (`MediaAutoplayPolicy`, a host flag),
+`cells` (`MediaCellBuilders`), `chrome` (`MediaChromeSlots`) and
+`transition` (`MediaTransitionPolicy`).
+
+## Text and strings
+
+The input's `text` (`MediaLayoutText`) is what the layout measures text with
+and the cells paint it with: the chrome typography as the one base style,
+the platform's text scaler, the host's media strings and the measure
+(`MediaTextMeasure`, the framework painter by default). A host builds it
+with `MediaLayoutText.of(context)` where the view is built, so a themed font
+family or a larger text size lays out exactly the lines it draws. The words
+(file sizes, the info and link lines, what a screen reader hears) are the
+`media` group of the chrome strings (`ChromeStringsScope.mediaOf`); the
+package ships none. English and Russian presets are in
+`package:chrome_foundation/testing.dart`.
 
 ## Layout
 
@@ -60,9 +82,8 @@ as a `MediaFileRow`: the control or thumbnail, the name's box and line
 count, the info line, the desktop link line, whether the time sits on the
 row (the last file), and the slot for the file's own caption
 (`MediaLayoutInput.fileCaptionHeights`, measured by the host, whose text
-body draws it). The layout measures names with `MediaFileTextMeasure`
-(the framework painter by default); a host drawing rows in a font family
-of its own passes a measure over that family.
+body draws it). The layout measures names and info lines in the input's
+`MediaLayoutText`.
 
 ## Paint
 
@@ -83,8 +104,9 @@ custom kinds; default `MediaRowCell`, which draws a `MediaFileRow`: the
 control, or the thumbnail with the control centred on it, the name cut in
 the middle (`MiddleElidedText`; a tooltip with the full name on desktop),
 and the info line, which shows received / total while bytes arrive). Row
-text starts from `ChromeTypography`; sizes and words come from the
-`MediaFileStackPolicy`. Desktop rows mirror in a right-to-left list,
+text is drawn in the layout's `MediaLayoutText` at the
+`MediaFileStackPolicy`'s sizes; the tooltip is the chrome tooltip
+(`ChromeTooltip`) with its own text root. Desktop rows mirror in a right-to-left list,
 mobile rows do not. Replacing one builder leaves the other. The default cells draw through
 `content_assets`' `ContentAssetView`, so the loading stages, status
 control and badge are the media core's; a `ContentAssetProvider` sits
@@ -143,7 +165,7 @@ answered by every mounted view of the chat) for the frame the viewer
 closes on.
 
 Each item is one semantics node: its kind, then duration or size, then
-progress while it loads (`MediaSemanticsStrings`, from the host). The
+progress while it loads (the host's media strings). The
 node's tap opens the item; the status control and the options affordance
 (`onItemMenu`) are separate actions; in message selection the tap toggles.
 
@@ -231,7 +253,7 @@ and tail around it.
 ## Link preview card
 
 The `linkPreview` block is laid out by `LinkPreviewCardPolicy`
-(`MediaLayoutPolicy.card`, `MessageMediaPolicy.linkPreview`; `android()`,
+(`MessageMediaPolicy.linkPreview`; `android()`,
 `ios()`, `desktop()`, every value a field). The host passes the page as
 `MediaLinkPreviewInput` (the message id the media ids derive from, the
 options, the action button's label, compact mode, the chat's direction);
@@ -249,7 +271,8 @@ makes no block.
 | `LinkPreviewCardPress` | The press over `ChromeInk`: ripple and bounce, the inset scale, or the ripple |
 | `photoTapOpensPage`, `LinkPreviewEnlargeButton` | What a tap on the photo of a card with text does |
 | `LinkPreviewTimePlacement` | The time under a last card: its own line, or inside the card |
-| `LinkPreviewTextMeasure` | How the text is measured (the framework painter by default) |
+
+The card's text is measured and drawn in the input's `MediaLayoutText`.
 
 The block carries the page, the media as an ordinary `MediaItem`
 (`MediaItemId.linkPreviewOf`) and its cell, and the `LinkPreviewCard`
@@ -265,8 +288,11 @@ A description link is an ordinary text link. The photo of a card with text
 opens the page where `photoTapOpensPage` says, the desktop's enlarge
 button the viewer. In message selection any tap toggles; a menu request
 on the card carries the part. The press feedback yields its tap to the
-viewport and never runs under a link, the button or the media. Colours are
-the host's (`LinkPreviewCardColors`). One node reads "Page preview, title,
+viewport and never runs under a link, the button or the media. A view with
+no message id has no card part: nothing hits the card and its nodes take
+no tap. Colours are the host's (`LinkPreviewCardColors`), or the chrome
+palette's accent when it passes none; the fill's share in a dark theme
+follows the palette's brightness. One node reads "Page preview, title,
 text"; the button is a node of its own. In a right-to-left chat the bar is
 on the right and, on desktop, the thumbnail on the left.
 
@@ -274,7 +300,7 @@ on the right and, on desktop, the thumbnail on the left.
 
 | Type | Role |
 | --- | --- |
-| `computeSingleMediaSize` | The Android box clamp: scaled into `maxWidth × (maxWidth + 100)`, at least 120 high. |
+| `SingleMediaLayout.compute` | The Android box clamp: scaled into `maxWidth × (maxWidth + 100)`, at least 120 high. |
 | `GroupedMessages`, `GroupedMediaMember` | The default mosaic algorithm in abstract span units (`positionOf(id)`, `captionItemId`). |
 | `GroupedMessagePosition`, `GroupedPositionFlags` | One cell's grid bounds, abstract size and outer edges. |
 | `MosaicLayout`, `MosaicCellLayout` | The positions projected into pixels (`cellOf(id)`), rows by the width or by a given row height unit. |
@@ -287,15 +313,16 @@ on the right and, on desktop, the thumbnail on the left.
 `layoutComputed` (trace) for every layout, `layoutFallback` (debug) when a
 box takes a fallback rule (`mosaicRows` when an iOS pattern would leave a
 box no area and the album is laid in rows), `unknownKind` (warning) when a
-custom kind is drawn as a file row, `cellFailed` (error) when a cell
-builder or a chrome slot throws or a cell's item is missing,
+custom kind is drawn as a file row (once per kind for each diagnostics
+sink), `cellFailed` (error, the `MediaBuilder`) when a cell builder or a
+chrome slot throws or a cell's item is missing,
 `spoilerRevealed` (debug) when a reveal starts (form, reduce motion),
 `transitionStarted` and `transitionInterrupted` (trace) for each layout
 change and each change mid-flight, `hit` (debug) when an activation
 revealed a spoiler or cancelled a download, `activationDropped` (debug)
 for a tap the input guard dropped, `viewerOpened` (info) and
-`originRectMissing` (warning, at open or close); `hit` also reports a
-card's `open` and `action`. For an outgoing message, `uploadState`
+`originRectMissing` (warning, at open or close: `MediaViewerMoment`); `hit`
+also reports a card's `open` and `action` (`MediaHitOutcome`). For an outgoing message, `uploadState`
 (debug) names each change of an item's upload (`sending`, `sent`, `none`)
 with its media key, `itemCancelled` (info) the album's size before and after
 a cross, and `sendOriginFlight` (debug) whether a cell given an origin flew. `linkPreview` / `cardShown` (debug,

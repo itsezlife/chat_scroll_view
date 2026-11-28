@@ -1,9 +1,9 @@
-import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart';
 import 'package:listen/listen.dart' show ValueListenable;
 import 'package:message_media/src/chrome/media_chrome_slots.dart';
 import 'package:message_media/src/chrome/media_options_affordance.dart';
+import 'package:message_media/src/diagnostics/media_build_guard.dart';
 import 'package:message_media/src/diagnostics/media_op.dart';
 import 'package:message_media/src/layout/media_layout.dart';
 import 'package:message_media/src/policy/message_media_policy.dart';
@@ -36,44 +36,6 @@ class MediaControlsScope extends InheritedWidget {
   @override
   bool updateShouldNotify(MediaControlsScope oldWidget) =>
       controls != oldWidget.controls;
-}
-
-/// Reports a chrome slot (or cell builder) that failed as `media` /
-/// `cellFailed` and hands the error to Flutter's error reporting.
-void reportMediaChromeFailure({
-  required String builder,
-  required MediaItemId itemId,
-  required ChatCorrelation correlation,
-  MediaItem? item,
-  Object? error,
-  StackTrace? stackTrace,
-}) {
-  ChatDiagnostics.current.emit(
-    ChatEventLevel.error,
-    ChatEventCategory.media,
-    MediaOp.cellFailed,
-    correlation: ChatCorrelation(
-      chatId: correlation.chatId,
-      scrollId: correlation.scrollId,
-      clientMessageId: correlation.clientMessageId,
-      mediaItemId: itemId.toString(),
-      mediaKey: item?.descriptor.key.mediaKey.encoded,
-    ),
-    fields: () => {
-      'builder': builder,
-      'errorType': ChatEvent.clip(error.runtimeType.toString()),
-    },
-  );
-  if (error != null) {
-    FlutterError.reportError(
-      FlutterErrorDetails(
-        exception: error,
-        stack: stackTrace,
-        library: 'message_media',
-        context: ErrorDescription('while building a media chrome slot'),
-      ),
-    );
-  }
 }
 
 /// The chrome over one cell: the spoiler's cover and its reveal, the
@@ -251,21 +213,17 @@ class _MediaCellChromeState extends State<MediaCellChrome>
     downloadContext: widget.downloadContext,
   );
 
-  Widget _guarded(String builder, Widget Function() build, Widget fallback) {
-    try {
-      return build();
-    } on Object catch (error, stackTrace) {
-      reportMediaChromeFailure(
-        builder: builder,
-        itemId: widget.item.id,
-        item: widget.item,
-        correlation: widget.correlation,
-        error: error,
-        stackTrace: stackTrace,
-      );
-      return fallback;
-    }
-  }
+  Widget _guarded(
+    MediaBuilder builder,
+    Widget Function() build,
+    Widget fallback,
+  ) => MediaBuildGuard.run(
+    builder,
+    item: widget.item,
+    correlation: widget.correlation,
+    build: build,
+    fallback: fallback,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -295,7 +253,7 @@ class _MediaCellChromeState extends State<MediaCellChrome>
             // A spoiler slot that fails must not show what it hides: the
             // fallback is an opaque cover.
             child: _guarded(
-              'spoiler',
+              MediaBuilder.spoiler,
               () => widget.slots.spoiler(
                 context,
                 MediaSpoilerData(
@@ -316,7 +274,7 @@ class _MediaCellChromeState extends State<MediaCellChrome>
               controls: controls,
               selection: widget.selectionProgress,
               child: _guarded(
-                'options',
+                MediaBuilder.options,
                 () => widget.slots.optionsAffordance(
                   context,
                   MediaOptionsData(chrome: _data, affordance: local),

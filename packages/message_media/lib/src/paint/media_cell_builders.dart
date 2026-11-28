@@ -7,7 +7,6 @@ import 'package:message_media/src/outgoing/media_send_state.dart';
 import 'package:message_media/src/paint/media_box_cell.dart';
 import 'package:message_media/src/paint/media_row_cell.dart';
 import 'package:message_media/src/policy/media_file_stack_policy.dart';
-import 'package:message_media/src/policy/media_layout_policy.dart';
 import 'package:message_media/src/policy/message_media_policy.dart';
 import 'package:mpx_core/mpx_core.dart';
 
@@ -126,8 +125,7 @@ final class MediaCellBuilders {
   final MediaCellBuilder row;
 
   /// The builder of a cell of [kind].
-  MediaCellBuilder of(MediaItemKind kind) =>
-      MediaLayoutPolicy.isBox(kind) ? box : row;
+  MediaCellBuilder of(MediaItemKind kind) => kind.isPicture ? box : row;
 
   /// A copy with the given builders replaced.
   MediaCellBuilders copyWith({MediaCellBuilder? box, MediaCellBuilder? row}) =>

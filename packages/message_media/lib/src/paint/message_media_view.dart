@@ -1,10 +1,10 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart'
     show ChatSelectionController;
-import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart';
 import 'package:message_media/src/chrome/media_cell_chrome.dart';
 import 'package:message_media/src/chrome/media_options_affordance.dart';
+import 'package:message_media/src/diagnostics/media_build_guard.dart';
 import 'package:message_media/src/diagnostics/media_op.dart';
 import 'package:message_media/src/diagnostics/media_trace.dart';
 import 'package:message_media/src/gesture/media_viewer_request.dart';
@@ -15,7 +15,6 @@ import 'package:message_media/src/outgoing/media_send_state.dart';
 import 'package:message_media/src/paint/link_preview_card_view.dart';
 import 'package:message_media/src/paint/media_cell_builders.dart';
 import 'package:message_media/src/paint/message_media_body.dart';
-import 'package:message_media/src/policy/media_layout_policy.dart';
 import 'package:message_media/src/policy/message_media_policy.dart';
 import 'package:message_media/src/state/message_media_state.dart';
 import 'package:message_media/src/state/message_media_state_scope.dart';
@@ -118,7 +117,7 @@ class MessageMediaView extends StatelessWidget {
     this.onOpenViewer,
     this.onItemMenu,
     this.onLinkPreview,
-    this.linkPreviewColors = LinkPreviewCardColors.fallback,
+    this.linkPreviewColors,
     this.cardOpacity = 1,
     this.leavingCard,
     this.leavingCardOpacity = 0,
@@ -187,8 +186,9 @@ class MessageMediaView extends StatelessWidget {
   final LinkPreviewActivated? onLinkPreview;
 
   /// The link preview card's colours: the sender's colour on an incoming
-  /// message, the bubble's accent on an outgoing one.
-  final LinkPreviewCardColors linkPreviewColors;
+  /// message, the bubble's accent on an outgoing one; null draws in the
+  /// chrome palette's accent (`LinkPreviewCardColors.of`).
+  final LinkPreviewCardColors? linkPreviewColors;
 
   /// The card's opacity while a transition fades it in.
   final double cardOpacity;
@@ -313,33 +313,30 @@ class MessageMediaView extends StatelessWidget {
   }
 
   Widget _cell(BuildContext context, MediaBlock block, MediaCell cell) {
-    final builderName = MediaLayoutPolicy.isBox(cell.kind) ? 'box' : 'row';
+    final builder = cell.kind.isPicture ? MediaBuilder.box : MediaBuilder.row;
     final data = _dataOf(block, cell);
     if (data == null) {
-      _report(cell, null, builderName, 'missingItem');
-      return const SizedBox.shrink();
-    }
-    final item = data.item;
-    try {
-      return policy.cells.of(cell.kind)(context, data);
-    } on Object catch (error, stackTrace) {
-      _report(cell, item, builderName, error.runtimeType.toString());
-      FlutterError.reportError(
-        FlutterErrorDetails(
-          exception: error,
-          stack: stackTrace,
-          library: 'message_media',
-          context: ErrorDescription('while building a media cell'),
-        ),
+      MediaBuildGuard.report(
+        builder,
+        itemId: cell.itemId,
+        correlation: correlation,
+        errorType: 'missingItem',
       );
       return const SizedBox.shrink();
     }
+    return MediaBuildGuard.run(
+      builder,
+      item: data.item,
+      correlation: correlation,
+      build: () => policy.cells.of(cell.kind)(context, data),
+      fallback: const SizedBox.shrink(),
+    );
   }
 
   MediaCellData? _dataOf(MediaBlock block, MediaCell cell) {
     final item = items[cell.itemId];
     if (item == null) return null;
-    final isRow = !MediaLayoutPolicy.isBox(cell.kind);
+    final isRow = !cell.kind.isPicture;
     return MediaCellData(
       cell: cell,
       item: item,
@@ -355,30 +352,6 @@ class MessageMediaView extends StatelessWidget {
       chrome: policy.chrome,
       correlation: correlation,
       sendState: sendState,
-    );
-  }
-
-  void _report(
-    MediaCell cell,
-    MediaItem? item,
-    String builder,
-    String errorType,
-  ) {
-    ChatDiagnostics.current.emit(
-      ChatEventLevel.error,
-      ChatEventCategory.media,
-      MediaOp.cellFailed,
-      correlation: ChatCorrelation(
-        chatId: correlation.chatId,
-        scrollId: correlation.scrollId,
-        clientMessageId: correlation.clientMessageId,
-        mediaItemId: cell.itemId.toString(),
-        mediaKey: item?.descriptor.key.mediaKey.encoded,
-      ),
-      fields: () => {
-        'builder': builder,
-        'errorType': ChatEvent.clip(errorType),
-      },
     );
   }
 }

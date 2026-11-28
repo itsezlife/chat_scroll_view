@@ -214,6 +214,7 @@ class _DemoMediaBubbleState extends State<DemoMediaBubble> {
       );
       final input = composition.inputFor(
         MediaLayoutInput(
+          text: MediaLayoutText.of(context),
           items: widget.items,
           availableWidth: screen.width,
           displaySize: screen,
@@ -297,7 +298,6 @@ class _DemoMediaBubbleState extends State<DemoMediaBubble> {
               : const Color(0xFF64B5F6),
           text: widget.textStyle.color,
           outgoing: widget.isOutgoing,
-          dark: true,
         ),
       );
       final bubble = DecoratedBox(

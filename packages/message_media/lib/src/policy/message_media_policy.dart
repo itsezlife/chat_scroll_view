@@ -4,7 +4,6 @@ import 'package:message_media/src/chrome/media_chrome_slots.dart';
 import 'package:message_media/src/diagnostics/media_op.dart';
 import 'package:message_media/src/diagnostics/media_trace.dart';
 import 'package:message_media/src/gesture/media_gesture_policy.dart';
-import 'package:message_media/src/gesture/media_semantics_strings.dart';
 import 'package:message_media/src/layout/media_layout.dart';
 import 'package:message_media/src/layout/media_layout_input.dart';
 import 'package:message_media/src/outgoing/media_send_flight_policy.dart';
@@ -35,7 +34,9 @@ enum MessageMediaPlatform {
 /// [MessageMediaPolicy.ios], [MessageMediaPolicy.desktop], or the running
 /// app's with [MessageMediaPolicy.platform]. A host changes one part with
 /// [copyWith]: the layout step as a whole ([layoutStep]) or one of the
-/// default step's parts through [MediaLayoutPolicy.copyWith], the corner
+/// default step's parts through [MediaLayoutPolicy.copyWith], the file rows
+/// ([fileStack]) or the link preview card ([linkPreview]), which every step
+/// lays out by and the cells draw by, the corner
 /// values ([corners]), the autoplay flag ([autoplay]), or one cell builder
 /// ([cells], `MediaCellBuilders.copyWith`) leaving the other, the layout
 /// transition's timings ([transition]), or a sent item's flight from its
@@ -54,11 +55,12 @@ final class MessageMediaPolicy {
     required this.corners,
     required this.autoplay,
     required this.chrome,
+    required this.fileStack,
+    required this.linkPreview,
     this.cells = const MediaCellBuilders(),
     this.transition = const MediaTransitionPolicy.none(),
     this.sendFlight = const MediaSendFlightPolicy.none(),
     this.gestures = const MediaGesturePolicy(),
-    this.semantics = MediaSemanticsStrings.english,
   });
 
   /// The Android family's defaults.
@@ -66,6 +68,8 @@ final class MessageMediaPolicy {
     : this(
         family: MessageMediaPlatform.android,
         layoutStep: const MediaLayoutPolicy.android(),
+        fileStack: const MediaFileStackPolicy.android(),
+        linkPreview: const LinkPreviewCardPolicy.android(),
         corners: const MediaCornerPolicy.android(),
         autoplay: const MediaAutoplayPolicy.android(),
         chrome: const MediaChromeSlots.android(),
@@ -78,6 +82,8 @@ final class MessageMediaPolicy {
     : this(
         family: MessageMediaPlatform.ios,
         layoutStep: const MediaLayoutPolicy.ios(),
+        fileStack: const MediaFileStackPolicy.ios(),
+        linkPreview: const LinkPreviewCardPolicy.ios(),
         corners: const MediaCornerPolicy.ios(),
         autoplay: const MediaAutoplayPolicy.ios(),
         chrome: const MediaChromeSlots.ios(),
@@ -91,6 +97,8 @@ final class MessageMediaPolicy {
     : this(
         family: MessageMediaPlatform.desktop,
         layoutStep: const MediaLayoutPolicy.desktop(),
+        fileStack: const MediaFileStackPolicy.desktop(),
+        linkPreview: const LinkPreviewCardPolicy.desktop(),
         corners: const MediaCornerPolicy.desktop(),
         autoplay: const MediaAutoplayPolicy.desktop(),
         chrome: const MediaChromeSlots.desktop(),
@@ -148,30 +156,13 @@ final class MessageMediaPolicy {
   /// normal mode (`MessageMediaView` with a selection facade).
   final MediaGesturePolicy gestures;
 
-  /// What a screen reader hears for each item.
-  final MediaSemanticsStrings semantics;
+  /// The file rows: the layout step lays file stacks out by it and the row
+  /// cells draw by it, whichever step the policy holds.
+  final MediaFileStackPolicy fileStack;
 
-  /// The file rows' policy the row cells draw by: the default layout
-  /// step's, or the family's own under a host's step.
-  MediaFileStackPolicy get fileStack => switch (layoutStep) {
-    MediaLayoutPolicy(:final fileStack) => fileStack,
-    _ => switch (family) {
-      MessageMediaPlatform.android => const MediaFileStackPolicy.android(),
-      MessageMediaPlatform.ios => const MediaFileStackPolicy.ios(),
-      MessageMediaPlatform.desktop => const MediaFileStackPolicy.desktop(),
-    },
-  };
-
-  /// The link preview card's policy the card draws by: the default layout
-  /// step's, or the family's own under a host's step.
-  LinkPreviewCardPolicy get linkPreview => switch (layoutStep) {
-    MediaLayoutPolicy(:final card) => card,
-    _ => switch (family) {
-      MessageMediaPlatform.android => const LinkPreviewCardPolicy.android(),
-      MessageMediaPlatform.ios => const LinkPreviewCardPolicy.ios(),
-      MessageMediaPlatform.desktop => const LinkPreviewCardPolicy.desktop(),
-    },
-  };
+  /// The link preview card: the layout step lays the card out by it and
+  /// the card draws by it, whichever step the policy holds.
+  final LinkPreviewCardPolicy linkPreview;
 
   /// Lays [input] out with [layoutStep], resolves each cell's corner radii
   /// with [corners] and reports the time pill's rect ([chrome]'s
@@ -213,7 +204,10 @@ final class MessageMediaPolicy {
 
   MediaLayout _layout(MediaLayoutInput input) {
     MediaTrace.begin(MediaTrace.layout);
-    final laid = corners.resolve(layoutStep.layout(input), input);
+    final laid = corners.resolve(
+      layoutStep.layout(input, fileStack: fileStack, linkPreview: linkPreview),
+      input,
+    );
     final result = laid.withTimePill(chrome.timePill.of(laid, input));
     MediaTrace.end(MediaTrace.layout);
     return result;
@@ -227,10 +221,11 @@ final class MessageMediaPolicy {
     MediaAutoplayPolicy? autoplay,
     MediaCellBuilders? cells,
     MediaChromeSlots? chrome,
+    MediaFileStackPolicy? fileStack,
+    LinkPreviewCardPolicy? linkPreview,
     MediaTransitionPolicy? transition,
     MediaSendFlightPolicy? sendFlight,
     MediaGesturePolicy? gestures,
-    MediaSemanticsStrings? semantics,
   }) => MessageMediaPolicy(
     family: family ?? this.family,
     layoutStep: layoutStep ?? this.layoutStep,
@@ -238,9 +233,10 @@ final class MessageMediaPolicy {
     autoplay: autoplay ?? this.autoplay,
     cells: cells ?? this.cells,
     chrome: chrome ?? this.chrome,
+    fileStack: fileStack ?? this.fileStack,
+    linkPreview: linkPreview ?? this.linkPreview,
     transition: transition ?? this.transition,
     sendFlight: sendFlight ?? this.sendFlight,
     gestures: gestures ?? this.gestures,
-    semantics: semantics ?? this.semantics,
   );
 }

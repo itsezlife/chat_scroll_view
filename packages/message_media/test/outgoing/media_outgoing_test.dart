@@ -22,6 +22,8 @@ import 'package:message_media/message_media.dart';
 import 'package:mpx_core/mpx_core.dart';
 import 'package:mpx_core/testing.dart' hide RecordingDiagnostics;
 
+import '../support/media_scopes.dart';
+
 MediaItem _item(String id) => MediaItem(
   id: MediaItemId(id),
   kind: MediaItemKind.photo,
@@ -105,7 +107,7 @@ void main() {
     WidgetTester tester, {
     MessageMediaPolicy policy = const MessageMediaPolicy.android(),
     MediaSendState sendState = MediaSendState.sending,
-    MediaSendOrigin? sendOrigin,
+    MediaItemRect? sendOrigin,
     bool reduceMotion = false,
     bool removesCancelled = true,
   }) async {
@@ -131,54 +133,58 @@ void main() {
       ),
     );
     await tester.pumpWidget(
-      MaterialApp(
-        home: MediaQuery(
-          data: MediaQueryData(
-            size: const Size(400, 600),
-            disableAnimations: reduceMotion,
-          ),
-          child: ContentAssetProvider(
-            scope: scope,
-            child: MessageMediaStateScope(
-              state: state,
-              child: Scaffold(
-                body: SizedBox(
-                  width: 400,
-                  height: 600,
-                  child: ChatScrollView(
-                    dataSource: source,
-                    controller: controller,
-                    selectionController: selection,
-                    messageBuilder: (context, id, message, status, runLayout) =>
-                        ValueListenableBuilder(
-                          valueListenable: items,
-                          builder: (context, list, _) => Align(
-                            alignment: Alignment.centerRight,
-                            child: MessageMediaTransition(
-                              layout: recording.layout(
-                                MediaLayoutInput(
-                                  items: list,
-                                  availableWidth: 300,
-                                  displaySize: const Size(400, 640),
+      MediaScopes.wrap(
+        MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(
+              size: const Size(400, 600),
+              disableAnimations: reduceMotion,
+            ),
+            child: ContentAssetProvider(
+              scope: scope,
+              child: MessageMediaStateScope(
+                state: state,
+                child: Scaffold(
+                  body: SizedBox(
+                    width: 400,
+                    height: 600,
+                    child: ChatScrollView(
+                      dataSource: source,
+                      controller: controller,
+                      selectionController: selection,
+                      messageBuilder:
+                          (context, id, message, status, runLayout) =>
+                              ValueListenableBuilder(
+                                valueListenable: items,
+                                builder: (context, list, _) => Align(
+                                  alignment: Alignment.centerRight,
+                                  child: MessageMediaTransition(
+                                    layout: recording.layout(
+                                      MediaLayoutInput(
+                                        text: MediaScopes.text,
+                                        items: list,
+                                        availableWidth: 300,
+                                        displaySize: const Size(400, 640),
+                                      ),
+                                    ),
+                                    items: list,
+                                    policy: recording,
+                                    selection: selection,
+                                    messageId: id,
+                                    correlation: _correlation,
+                                    sendState: sendState,
+                                    onItemCancelled: (id) {
+                                      cancelled.add(id);
+                                      if (!removesCancelled) return;
+                                      items.value = [
+                                        for (final item in items.value)
+                                          if (item.id != id) item,
+                                      ];
+                                    },
+                                  ),
                                 ),
                               ),
-                              items: list,
-                              policy: recording,
-                              selection: selection,
-                              messageId: id,
-                              correlation: _correlation,
-                              sendState: sendState,
-                              onItemCancelled: (id) {
-                                cancelled.add(id);
-                                if (!removesCancelled) return;
-                                items.value = [
-                                  for (final item in items.value)
-                                    if (item.id != id) item,
-                                ];
-                              },
-                            ),
-                          ),
-                        ),
+                    ),
                   ),
                 ),
               ),
@@ -453,7 +459,7 @@ void main() {
       expect(event.fields, {
         'platform': MessageMediaPlatform.ios,
         'originPresent': true,
-        'outcome': 'flown',
+        'outcome': MediaFlightOutcome.flown,
         'reduceMotion': false,
       });
       expect(event.correlation.mediaItemId, '${const MediaItemId('a')}');
@@ -478,7 +484,7 @@ void main() {
       expect(flying(), findsNothing);
       final events = diagnostics.whereOp(MediaOp.sendOriginFlight);
       expect(events, hasLength(2));
-      expect(events.first.fields['outcome'], 'skipped');
+      expect(events.first.fields['outcome'], MediaFlightOutcome.skipped);
       expect(events.first.fields['reduceMotion'], isTrue);
     });
 

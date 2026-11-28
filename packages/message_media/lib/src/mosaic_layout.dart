@@ -6,29 +6,19 @@ import 'package:message_media/src/grouped_message_position.dart';
 import 'package:message_media/src/media_layout_metrics.dart';
 import 'package:meta/meta.dart';
 
-/// One media item's cell in a projected mosaic: its pixel rect and corner
-/// radii.
+/// One media item's cell in a projected mosaic: its pixel rect.
 ///
-/// Owns: the paint-ready [rect] and [borderRadius] derived from a
-/// [GroupedMessagePosition], addressed by [itemId]. Does not own: fills or
-/// the picture.
+/// Owns: the [rect] derived from a [GroupedMessagePosition], addressed by
+/// [itemId]. Does not own: corner radii (the layout's `MediaCornerPolicy`
+/// resolves them from the cell's neighbours), fills or the picture.
 @immutable
 final class MosaicCellLayout {
   /// Creates a projected cell (normally from [MosaicLayout.project]).
-  const MosaicCellLayout({
-    required this.rect,
-    required this.borderRadius,
-    required this.position,
-  });
+  const MosaicCellLayout({required this.rect, required this.position});
 
   /// Cell bounds in mosaic-local coordinates (origin at the mosaic's top
   /// left).
   final Rect rect;
-
-  /// Outer corners take [MediaLayoutMetrics.mediaOuterRadius] where the
-  /// matching edge flags are present, the others
-  /// [MediaLayoutMetrics.mediaInnerRadius].
-  final BorderRadius borderRadius;
 
   /// The abstract position the cell was projected from.
   final GroupedMessagePosition position;
@@ -40,9 +30,9 @@ final class MosaicCellLayout {
 /// Pixel projection of [GroupedMessagePosition]s into a fixed mosaic width:
 /// the mosaic block of a media layout.
 ///
-/// Owns: the mosaic [size] and its [cells] with seams and radii, each
-/// addressed by its media item ([cellOf]). Does not own: the mosaic
-/// algorithm ([GroupedMessages.calculate]) or the pictures.
+/// Owns: the mosaic [size] and its [cells] with their seams, each addressed
+/// by its media item ([cellOf]). Does not own: the mosaic algorithm
+/// ([GroupedMessages.calculate]), corner radii or the pictures.
 ///
 /// ## Coordinate mapping
 ///
@@ -64,10 +54,8 @@ final class MosaicLayout {
 
   /// Projects [positions] into pixel rects at [mosaicWidth].
   ///
-  /// [bubbleRadius] drives outer corners via
-  /// [MediaLayoutMetrics.mediaOuterRadius]. [maxSizeWidth] / [maxSizeHeight]
-  /// MUST match the calculate pass that produced [positions] (defaults match
-  /// [MediaLayoutMetrics]).
+  /// [maxSizeWidth] / [maxSizeHeight] MUST match the calculate pass that
+  /// produced [positions] (defaults match [MediaLayoutMetrics]).
   ///
   /// [rowHeightUnit] is the pixel height a position's `ph` of 1 maps to.
   /// Null keeps the mosaic's own proportions: [maxSizeHeight] scaled with
@@ -77,7 +65,6 @@ final class MosaicLayout {
     required List<GroupedMessagePosition> positions,
     required double mosaicWidth,
     double cellGap = MediaLayoutMetrics.cellGap,
-    double bubbleRadius = 17,
     double maxSizeWidth = MediaLayoutMetrics.groupedMaxSizeWidth,
     double maxSizeHeight = MediaLayoutMetrics.groupedMaxSizeHeight,
     double? rowHeightUnit,
@@ -88,10 +75,6 @@ final class MosaicLayout {
 
     final sx = mosaicWidth / maxSizeWidth;
     final heightUnit = rowHeightUnit ?? maxSizeHeight * sx;
-    final outerR = MediaLayoutMetrics.mediaOuterRadius(
-      bubbleRadius: bubbleRadius,
-    );
-    const innerR = MediaLayoutMetrics.mediaInnerRadius;
 
     var maxRow = 0;
     for (final p in positions) {
@@ -158,8 +141,6 @@ final class MosaicLayout {
           rowTops: rowTops,
           rowHeights: rowHeights,
           cellGap: cellGap,
-          outerR: outerR,
-          innerR: innerR,
         ),
     ];
 
@@ -201,7 +182,7 @@ final class MosaicLayout {
   }
 
   /// Builds one [MosaicCellLayout] from row bands, then insets shared edges
-  /// by `cellGap / 2` and assigns outer/inner radii from edge flags.
+  /// by `cellGap / 2`.
   ///
   /// Spanning cells (including sibling stacks) use the sum of covered
   /// [rowHeights] so their bottom aligns with the peer column.
@@ -212,8 +193,6 @@ final class MosaicLayout {
     required List<double> rowTops,
     required List<double> rowHeights,
     required double cellGap,
-    required double outerR,
-    required double innerR,
   }) {
     final left = _leftFor(pos, positions, sx);
     final width = pos.pw * sx;
@@ -241,19 +220,6 @@ final class MosaicLayout {
       b -= half;
     }
 
-    return MosaicCellLayout(
-      rect: Rect.fromLTRB(l, t, r, b),
-      borderRadius: BorderRadius.only(
-        topLeft: Radius.circular(pos.hasTop && pos.hasLeft ? outerR : innerR),
-        topRight: Radius.circular(pos.hasTop && pos.hasRight ? outerR : innerR),
-        bottomLeft: Radius.circular(
-          pos.hasBottom && pos.hasLeft ? outerR : innerR,
-        ),
-        bottomRight: Radius.circular(
-          pos.hasBottom && pos.hasRight ? outerR : innerR,
-        ),
-      ),
-      position: pos,
-    );
+    return MosaicCellLayout(rect: Rect.fromLTRB(l, t, r, b), position: pos);
   }
 }

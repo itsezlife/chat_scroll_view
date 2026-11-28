@@ -9,6 +9,10 @@ const _sameInBoth = {
   'panel.tabLabel[gif]',
   'attach.libraryGif',
   'attach.libraryHighQuality',
+  'media.animationKind',
+  'media.duration[90s]',
+  'media.fileProgress[a,b]',
+  'media.fileInfo[size,EXT]',
   'composer.slowModeCountdown[90s]',
 };
 
@@ -49,6 +53,7 @@ void main() {
         'packSheet': 'lib/src/strings/pack_sheet_strings.dart',
         'bulletin': 'lib/src/strings/bulletin_strings.dart',
         'attach': 'lib/src/strings/attach_strings.dart',
+        'media': 'lib/src/strings/media_strings.dart',
       };
       final field = RegExp(r'^  final .+ (\w+);$', multiLine: true);
       for (final group in groups.entries) {

@@ -19,11 +19,13 @@ import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide RichText;
-import 'package:flutter/rendering.dart' show RenderParagraph;
+import 'package:flutter/rendering.dart' show RenderParagraph, SemanticsAction;
 import 'package:flutter/widgets.dart' as widgets show RichText;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:message_media/message_media.dart';
 import 'package:mpx_core/testing.dart' hide RecordingDiagnostics;
+
+import '../support/media_scopes.dart';
 
 final class _Message implements IChatMessage {
   _Message(this.id);
@@ -111,6 +113,7 @@ void main() {
     String? button,
     TextDirection direction = TextDirection.ltr,
   }) => MediaLayoutInput(
+    text: MediaScopes.text,
     items: const [],
     availableWidth: 380,
     displaySize: const Size(400, 600),
@@ -149,43 +152,45 @@ void main() {
     addTearDown(source.dispose);
     final shown = page ?? _page();
     await tester.pumpWidget(
-      MaterialApp(
-        home: ContentAssetProvider(
-          scope: scope,
-          child: MessageMediaStateScope(
-            state: state,
-            child: Scaffold(
-              body: SizedBox(
-                width: 400,
-                height: 600,
-                child: ChatScrollView(
-                  dataSource: source,
-                  controller: controller,
-                  selectionController: selection,
-                  onSecondaryMessageTap: secondaryMenus.add,
-                  messageBuilder: (context, id, message, status, runLayout) {
-                    if (id != _last) return const SizedBox(height: 40);
-                    final layout = policy.layout(
-                      inputOf(shown, button: button),
-                    );
-                    return Align(
-                      alignment: Alignment.centerLeft,
-                      child: MessageMediaView(
-                        layout: layout,
-                        items: const [],
-                        policy: policy,
-                        selection: selection,
-                        messageId: id,
-                        onOpenViewer: opened.add,
-                        onLinkPreview: (part, page) =>
-                            activated.add((part, page)),
-                        correlation: const ChatCorrelation(
-                          chatId: 'chat-1',
-                          scrollId: '3',
+      MediaScopes.wrap(
+        MaterialApp(
+          home: ContentAssetProvider(
+            scope: scope,
+            child: MessageMediaStateScope(
+              state: state,
+              child: Scaffold(
+                body: SizedBox(
+                  width: 400,
+                  height: 600,
+                  child: ChatScrollView(
+                    dataSource: source,
+                    controller: controller,
+                    selectionController: selection,
+                    onSecondaryMessageTap: secondaryMenus.add,
+                    messageBuilder: (context, id, message, status, runLayout) {
+                      if (id != _last) return const SizedBox(height: 40);
+                      final layout = policy.layout(
+                        inputOf(shown, button: button),
+                      );
+                      return Align(
+                        alignment: Alignment.centerLeft,
+                        child: MessageMediaView(
+                          layout: layout,
+                          items: const [],
+                          policy: policy,
+                          selection: selection,
+                          messageId: id,
+                          onOpenViewer: opened.add,
+                          onLinkPreview: (part, page) =>
+                              activated.add((part, page)),
+                          correlation: const ChatCorrelation(
+                            chatId: 'chat-1',
+                            scrollId: '3',
+                          ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
@@ -396,7 +401,10 @@ void main() {
       await tap(tester, globalOf(tester, card, card.button!.rect.center));
       expect(activated.last.$1.zone, LinkPreviewZone.button);
       final events = diagnostics.whereOp(MediaOp.hit);
-      expect([for (final e in events) e.fields['outcome']], ['open', 'action']);
+      expect(
+        [for (final e in events) e.fields['outcome']],
+        [MediaHitOutcome.open, MediaHitOutcome.action],
+      );
       expect([for (final e in events) e.fields['part']], ['body', 'button']);
     });
 
@@ -538,15 +546,17 @@ void main() {
       MessageMediaPolicy policy,
       LinkPreview? page,
     ) => tester.pumpWidget(
-      MaterialApp(
-        home: ContentAssetProvider(
-          scope: scope,
-          child: Align(
-            alignment: Alignment.topLeft,
-            child: MessageMediaTransition(
-              layout: policy.layout(inputOf(page)),
-              items: const [],
-              policy: policy,
+      MediaScopes.wrap(
+        MaterialApp(
+          home: ContentAssetProvider(
+            scope: scope,
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: MessageMediaTransition(
+                layout: policy.layout(inputOf(page)),
+                items: const [],
+                policy: policy,
+              ),
             ),
           ),
         ),
@@ -637,6 +647,7 @@ void main() {
         const composition = MediaBubbleComposition(hasCaption: true);
         final input = composition.inputFor(
           MediaLayoutInput(
+            text: MediaScopes.text,
             items: const [],
             availableWidth: 380,
             displaySize: const Size(400, 600),
@@ -654,16 +665,18 @@ void main() {
             .timeSlot!;
         const timeKey = ValueKey('time');
         await tester.pumpWidget(
-          MaterialApp(
-            home: Align(
-              alignment: Alignment.topLeft,
-              child: MessageMediaBubbleLayout(
-                layout: layout,
-                items: const [],
-                policy: policy,
-                composition: composition,
-                caption: const SizedBox(width: 100, height: 20),
-                time: const SizedBox(key: timeKey),
+          MediaScopes.wrap(
+            MaterialApp(
+              home: Align(
+                alignment: Alignment.topLeft,
+                child: MessageMediaBubbleLayout(
+                  layout: layout,
+                  items: const [],
+                  policy: policy,
+                  composition: composition,
+                  caption: const SizedBox(width: 100, height: 20),
+                  time: const SizedBox(key: timeKey),
+                ),
               ),
             ),
           ),
@@ -683,14 +696,16 @@ void main() {
         inputOf(_page(), direction: TextDirection.rtl),
       );
       await tester.pumpWidget(
-        Directionality(
-          textDirection: TextDirection.rtl,
-          child: Align(
-            alignment: Alignment.topLeft,
-            child: MessageMediaView(
-              layout: layout,
-              items: const [],
-              policy: policy,
+        MediaScopes.wrap(
+          Directionality(
+            textDirection: TextDirection.rtl,
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: MessageMediaView(
+                layout: layout,
+                items: const [],
+                policy: policy,
+              ),
             ),
           ),
         ),
@@ -698,6 +713,39 @@ void main() {
       final block = layout.blocks.whereType<MediaBlock$LinkPreview>().single;
       expect(block.card!.rtl, isTrue);
       expect(cardFinder(), findsOneWidget);
+    });
+  });
+
+  group('no message id', () {
+    testWidgets('a card of no message is no part: its node has no tap and '
+        'the host hears nothing', (tester) async {
+      final handle = tester.ensureSemantics();
+      const policy = MessageMediaPolicy.android();
+      await tester.pumpWidget(
+        MediaScopes.wrap(
+          Directionality(
+            textDirection: TextDirection.ltr,
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: MessageMediaView(
+                layout: policy.layout(inputOf(_page(), button: 'OPEN')),
+                items: const [],
+                policy: policy,
+                onLinkPreview: (part, page) => activated.add((part, page)),
+              ),
+            ),
+          ),
+        ),
+      );
+      for (final label in [
+        'Page preview, A private title, Some private words, read more.',
+        'OPEN',
+      ]) {
+        final node = tester.getSemantics(find.bySemanticsLabel(label));
+        expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isFalse);
+      }
+      expect(activated, isEmpty);
+      handle.dispose();
     });
   });
 }

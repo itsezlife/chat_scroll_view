@@ -11,7 +11,7 @@
 /// status control, the spoiler and its reveal, the options affordance), the
 /// geometry
 /// under it (the single box size
-/// [computeSingleMediaSize], the default mosaic [GroupedMessages] and
+/// [SingleMediaLayout.compute], the default mosaic [GroupedMessages] and
 /// [MosaicLayout], [MediaLayoutMetrics]), what a chat's items remember while
 /// it is open ([MessageMediaState]), and the part a body part hit is on
 /// ([MessageMediaHitPart]) with what a tap on it does ([MediaGesturePolicy],
@@ -40,7 +40,6 @@ export 'src/diagnostics/link_preview_card_op.dart';
 export 'src/diagnostics/media_op.dart';
 export 'src/gesture/media_gesture_policy.dart';
 export 'src/gesture/media_item_action.dart';
-export 'src/gesture/media_semantics_strings.dart';
 export 'src/gesture/media_viewer_request.dart';
 export 'src/grouped_message_position.dart';
 export 'src/grouped_messages.dart';
@@ -49,6 +48,7 @@ export 'src/layout/media_corner_radii.dart';
 export 'src/layout/media_file_row.dart';
 export 'src/layout/media_layout.dart';
 export 'src/layout/media_layout_input.dart';
+export 'src/layout/media_layout_text.dart';
 export 'src/media_layout_metrics.dart';
 export 'src/message_media_hit_part.dart';
 export 'src/mosaic_layout.dart';
@@ -70,7 +70,6 @@ export 'src/policy/media_box_sizing.dart';
 export 'src/policy/media_caption_width_policy.dart';
 export 'src/policy/media_corner_policy.dart';
 export 'src/policy/media_file_stack_policy.dart';
-export 'src/policy/media_file_strings.dart';
 export 'src/policy/media_file_text.dart';
 export 'src/policy/media_layout_policy.dart';
 export 'src/policy/message_media_policy.dart';
