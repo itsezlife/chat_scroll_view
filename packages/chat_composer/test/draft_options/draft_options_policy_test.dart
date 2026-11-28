@@ -195,4 +195,45 @@ void main() {
       DraftOptionsPresentation.web,
     );
   });
+
+  group('keyboard', () {
+    test('Android holds the keyboard, reopening it 50 ms into the close and '
+        'ending the hold 15 ms after the full close', () {
+      final keyboard = const DraftOptionsPolicy$Android().keyboard;
+
+      expect(keyboard.intent, ComposerKeyboardIntent.hold);
+      expect(keyboard.reopenDelay, const Duration(milliseconds: 50));
+      expect(keyboard.holdReleaseDelay, const Duration(milliseconds: 15));
+    });
+
+    test('iOS keeps the keyboard: the overlay draws above it', () {
+      expect(
+        const DraftOptionsPolicy$IOS().keyboard.intent,
+        ComposerKeyboardIntent.keep,
+      );
+      expect(
+        const DraftOptionsPolicy$IOS(iPad: true).keyboard.intent,
+        ComposerKeyboardIntent.keep,
+      );
+    });
+
+    test('desktop and the web have no soft keyboard to change', () {
+      expect(
+        const DraftOptionsPolicy$Desktop().keyboard.intent,
+        ComposerKeyboardIntent.keep,
+      );
+      expect(
+        const DraftOptionsPolicy$Web().keyboard.intent,
+        ComposerKeyboardIntent.keep,
+      );
+    });
+
+    test('a host may override it', () {
+      const policy = DraftOptionsPolicy.android(
+        keyboard: DraftOptionsKeyboard.keep,
+      );
+
+      expect(policy.keyboard.intent, ComposerKeyboardIntent.keep);
+    });
+  });
 }

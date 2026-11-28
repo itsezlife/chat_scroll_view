@@ -18,6 +18,7 @@ export 'src/draft_options/draft_options_policy.dart';
 export 'src/draft_options/draft_options_session.dart';
 export 'src/draft_options/overlay_op.dart';
 export 'src/input/composer_controller.dart';
+export 'src/input/composer_keyboard_intent.dart';
 export 'src/input/composer_paste.dart';
 export 'src/input/soft_keyboard_mode.dart';
 export 'src/link_preview/link_preview_dismissal.dart';

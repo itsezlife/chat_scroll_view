@@ -1,3 +1,4 @@
+import 'package:chat_composer/src/input/composer_keyboard_intent.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/foundation.dart';
 
@@ -57,6 +58,46 @@ enum DraftOptionsPresentation {
   web,
 }
 
+/// What the draft options overlay asks of the soft keyboard: the [intent]
+/// it states on open while the keyboard is up, and when a held keyboard
+/// comes back on close.
+@immutable
+final class DraftOptionsKeyboard {
+  /// A keyboard rule; see the fields.
+  const DraftOptionsKeyboard({
+    required this.intent,
+    this.reopenDelay = Duration.zero,
+    this.holdReleaseDelay = Duration.zero,
+  });
+
+  /// The keyboard hides under the overlay and its height stays occupied, so
+  /// the composer does not drop; on close it reopens 50 ms after the close
+  /// starts and the hold ends 15 ms after the overlay is gone. The Android
+  /// default.
+  static const hold = DraftOptionsKeyboard(
+    intent: ComposerKeyboardIntent.hold,
+    reopenDelay: ChromeKeyboardTiming.heldReopen,
+    holdReleaseDelay: ChromeKeyboardTiming.holdRelease,
+  );
+
+  /// The keyboard is left as it is: the overlay draws above it, or there is
+  /// no soft keyboard.
+  static const keep = DraftOptionsKeyboard(intent: ComposerKeyboardIntent.keep);
+
+  /// What the overlay states on open while the keyboard is up; an overlay
+  /// opened with the keyboard down keeps it.
+  final ComposerKeyboardIntent intent;
+
+  /// From the start of a close to the reopening of a held keyboard, which
+  /// then rises while the overlay fades, under the held height. A close by
+  /// the remove row does not reopen it.
+  final Duration reopenDelay;
+
+  /// From the overlay's full close to the end of the hold. A keyboard that
+  /// reopened takes the held height over; otherwise the slot shrinks.
+  final Duration holdReleaseDelay;
+}
+
 /// How the draft options are presented and applied on one platform family:
 /// a pure-Dart value, chosen like the composer's other policies.
 ///
@@ -75,6 +116,7 @@ sealed class DraftOptionsPolicy {
     required this.apply,
     required this.opensOnPending,
     required this.title,
+    required this.keyboard,
   });
 
   /// See [DraftOptionsPolicy$Android].
@@ -84,6 +126,7 @@ sealed class DraftOptionsPolicy {
     bool opensOnPending,
     DraftOptionsTitle title,
     ChromeScrimPreset scrim,
+    DraftOptionsKeyboard keyboard,
   }) = DraftOptionsPolicy$Android;
 
   /// See [DraftOptionsPolicy$IOS].
@@ -94,6 +137,7 @@ sealed class DraftOptionsPolicy {
     bool opensOnPending,
     DraftOptionsTitle title,
     ChromeScrimPreset? scrim,
+    DraftOptionsKeyboard keyboard,
   }) = DraftOptionsPolicy$IOS;
 
   /// See [DraftOptionsPolicy$Desktop].
@@ -103,6 +147,7 @@ sealed class DraftOptionsPolicy {
     bool opensOnPending,
     DraftOptionsTitle title,
     ChromeScrimPreset scrim,
+    DraftOptionsKeyboard keyboard,
   }) = DraftOptionsPolicy$Desktop;
 
   /// See [DraftOptionsPolicy$Web].
@@ -110,6 +155,7 @@ sealed class DraftOptionsPolicy {
     List<DraftPart> partOrder,
     DraftOptionsApply apply,
     bool opensOnPending,
+    DraftOptionsKeyboard keyboard,
   }) = DraftOptionsPolicy$Web;
 
   /// The default of [platform]: Android (and Fuchsia), iOS (the iPad form
@@ -147,6 +193,9 @@ sealed class DraftOptionsPolicy {
   /// What heads a page.
   final DraftOptionsTitle title;
 
+  /// What the overlay asks of the soft keyboard.
+  final DraftOptionsKeyboard keyboard;
+
   /// The presentation family, for the overlay's events.
   DraftOptionsPresentation get presentation;
 
@@ -178,6 +227,7 @@ final class DraftOptionsPolicy$Android extends DraftOptionsPolicy {
     super.opensOnPending = true,
     super.title = DraftOptionsTitle.titleAndSubtitle,
     this.scrim = ChromeScrimPreset.android,
+    super.keyboard = DraftOptionsKeyboard.hold,
   });
 
   @override
@@ -204,6 +254,7 @@ final class DraftOptionsPolicy$IOS extends DraftOptionsPolicy {
     super.opensOnPending = true,
     super.title = DraftOptionsTitle.none,
     ChromeScrimPreset? scrim,
+    super.keyboard = DraftOptionsKeyboard.keep,
   }) : _scrim = scrim;
 
   /// Whether the window is regular width: the iPad form.
@@ -235,6 +286,7 @@ final class DraftOptionsPolicy$Desktop extends DraftOptionsPolicy {
     super.opensOnPending = false,
     super.title = DraftOptionsTitle.titleWithOnePart,
     this.scrim = ChromeScrimPreset.desktop,
+    super.keyboard = DraftOptionsKeyboard.keep,
   });
 
   @override
@@ -256,6 +308,7 @@ final class DraftOptionsPolicy$Web extends DraftOptionsPolicy {
     ],
     super.apply = DraftOptionsApply.liveApply,
     super.opensOnPending = true,
+    super.keyboard = DraftOptionsKeyboard.keep,
   }) : super(title: DraftOptionsTitle.none);
 
   @override

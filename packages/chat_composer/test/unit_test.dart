@@ -9,6 +9,8 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'boundaries_test.dart' as boundaries_test;
+import 'draft_options/draft_options_keyboard_test.dart'
+    as draft_options_keyboard_test;
 import 'draft_options/draft_options_overlay_test.dart'
     as draft_options_overlay_test;
 import 'draft_options/draft_options_policy_test.dart'
@@ -24,6 +26,8 @@ import 'input/composer_draft_contract_test.dart'
 import 'input/composer_edit_state_test.dart' as composer_edit_state_test;
 import 'input/composer_field_integration_test.dart'
     as composer_field_integration_test;
+import 'input/composer_keyboard_intent_test.dart'
+    as composer_keyboard_intent_test;
 import 'input/composer_lists_paste_test.dart' as composer_lists_paste_test;
 import 'input/composer_mentions_test.dart' as composer_mentions_test;
 import 'input/composer_paste_report_test.dart' as composer_paste_report_test;
@@ -103,6 +107,10 @@ import 'view/composer_view_test.dart' as composer_view_test;
 void main() {
   group('boundaries_test.dart', boundaries_test.main);
   group(
+    'draft_options/draft_options_keyboard_test.dart',
+    draft_options_keyboard_test.main,
+  );
+  group(
     'draft_options/draft_options_overlay_test.dart',
     draft_options_overlay_test.main,
   );
@@ -131,6 +139,10 @@ void main() {
   group(
     'input/composer_field_integration_test.dart',
     composer_field_integration_test.main,
+  );
+  group(
+    'input/composer_keyboard_intent_test.dart',
+    composer_keyboard_intent_test.main,
   );
   group('input/composer_lists_paste_test.dart', composer_lists_paste_test.main);
   group('input/composer_mentions_test.dart', composer_mentions_test.main);

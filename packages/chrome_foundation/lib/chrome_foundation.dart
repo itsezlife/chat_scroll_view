@@ -45,6 +45,7 @@ export 'src/motion/chrome_countdown_timing.dart';
 export 'src/motion/chrome_hint_timing.dart';
 export 'src/motion/chrome_ink.dart';
 export 'src/motion/chrome_ink_scale.dart';
+export 'src/motion/chrome_keyboard_timing.dart';
 export 'src/motion/chrome_motion.dart';
 export 'src/motion/chrome_motion_scope.dart';
 export 'src/motion/chrome_motion_speed.dart';

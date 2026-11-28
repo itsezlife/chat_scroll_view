@@ -58,4 +58,10 @@ enum OverlayOp implements DiagnosticOp {
 
   /// A copy local to the overlay was dropped unsaved (debug): its `edits`.
   editsDiscarded,
+
+  /// The overlay stated a keyboard intent through the composer (debug): the
+  /// `intent` (`keep`, `hold`, `hide`), whether the keyboard was up on open
+  /// (`keyboardWasUp`) and whether a held keyboard was reopened
+  /// (`reopened`). Once on open, and once more when a hold ends.
+  keyboardIntent,
 }

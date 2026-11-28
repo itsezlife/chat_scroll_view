@@ -6,6 +6,8 @@ import 'package:chat_composer/src/draft_options/draft_options_host.dart';
 import 'package:chat_composer/src/draft_options/draft_options_policy.dart';
 import 'package:chat_composer/src/draft_options/draft_options_session.dart';
 import 'package:chat_composer/src/draft_options/overlay_op.dart';
+import 'package:chat_composer/src/input/composer_controller.dart';
+import 'package:chat_composer/src/input/composer_keyboard_intent.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart' hide RichText;
 import 'package:content_model/content_model.dart' as model show RichText;
@@ -25,6 +27,12 @@ import 'package:flutter/widgets.dart';
 /// overlay that is up then closes with its animation, and the draft's
 /// preview is reported removed after it is gone.
 ///
+/// Given the [composer], it states the policy's keyboard intent through it
+/// ([DraftOptionsPolicy.keyboard]): a raised keyboard held under the
+/// overlay is reopened as it closes and its hold ended once it is gone; the
+/// remove row ends the hold with [ComposerKeyboardIntent.hide]. The host
+/// carries the intent out.
+///
 /// The web's [DraftOptionsPolicy$Web] has no overlay; its menu is a
 /// different surface, and [open] asserts it is not asked for one.
 final class DraftOptionsController {
@@ -33,11 +41,13 @@ final class DraftOptionsController {
   ///
   /// [correlation] gives the ids of its events (the chat);
   /// [reduceTransparency] is the host's setting, which leaves the scrim
-  /// without its still.
+  /// without its still; [composer] is the composer whose keyboard the
+  /// overlay states its intent through, none stating nothing.
   DraftOptionsController({
     required this.policy,
     required this.host,
     required this.bubbleBuilder,
+    this.composer,
     ComposerClock clock = ComposerClock.system,
     ChatCorrelation Function()? correlation,
     this.reduceTransparency = false,
@@ -58,6 +68,9 @@ final class DraftOptionsController {
   /// Builds the live preview.
   final DraftOptionsBubbleBuilder bubbleBuilder;
 
+  /// The composer the keyboard intent is stated through; null states none.
+  final ComposerController? composer;
+
   /// Whether the scrim takes no still, for the host's reduce-transparency
   /// setting.
   final bool reduceTransparency;
@@ -68,6 +81,10 @@ final class DraftOptionsController {
   DateTime? _acceptedAt;
   bool _allowed = true;
   bool _disposed = false;
+  // A hold's pending reopen and release, from the last close.
+  ComposerTimer? _reopenTimer;
+  ComposerTimer? _releaseTimer;
+  var _releaseReopened = false;
 
   /// The open overlay's session, or null when none is up. A session that is
   /// closing stays here until its overlay is gone.
@@ -139,6 +156,9 @@ final class DraftOptionsController {
       return false;
     }
     _acceptedAt = now;
+    final keyboardWasUp =
+        (MediaQuery.maybeViewInsetsOf(context)?.bottom ?? 0) > 0;
+    final held = _stateKeyboard(keyboardWasUp: keyboardWasUp);
     late final _OpenOverlay open;
     final session = DraftOptionsSession(
       policy: policy,
@@ -148,7 +168,7 @@ final class DraftOptionsController {
       page: page,
       origin: stripRect,
       clock: _clock,
-      keyboardWasUp: (MediaQuery.maybeViewInsetsOf(context)?.bottom ?? 0) > 0,
+      keyboardWasUp: keyboardWasUp,
       correlation: _correlation,
       onClose: (trigger) => _closed(open, trigger),
     );
@@ -173,7 +193,7 @@ final class DraftOptionsController {
             _clock.now().difference(now) < openGuard && !session.isClosing,
       ),
     );
-    open = _open = _OpenOverlay(session, scrim, entry);
+    open = _open = _OpenOverlay(session, scrim, entry, held: held);
     Overlay.of(context, rootOverlay: true).insert(entry);
     return true;
   }
@@ -186,7 +206,98 @@ final class DraftOptionsController {
     if (_open case final open?) {
       open.session.close(DraftOptionsCloseTrigger.disposed);
     }
+    _reopenTimer?.cancel();
+    if (_releaseTimer case final release?) {
+      // A hold still waiting for its release ends now, without its delay.
+      release.cancel();
+      _releaseHold(reopened: _releaseReopened);
+    }
   }
+
+  // --- Keyboard intent ---
+
+  /// States the policy's intent for an open with [keyboardWasUp]; true when
+  /// it holds the keyboard.
+  bool _stateKeyboard({required bool keyboardWasUp}) {
+    final composer = this.composer;
+    if (composer == null) return false;
+    _reopenTimer?.cancel();
+    _reopenTimer = null;
+    _releaseTimer?.cancel();
+    _releaseTimer = null;
+    final intent = switch (policy.keyboard.intent) {
+      // Nothing to hold: the keyboard is down.
+      ComposerKeyboardIntent.hold when !keyboardWasUp =>
+        ComposerKeyboardIntent.keep,
+      final intent => intent,
+    };
+    composer.setKeyboardIntent(intent);
+    _emitIntent(intent, keyboardWasUp: keyboardWasUp, reopened: false);
+    return intent == ComposerKeyboardIntent.hold;
+  }
+
+  /// A held keyboard on a close by [trigger]: reopened after the policy's
+  /// delay unless the remove row closed it or the owner went away.
+  void _closeKeyboard(DraftOptionsCloseTrigger trigger) {
+    final composer = this.composer;
+    if (composer == null) return;
+    final reopens = switch (trigger) {
+      DraftOptionsCloseTrigger.remove ||
+      DraftOptionsCloseTrigger.disposed => false,
+      _ => true,
+    };
+    if (!reopens) return;
+    _reopenTimer = _clock.after(policy.keyboard.reopenDelay, () {
+      _reopenTimer = null;
+      composer.reopenKeyboard();
+    });
+  }
+
+  /// Ends a hold once the overlay is gone, after the policy's delay; at once
+  /// for a controller going away.
+  void _scheduleRelease(DraftOptionsCloseTrigger trigger) {
+    final reopened = switch (trigger) {
+      DraftOptionsCloseTrigger.remove ||
+      DraftOptionsCloseTrigger.disposed => false,
+      _ => true,
+    };
+    if (_disposed) {
+      _releaseHold(reopened: reopened);
+      return;
+    }
+    _releaseReopened = reopened;
+    _releaseTimer = _clock.after(
+      policy.keyboard.holdReleaseDelay,
+      () => _releaseHold(reopened: reopened),
+    );
+  }
+
+  void _releaseHold({required bool reopened}) {
+    _releaseTimer = null;
+    final composer = this.composer;
+    if (composer == null) return;
+    final intent = reopened
+        ? ComposerKeyboardIntent.keep
+        : ComposerKeyboardIntent.hide;
+    composer.setKeyboardIntent(intent);
+    _emitIntent(intent, keyboardWasUp: true, reopened: reopened);
+  }
+
+  void _emitIntent(
+    ComposerKeyboardIntent intent, {
+    required bool keyboardWasUp,
+    required bool reopened,
+  }) => _emit(
+    ChatEventLevel.debug,
+    OverlayOp.keyboardIntent,
+    () => {
+      'intent': intent.name,
+      'keyboardWasUp': keyboardWasUp,
+      'reopened': reopened,
+    },
+  );
+
+  // --- Closing ---
 
   void _closed(_OpenOverlay open, DraftOptionsCloseTrigger trigger) {
     if (trigger == DraftOptionsCloseTrigger.disposed) {
@@ -194,10 +305,12 @@ final class DraftOptionsController {
     } else {
       open.scrim.close();
     }
+    if (open.held) _closeKeyboard(trigger);
     unawaited(
       open.scrim.done.then((_) {
         open.entry.remove();
         if (identical(_open, open)) _open = null;
+        if (open.held) _scheduleRelease(trigger);
         if (trigger == DraftOptionsCloseTrigger.denied) {
           open.session.reportRemoved();
         }
@@ -283,11 +396,14 @@ final class DraftOptionsController {
 }
 
 final class _OpenOverlay {
-  _OpenOverlay(this.session, this.scrim, this.entry);
+  _OpenOverlay(this.session, this.scrim, this.entry, {required this.held});
 
   final DraftOptionsSession session;
   final ChromeScrimController scrim;
   final OverlayEntry entry;
+
+  /// Whether this open holds the keyboard.
+  final bool held;
 }
 
 /// The draft options overlay's skin: the scrim, the text root and the open
