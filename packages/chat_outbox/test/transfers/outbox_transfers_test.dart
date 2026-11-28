@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' show AppLifecycleState;
 
@@ -285,6 +286,25 @@ void main() {
       });
     });
   }
+
+  // A widget test runs the host on a fake clock: the first list must not
+  // wait for the real event loop (a `pendingFor` reads it with `first`).
+  testWidgets('FakeOutboxTransfers: the first list of watchJobs arrives on a '
+      'fake clock', (tester) async {
+    final transfers = FakeOutboxTransfers();
+    List<PublishJobSnapshot>? first;
+    unawaited(
+      transfers
+          .watchJobs(const PublishJobFilter(tagPrefix: 'chat:c1:'))
+          .first
+          .then((jobs) => first = jobs),
+    );
+
+    await tester.pump();
+
+    expect(first, isEmpty);
+    expect(transfers.watcherCount, 0);
+  });
 }
 
 /// A job of items [itemIds] the server already has (nothing to upload).

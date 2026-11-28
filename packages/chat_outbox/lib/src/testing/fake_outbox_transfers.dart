@@ -339,9 +339,13 @@ final class FakeOutboxTransfers implements OutboxTransfers {
         _$watchers.add(watcher);
         watcher.send(_jobs);
       },
+      // The close is not the cancel's future: a stream closed after its
+      // listener left completes its done future only on the real event
+      // loop, so `first` (which awaits the cancel) never answered on a
+      // widget test's fake clock.
       onCancel: () {
         _$watchers.remove(watcher);
-        return watcher.controller.close();
+        unawaited(watcher.controller.close());
       },
     );
     watcher = _Watcher(filter, controller);
