@@ -56,6 +56,21 @@ extension type const ChromeIconId._(String value) {
   /// Locked: an input the user may not use here.
   static const ChromeIconId lock = ChromeIconId('lock');
 
+  /// Move up: what a choice of position moves above the text.
+  static const ChromeIconId moveUp = ChromeIconId('moveUp');
+
+  /// Move down: what a choice of position moves below the text.
+  static const ChromeIconId moveDown = ChromeIconId('moveDown');
+
+  /// Enlarge, such as a preview's media.
+  static const ChromeIconId enlarge = ChromeIconId('enlarge');
+
+  /// Shrink, such as a preview's media.
+  static const ChromeIconId shrink = ChromeIconId('shrink');
+
+  /// Delete or remove.
+  static const ChromeIconId delete = ChromeIconId('delete');
+
   /// Every id the stock registry paints.
   static const List<ChromeIconId> stockIds = [
     emoji,
@@ -73,5 +88,10 @@ extension type const ChromeIconId._(String value) {
     reply,
     edit,
     lock,
+    moveUp,
+    moveDown,
+    enlarge,
+    shrink,
+    delete,
   ];
 }

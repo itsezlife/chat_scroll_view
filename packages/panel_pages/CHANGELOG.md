@@ -6,6 +6,18 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Changed (content preview backdrop)
+
+- `ContentPreviewSession` draws its still and dim through chrome_foundation's
+  `ChromeScrim` with `ChromeScrimPreset.contentPreview`. The scrim's phases
+  are `overlay` events (`ContentPreviewOp`, owner `contentPreview`, with the
+  `preset` and the phase's fields, enums by name; a failed capture carries
+  its error and stack), and its capture and still are the
+  `chat_scroll_view.overlay.scrimCapture` and `…scrimStill` timeline
+  sections in a traced build. Back closes an open preview through the
+  scrim's back listener, and the host's `ContentPreviewController.dismiss`
+  closes it too.
+
 ### Changed (tooltip)
 
 - The catalogue's pointer tooltip draws chrome_foundation's `ChromeTooltip`,

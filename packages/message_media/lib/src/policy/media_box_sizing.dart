@@ -49,11 +49,12 @@ final class MediaBoxResult {
   String toString() => 'MediaBoxResult($size, $fallbacks)';
 }
 
-/// How a platform sizes media boxes: a single box from its picture, and the
+/// How a platform sizes media boxes: a single box from its picture, the
 /// width of a block that spans the media budget (an album, a file stack, a
-/// link preview card).
+/// link preview card), and the large media of a link preview card that fits
+/// its media.
 ///
-/// The three defaults differ in shape, not only in values, so each is its
+/// The four defaults differ in shape, not only in values, so each is its
 /// own class with its own fields; a host changes a value with that class's
 /// `copyWith`, or extends this class for a sizing of its own.
 @immutable
@@ -70,12 +71,21 @@ abstract base class MediaBoxSizing {
   /// The desktop family's sizing.
   const factory MediaBoxSizing.desktop() = MediaBoxSizing$Desktop;
 
+  /// The web's sizing, by the window's width class.
+  const factory MediaBoxSizing.web() = MediaBoxSizing$Web;
+
   /// The box of [item], a photo, video or animation, laid out alone.
   MediaBoxResult single(MediaItem item, MediaLayoutInput input);
 
   /// The width of a block that spans the media budget: a mosaic of two or
   /// more boxes, a file stack and a link preview card.
   double blockWidth(MediaLayoutInput input);
+
+  /// The natural box of [item] as a link preview card's large media, which
+  /// a card that fits its media (`LinkPreviewCardWidth.fitMedia`) is laid
+  /// out by; [single] unless the sizing has a box of its own for it.
+  MediaBoxResult linkPreviewMedia(MediaItem item, MediaLayoutInput input) =>
+      single(item, input);
 }
 
 // --- Android ---
@@ -632,5 +642,197 @@ final class MediaBoxSizing$Desktop extends MediaBoxSizing {
     minWidthWithoutBubble: minWidthWithoutBubble ?? this.minWidthWithoutBubble,
     minHeight: minHeight ?? this.minHeight,
     lessCropGrowth: lessCropGrowth ?? this.lessCropGrowth,
+  );
+}
+
+// --- Web ---
+
+/// The web's box sizing: the box follows the window's width class
+/// (`MediaLayoutInput.windowWidthClass`), a smaller set on a compact window
+/// and a larger one on a medium or expanded window, so a resize across the
+/// compact bound re-lays the boxes out.
+///
+/// | Field | Value | Role |
+/// | --- | --- | --- |
+/// | [compactBox] | 340 × 340 | Max box for a photo or video, compact window |
+/// | [regularBox] | 420 × 400 | The same, medium or expanded window |
+/// | [compactLinkPreviewBox] | 340 × 200 | Max box for a link preview's large media, compact |
+/// | [regularLinkPreviewBox] | 420 × 380 | The same, medium or expanded |
+/// | [compactAlbumWidth] | 340 | Album (and spanning block) width, compact |
+/// | [regularAlbumWidth] | 420 | The same, medium or expanded |
+/// | [minSide] | 200 | A picture smaller on both sides grows until one side reaches this |
+/// | [minWidth] | 120 | Width floor |
+/// | [textMinWidth] | 320 | Width floor when the message has text |
+/// | [noDimensionsSide] | 100 | A photo's side without dimensions |
+/// | [noDimensionsPlayingSide] | 512 | A video's or animation's side without dimensions |
+///
+/// The picture is scaled into the max box keeping its proportions, never
+/// up, each side cut to a whole pixel; then the floors above apply in
+/// order. Every box is capped by the bubble's max content width.
+final class MediaBoxSizing$Web extends MediaBoxSizing {
+  /// The web defaults; any value can be replaced.
+  const MediaBoxSizing$Web({
+    this.compactBox = const Size(340, 340),
+    this.regularBox = const Size(420, 400),
+    this.compactLinkPreviewBox = const Size(340, 200),
+    this.regularLinkPreviewBox = const Size(420, 380),
+    this.compactAlbumWidth = 340,
+    this.regularAlbumWidth = 420,
+    this.minSide = 200,
+    this.minWidth = 120,
+    this.textMinWidth = 320,
+    this.noDimensionsSide = 100,
+    this.noDimensionsPlayingSide = 512,
+  });
+
+  /// See the class table.
+  final Size compactBox;
+
+  /// See the class table.
+  final Size regularBox;
+
+  /// See the class table.
+  final Size compactLinkPreviewBox;
+
+  /// See the class table.
+  final Size regularLinkPreviewBox;
+
+  /// See the class table.
+  final double compactAlbumWidth;
+
+  /// See the class table.
+  final double regularAlbumWidth;
+
+  /// See the class table.
+  final double minSide;
+
+  /// See the class table.
+  final double minWidth;
+
+  /// See the class table.
+  final double textMinWidth;
+
+  /// See the class table.
+  final double noDimensionsSide;
+
+  /// See the class table.
+  final double noDimensionsPlayingSide;
+
+  @override
+  MediaBoxResult single(MediaItem item, MediaLayoutInput input) {
+    final compact = input.windowWidthClass.isCompact;
+    final (size, fallbacks) = _fitted(
+      item,
+      _capped(compact ? compactBox : regularBox, input),
+    );
+    var width = size.width;
+    if (width < minWidth) {
+      width = minWidth;
+      fallbacks.add(MediaLayoutFallbackRule.minWidth);
+    }
+    if (input.hasText && width < textMinWidth) {
+      width = textMinWidth;
+      fallbacks.add(MediaLayoutFallbackRule.captionWidening);
+    }
+    return MediaBoxResult(
+      Size(math.min(width, input.contentWidth), size.height),
+      fallbacks: fallbacks,
+    );
+  }
+
+  @override
+  MediaBoxResult linkPreviewMedia(MediaItem item, MediaLayoutInput input) {
+    final compact = input.windowWidthClass.isCompact;
+    final (size, fallbacks) = _fitted(
+      item,
+      _capped(compact ? compactLinkPreviewBox : regularLinkPreviewBox, input),
+    );
+    return MediaBoxResult(size, fallbacks: fallbacks);
+  }
+
+  @override
+  double blockWidth(MediaLayoutInput input) => math.min(
+    input.windowWidthClass.isCompact ? compactAlbumWidth : regularAlbumWidth,
+    input.contentWidth,
+  );
+
+  // [box] no wider than the bubble's content.
+  static Size _capped(Size box, MediaLayoutInput input) =>
+      Size(math.min(box.width, input.contentWidth), box.height);
+
+  // The picture of [item] scaled into [box] (never up), then grown to
+  // [minSide] when it is smaller on both sides.
+  (Size, Set<MediaLayoutFallbackRule>) _fitted(MediaItem item, Size box) {
+    final fallbacks = <MediaLayoutFallbackRule>{};
+    final dimensions = item.descriptor.size;
+    final Size source;
+    if (dimensions case ContentSize(
+      :final width,
+      :final height,
+    ) when width > 0 && height > 0) {
+      source = Size(width.toDouble(), height.toDouble());
+    } else {
+      fallbacks.add(MediaLayoutFallbackRule.noDimensions);
+      source = Size.square(
+        item.kind.plays ? noDimensionsPlayingSide : noDimensionsSide,
+      );
+    }
+    var size = _inBox(source, box, zoom: false);
+    if (size.width < minSide && size.height < minSide) {
+      size = _inBox(size, Size.square(minSide), zoom: true);
+      fallbacks.add(MediaLayoutFallbackRule.minWidth);
+    }
+    return (size, fallbacks);
+  }
+
+  // [image] scaled into [box] keeping its proportions; without [zoom] an
+  // image that already fits keeps its size. Sides are cut to whole pixels.
+  static Size _inBox(Size image, Size box, {required bool zoom}) {
+    if (!zoom && image.width < box.width && image.height < box.height) {
+      return image;
+    }
+    var width = box.width;
+    var height = box.height;
+    if (image.width / image.height > box.width / box.height) {
+      height = (image.height * box.width / image.width).truncateToDouble();
+    } else {
+      width = (image.width * box.height / image.height).truncateToDouble();
+      if (width > box.width) {
+        height = (height * box.width / width).truncateToDouble();
+        width = box.width;
+      }
+    }
+    if (!zoom && width >= image.width && height >= image.height) {
+      return image;
+    }
+    return Size(width, height);
+  }
+
+  /// A copy with the given values replaced.
+  MediaBoxSizing$Web copyWith({
+    Size? compactBox,
+    Size? regularBox,
+    Size? compactLinkPreviewBox,
+    Size? regularLinkPreviewBox,
+    double? compactAlbumWidth,
+    double? regularAlbumWidth,
+    double? minSide,
+    double? minWidth,
+    double? textMinWidth,
+    double? noDimensionsSide,
+    double? noDimensionsPlayingSide,
+  }) => MediaBoxSizing$Web(
+    compactBox: compactBox ?? this.compactBox,
+    regularBox: regularBox ?? this.regularBox,
+    compactLinkPreviewBox: compactLinkPreviewBox ?? this.compactLinkPreviewBox,
+    regularLinkPreviewBox: regularLinkPreviewBox ?? this.regularLinkPreviewBox,
+    compactAlbumWidth: compactAlbumWidth ?? this.compactAlbumWidth,
+    regularAlbumWidth: regularAlbumWidth ?? this.regularAlbumWidth,
+    minSide: minSide ?? this.minSide,
+    minWidth: minWidth ?? this.minWidth,
+    textMinWidth: textMinWidth ?? this.textMinWidth,
+    noDimensionsSide: noDimensionsSide ?? this.noDimensionsSide,
+    noDimensionsPlayingSide:
+        noDimensionsPlayingSide ?? this.noDimensionsPlayingSide,
   );
 }

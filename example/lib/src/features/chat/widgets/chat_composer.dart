@@ -242,7 +242,10 @@ class _ChatComposerState extends State<ChatComposer> {
             final card? => ComposerHeader.linkPreview(
               url: card.url,
               page: card.page,
-              onOpen: _input.onLinkPreviewOpen,
+              onOpen:
+                  _input.onLinkPreviewOpen ??
+                  (rect) => _input.draftOptions.open(context, rect),
+              onHover: _input.draftOptions.hoverOf(context),
               onDismiss: _input.linkPreview.dismiss,
             ),
             null => null,

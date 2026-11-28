@@ -6,6 +6,106 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Moved (overlay back listener)
+
+- `OverlayBackButtonListener` comes from here, not from `chat_composer`: a
+  root overlay has no `Router`, and the scrim handles back through it.
+
+### Added (draft options semantics, breaking)
+
+- `DraftOptionsStrings.dismiss` (the spoken label of the area outside the
+  draft options overlay's content), `.loadingPreview` and `.previewLoaded`
+  (its polite announcements of the link's page). Required: a host that
+  builds `DraftOptionsStrings` adds them.
+
+### Added (card overlay timing)
+
+- `ChromeCardOverlayTiming` (`motion`, 250 ms on the list cubic;
+  `offsetsDelay` 50 ms): a full-window card overlay's open, close and
+  change, each on the list's own motion.
+
+### Added (source spring timing)
+
+- `ChromeSourceSpringTiming`: the content fades of a surface growing out of
+  its source on the context menu's spring (`AppearMotion$Spring`): in over
+  0.15 s, out over 0.16 s, and its resize over 0.5 s.
+
+### Added (draft options buttons, breaking)
+
+- `DraftOptionsStrings.save` and `.cancel`: the desktop box's buttons.
+  Required: a host that builds `DraftOptionsStrings` adds them.
+
+### Added (anchored menu timing)
+
+- `ChromeAnchoredMenuTiming` (`hoverOpen` 200 ms, `leaveGrace` 200 ms,
+  `reveal` 0.2 s on the standard easing): a menu anchored at a control and
+  opened by hovering it.
+
+### Added (keyboard timing)
+
+- `ChromeKeyboardTiming` (`heldReopen` 50 ms, `holdRelease` 15 ms): when a
+  keyboard held down under a surface comes back as the surface closes.
+
+### Added (link page rows, breaking)
+
+- `DraftOptionsStrings` gains the link page's row labels (`moveUp`,
+  `moveDown`, `enlargePhoto`, `shrinkPhoto`, `enlargeVideo`, `shrinkVideo`,
+  `applyChanges`, `doNotPreview`, `removePreview`) and `chooseLinkHint`.
+  Required: a host that builds `DraftOptionsStrings` adds them.
+
+- Stock icons `moveUp`, `moveDown`, `enlarge`, `shrink`, `delete`.
+- `ChromeMenuRowTiming`: a toggle row's label cross-fade (300 ms ease out
+  quint) and the instant change.
+
+### Added (draft options strings, breaking)
+
+- `ComposerStrings.draftOptions`, a `DraftOptionsStrings` (`linkTitle`,
+  `linkSubtitle`) for the draft options overlay's page titles. Required: a
+  host that builds `ComposerStrings` adds it.
+
+### Added (chrome scrim)
+
+- `ChromeScrim` and `ChromeScrimController`: the backdrop of a surface over
+  the whole window, a still captured before the surface paints under a dim,
+  on separate clocks; closes on a press outside (`ChromeScrimCloseOn`), back
+  and Escape where the preset says (`closesOnBack`, off for `ios` and
+  `ipad`; `closesOnEscape`); `cancel` removes it at once; it disposes its
+  still itself. Owners are told its phases (`ChromeScrimPhase`, each with
+  its `level` and its event `fields`; a failed capture with its
+  `stackTrace`) and report them; the package emits nothing.
+- `ChromeScrimPreset` (`android`, `ios`, `ipad`, `desktop`, `web`,
+  `contentPreview`), `ChromeScrimStill` (with `androidGlassSource`, declared
+  for glass on a scrim) and `ChromeScrimTone`; the presets' fades in
+  `ScrimMotion`.
+- `BackdropSnapshot.width` and `height`: the still's size, known at capture.
+
+### Added (scrim glass source)
+
+- A scrim whose preset names a `glassSource` (the `android` preset) makes a
+  second, toned still with its first one and feeds it to a
+  `GlassSourceScope` around the surface: a glass on the scrim frosts the
+  window as it was before the dim, not the dimmed scene. It is disposed with
+  the scrim's still; `ChromeScrimController.glassSource` exposes it, and the
+  owner is told `ChromeScrimPhase.stillReady(glassSource: true)` (or
+  `captureFailed(…, glassSource: true)`).
+- `ChromeScrimTone.saturationScale`: a saturation given as a scale (1 leaves
+  the colour) mapped onto `BackdropSnapshot.toneMatrix`; the Android glass
+  source uses it (2 dark, 3 light).
+- `GlassMaterial.scrimMenu` and `GlassMaterialColors.scrimMenu(palette)`: a
+  menu on such a scrim, with a 4 dp shadow (0x26 black in a light theme) and
+  the backdrop's saturation left to the glass source's tone.
+
+### Added (width and input classes)
+
+- `ChromeWidthClass` (`compact` ≤ 600, `medium` 601-925, `expanded`
+  > 925) with `fromSize` and a live `of(context)` from the `MediaQuery`
+  size; `ChromeWidthClassScope.landscapePhoneIsCompact` makes a window
+  ≤ 950 wide and ≤ 450 high `compact` (off by default).
+- `ChromeInputClass` (`touch`, `mouse`) with `forPlatform`,
+  `fromPointerKind` and `of(context)`; `ChromeInputClassScope` makes the
+  class follow the pointer kind of the last pointer event. Without a scope
+  the class is the platform's, fixed for the run.
+
 ### Added (media strings)
 
 - **Breaking:** `ChromeStrings` requires `media` (`MediaStrings`): the

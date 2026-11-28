@@ -136,6 +136,13 @@ message-media-transfers map).
 | Categories | `overlay` joins the set, for the draft options overlay and the chrome scrim. The scrim's operations are `overlay` operations prefixed `scrim`, not a category of their own. |
 | The leaf | `chrome_foundation` stays a leaf and emits nothing: `ChromeScrim` reports its phases (captured, still ready, still skipped, dismissed, cancelled, disposed, capture failed) through a callback its owner passes, and the owner emits the `scrim…` events with an `owner` field. |
 
+Checked against the code (2026-11-28): `overlay` is in `ChatEventCategory`;
+`ChromeScrim` reports its seven phases through `onPhase` (`ValueChanged<ChromeScrimPhase>`),
+and the two stills' phases carry `glassSource`; `chat_composer` and
+`panel_pages` emit them with owners `draftOptions` and `contentPreview`.
+`panel_presentation` also emits `overlay` / `occupancyHold`, which the
+amendment's wording does not name.
+
 ## Amendment (2026-11-27, accepted): the `diagnostics` category
 
 Found implementing the example's log journal (chat-capabilities ticket 17):

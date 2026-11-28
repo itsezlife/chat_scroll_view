@@ -583,6 +583,43 @@ void main() {
       expect(highlightOf(tester, '$_last-a'), 0);
     });
 
+    testWidgets('web: a mouse gets the click cursor and the highlight', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        policy: MessageMediaPolicy.web(platform: TargetPlatform.android),
+      );
+
+      await hover(tester, contentAt(tester, '$_last-a'));
+
+      expect(cursor(), SystemMouseCursors.click);
+      expect(highlightOf(tester, '$_last-a'), 1);
+    });
+
+    testWidgets('web: a hovering stylus gets neither, and a touch tap opens '
+        'the viewer', (tester) async {
+      await pump(
+        tester,
+        policy: MessageMediaPolicy.web(platform: TargetPlatform.macOS),
+      );
+
+      final stylus = await tester.createGesture(kind: PointerDeviceKind.stylus);
+      addTearDown(stylus.removePointer);
+      await stylus.addPointer(location: Offset.zero);
+      await stylus.moveTo(contentAt(tester, '$_last-a'));
+      await tester.pump();
+      expect(highlightOf(tester, '$_last-a'), 0);
+
+      await tester.tapAt(
+        contentAt(tester, '$_last-a'),
+        kind: PointerDeviceKind.touch,
+      );
+      await tester.pump();
+      expect(opened.single.index, 0);
+      expect(highlightOf(tester, '$_last-a'), 0);
+    });
+
     testWidgets('android: no click cursor and no highlight', (tester) async {
       await pump(tester);
 

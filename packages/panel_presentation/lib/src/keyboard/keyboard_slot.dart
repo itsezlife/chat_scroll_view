@@ -1,9 +1,11 @@
 import 'dart:math' as math;
 
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:content_model/content_model.dart';
 import 'package:flutter/animation.dart' show Curves;
 import 'package:listen/listen.dart' as listen;
 import 'package:meta/meta.dart';
+import 'package:panel_presentation/src/diagnostics/panel_presentation_op.dart';
 import 'package:panel_presentation/src/ime/ime_input_port.dart';
 import 'package:panel_presentation/src/ime/ime_sample.dart';
 import 'package:panel_presentation/src/keyboard/keyboard_height_store.dart';
@@ -59,6 +61,17 @@ import 'package:panel_presentation/src/time/panel_clock.dart';
 /// Hosts must therefore report `animating` honestly: a settled sample that
 /// stands is taken at its word.
 ///
+/// ## Occupancy hold
+///
+/// [holdOccupancy] keeps the occupancy at its height (the keyboard's, for a
+/// surface that hides the keyboard while it is up) with no motion, whatever
+/// the keyboard reads, until the last hold is released. Released, the slot
+/// follows the keyboard again: a keyboard rising under the held height takes
+/// it over once it reaches it; one that settles lower, stays down, or is
+/// still moving after [KeyboardReplacementTuning.handOffTimeout] lets the
+/// held height shrink to it over the hold's motion ([advanceHold]). The
+/// hold is beside the hand-offs, not one of them: [state] does not change.
+///
 /// ## Time
 ///
 /// All motion is driven by [advance]; all waiting by the [PanelClock]. Nothing
@@ -99,6 +112,7 @@ final class KeyboardSlot {
   final _occupancy = listen.ValueNotifier<PanelOccupancy>(PanelOccupancy.zero);
   final _composerSafeInset = listen.ValueNotifier<double>(0);
   final _animating = listen.ValueNotifier<bool>(false);
+  final _holdAnimating = listen.ValueNotifier<bool>(false);
   final _changes = _ChangeSignal();
 
   late ImeSample _sample;
@@ -130,6 +144,17 @@ final class KeyboardSlot {
   var _keyboardConfirmedUp = false;
   PanelTimer? _confirmTimer;
   MotionSpec _closeSpec = const MotionSpec(Duration.zero, Curves.linear);
+
+  /// The occupancy holds not yet released, the height they hold (also while
+  /// a released hold hands it to the keyboard or shrinks), the motion a
+  /// release shrinks over, the shrink itself, and whether a released hold
+  /// waits for a moving keyboard to reach it, with its timeout.
+  var _holds = 0;
+  double _held = 0;
+  MotionSpec _holdShrink = const MotionSpec(Duration.zero, Curves.linear);
+  _Tween? _holdTween;
+  var _awaitingKeyboard = false;
+  PanelTimer? _holdTimer;
   var _disposed = false;
 
   // --- Published ------------------------------------------------------------
@@ -153,6 +178,10 @@ final class KeyboardSlot {
   /// Whether a motion is running, and so whether [advance] should be called
   /// every frame. False while a cold open waits for its start delay.
   listen.ValueListenable<bool> get animating => _animating;
+
+  /// Whether a released occupancy hold is shrinking, and so whether
+  /// [advanceHold] should be called every frame.
+  listen.ValueListenable<bool> get holdAnimating => _holdAnimating;
 
   /// Signals whenever the extent, the state or the layout height changed.
   listen.Listenable get changes => _changes;
@@ -305,6 +334,50 @@ final class KeyboardSlot {
     _publish();
   }
 
+  /// Holds the occupancy at its current height, with no motion, until the
+  /// returned hold is released (see the class documentation); [shrink] is
+  /// the motion a release shrinks the held height over when the keyboard
+  /// does not take it.
+  ///
+  /// Holds are counted: the slot follows the keyboard again once the last
+  /// is released. A hold taken while a released one shrinks holds where the
+  /// shrink stands. After [dispose] a hold is inert.
+  KeyboardOccupancyHold holdOccupancy(MotionSpec shrink) {
+    final hold = _OccupancyHold(this);
+    if (_disposed) return hold;
+    _holdShrink = shrink;
+    if (_holds++ == 0) {
+      if (_holdTween == null && !_awaitingKeyboard) {
+        _held = _occupancy.value.bottom;
+      }
+      _holdTween = null;
+      _awaitingKeyboard = false;
+      _holdTimer?.cancel();
+      _holdTimer = null;
+      _syncHoldAnimating();
+      _emitHold('start');
+      _publish();
+    }
+    return hold;
+  }
+
+  /// Moves a released hold's shrink forward by [elapsed]. Does nothing
+  /// unless [holdAnimating].
+  void advanceHold(Duration elapsed) {
+    final tween = _holdTween;
+    if (_disposed || tween == null) return;
+    final next = tween.advanced(elapsed);
+    if (next.done) {
+      _held = 0;
+      _holdTween = null;
+    } else {
+      _held = next.value;
+      _holdTween = next;
+    }
+    _syncHoldAnimating();
+    _publish();
+  }
+
   /// Moves the running motion forward by [elapsed]. Does nothing unless
   /// [animating].
   void advance(Duration elapsed) {
@@ -344,12 +417,15 @@ final class KeyboardSlot {
     _cancelTimers();
     _confirmTimer?.cancel();
     _confirmTimer = null;
+    _holdTimer?.cancel();
+    _holdTimer = null;
     _ime.samples.removeListener(_onSample);
     _window.removeListener(_onWindow);
     _state.dispose();
     _occupancy.dispose();
     _composerSafeInset.dispose();
     _animating.dispose();
+    _holdAnimating.dispose();
     _changes.dispose();
   }
 
@@ -370,6 +446,7 @@ final class KeyboardSlot {
     }
     if (_state.value case KeyboardSlotState$Idle()) _measure();
     _updateSticky();
+    if (_awaitingKeyboard) _followHeldKeyboard();
     if (_sample.safeAreaBottom != before.safeAreaBottom) _refreshGoal();
     _publish();
   }
@@ -421,6 +498,81 @@ final class KeyboardSlot {
       _handOver();
       _publish();
     }
+  }
+
+  // --- Occupancy hold -------------------------------------------------------
+
+  void _releaseHold() {
+    if (_disposed || _holds == 0) return;
+    if (--_holds > 0) return;
+    _emitHold('end');
+    if (_sample.animating) {
+      _awaitingKeyboard = true;
+      _holdTimer = _clock.after(tuning.handOffTimeout, () {
+        _holdTimer = null;
+        if (_disposed || !_awaitingKeyboard) return;
+        _shrinkHeld();
+        _publish();
+      });
+    } else {
+      _settleHeld();
+    }
+    _publish();
+  }
+
+  /// A released hold waiting for the keyboard: a keyboard that reached the
+  /// held height takes it over, one that came to rest anywhere settles it.
+  void _followHeldKeyboard() {
+    if (_sample.height >= _held - tuning.settleTolerance) {
+      _endHeld();
+    } else if (!_sample.animating) {
+      _settleHeld();
+    }
+  }
+
+  /// The keyboard is at rest: it takes the held height over if it stands at
+  /// it, otherwise the held height shrinks to it.
+  void _settleHeld() {
+    if (_sample.height >= _held - tuning.settleTolerance) {
+      _endHeld();
+    } else {
+      _shrinkHeld();
+    }
+  }
+
+  void _shrinkHeld() {
+    _awaitingKeyboard = false;
+    _holdTimer?.cancel();
+    _holdTimer = null;
+    if (_holdShrink.duration == Duration.zero) {
+      _endHeld();
+      return;
+    }
+    _holdTween = _Tween(from: _held, to: 0, spec: _holdShrink);
+    _syncHoldAnimating();
+  }
+
+  void _endHeld() {
+    _awaitingKeyboard = false;
+    _holdTimer?.cancel();
+    _holdTimer = null;
+    _holdTween = null;
+    _held = 0;
+    _syncHoldAnimating();
+  }
+
+  void _syncHoldAnimating() {
+    _holdAnimating.value = _holdTween != null;
+  }
+
+  void _emitHold(String phase) {
+    final height = _held.round();
+    ChatDiagnostics.current.emit(
+      ChatEventLevel.debug,
+      ChatEventCategory.overlay,
+      PanelPresentationOp.occupancyHold,
+      fields: () => {'phase': phase, 'heightPx': height},
+    );
   }
 
   // --- Transitions ----------------------------------------------------------
@@ -580,7 +732,7 @@ final class KeyboardSlot {
 
   void _publish() {
     final keyboard = math.max(_sample.height, _sticky);
-    final bottom = math.max(keyboard, _extent);
+    final bottom = math.max(math.max(keyboard, _extent), _held);
     _occupancy.value = PanelOccupancy(bottom: bottom);
     _composerSafeInset.value = math.max(0, safeBottom - bottom);
     _changes.signal();
@@ -614,6 +766,28 @@ final class _Tween {
 
   _Tween advanced(Duration by) =>
       _Tween(from: from, to: to, spec: spec, elapsed: elapsed + by);
+}
+
+/// A claim that keeps the keyboard slot's occupancy at the height it had
+/// when it was taken: see [KeyboardSlot.holdOccupancy].
+abstract interface class KeyboardOccupancyHold {
+  /// Releases the claim: the slot follows the keyboard again once no hold
+  /// is left. Idempotent.
+  void release();
+}
+
+final class _OccupancyHold implements KeyboardOccupancyHold {
+  _OccupancyHold(this._slot);
+
+  final KeyboardSlot _slot;
+  var _released = false;
+
+  @override
+  void release() {
+    if (_released) return;
+    _released = true;
+    _slot._releaseHold();
+  }
 }
 
 /// The signal behind [KeyboardSlot.changes]: `notifyListeners` is protected,

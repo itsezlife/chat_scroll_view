@@ -4,6 +4,7 @@ import 'package:chat_composer/src/spec/composer_header.dart';
 import 'package:chat_composer/src/view/composer_button.dart';
 import 'package:chat_composer/src/view/composer_metrics.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:flutter/gestures.dart' show PointerEnterEvent, PointerExitEvent;
 import 'package:flutter/widgets.dart';
 
 /// The strip a [ComposerHeader] draws: a glyph, two lines of text and a
@@ -196,6 +197,29 @@ class _LinkPreviewStripState extends State<_LinkPreviewStrip> {
     }
   }
 
+  // Whether an enter was reported, so a leave is reported once after it.
+  bool _$hovered = false;
+
+  void _hoverEntered(PointerEnterEvent event) {
+    final onHover = widget.header.onHover;
+    if (onHover == null ||
+        ChromeInputClass.fromPointerKind(event.kind) !=
+            ChromeInputClass.mouse) {
+      return;
+    }
+    if (context.findRenderObject() case final RenderBox box
+        when box.hasSize && box.attached) {
+      _$hovered = true;
+      onHover(box.localToGlobal(Offset.zero) & box.size);
+    }
+  }
+
+  void _hoverExited(PointerExitEvent event) {
+    if (!_$hovered) return;
+    _$hovered = false;
+    widget.header.onHover?.call(null);
+  }
+
   void _dismiss() {
     final onDismiss = widget.header.onDismiss;
     if (onDismiss == null || !_accept()) return;
@@ -261,7 +285,7 @@ class _LinkPreviewStripState extends State<_LinkPreviewStrip> {
         ),
       ],
     );
-    return SizedBox(
+    final strip = SizedBox(
       height: ComposerMetrics.headerHeight,
       child: Row(
         children: [
@@ -293,6 +317,12 @@ class _LinkPreviewStripState extends State<_LinkPreviewStrip> {
             const SizedBox(width: ComposerHeaderStrip._edgePad),
         ],
       ),
+    );
+    if (header.onHover == null) return strip;
+    return MouseRegion(
+      onEnter: _hoverEntered,
+      onExit: _hoverExited,
+      child: strip,
     );
   }
 }

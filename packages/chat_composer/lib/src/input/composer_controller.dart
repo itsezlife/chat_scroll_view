@@ -8,6 +8,7 @@ import 'package:chat_composer/src/capabilities/composer_op.dart';
 import 'package:chat_composer/src/capabilities/composer_slow_mode_forms.dart';
 import 'package:chat_composer/src/capabilities/composer_slow_mode_state.dart';
 import 'package:chat_composer/src/capabilities/slow_mode_countdown.dart';
+import 'package:chat_composer/src/input/composer_keyboard_intent.dart';
 import 'package:chat_composer/src/input/composer_paste.dart';
 import 'package:chat_composer/src/input/soft_keyboard_mode.dart';
 import 'package:chat_composer/src/query/composer_input_query.dart';
@@ -166,6 +167,11 @@ final class ComposerController {
   final _extent = listen.ValueNotifier<double>(0);
   final _query = listen.ValueNotifier<ComposerInputQuery?>(null);
   final _keyboardRequests = _Signal();
+  final _keyboardIntent = listen.ValueNotifier<ComposerKeyboardIntent>(
+    ComposerKeyboardIntent.keep,
+  );
+  // Whether the hold under way has reopened the keyboard: requests pass.
+  var _reopenedInHold = false;
   final _caretReveals = _Signal();
   final _selectionUiHides = _Signal();
   final _kinds = <ComposerQueryKind>[];
@@ -575,13 +581,49 @@ final class ComposerController {
   /// which the platform keeps; it attaches again, with the current option, and
   /// that raises the keyboard. Nothing shows while [softKeyboard] is
   /// suppressed.
+  ///
+  /// While [keyboardIntent] is [ComposerKeyboardIntent.hold] a request does
+  /// nothing, until [reopenKeyboard].
   void requestKeyboard() {
     if (_disposed) return;
+    if (_keyboardIntent.value == ComposerKeyboardIntent.hold &&
+        !_reopenedInHold) {
+      return;
+    }
     _keyboardRequests.signal();
   }
 
   /// Signals each [requestKeyboard]; the field answers it. For the view.
   listen.Listenable get keyboardRequests => _keyboardRequests;
+
+  // --- Keyboard intent ---
+
+  /// What the surface over the composer asks of the keyboard now, for the
+  /// host to carry out (see [ComposerKeyboardIntent]).
+  /// [ComposerKeyboardIntent.keep] until a surface sets another.
+  listen.ValueListenable<ComposerKeyboardIntent> get keyboardIntent =>
+      _keyboardIntent;
+
+  /// States [intent]; the same intent again does nothing. A new
+  /// [ComposerKeyboardIntent.hold] drops keyboard requests again.
+  void setKeyboardIntent(ComposerKeyboardIntent intent) {
+    if (_disposed || intent == _keyboardIntent.value) return;
+    _reopenedInHold = false;
+    _keyboardIntent.value = intent;
+  }
+
+  /// Raises the keyboard a [ComposerKeyboardIntent.hold] lowered, while the
+  /// hold goes on.
+  ///
+  /// The surface that holds calls it as it closes, so the keyboard rises
+  /// under the held space and takes it over when the hold ends; from here on
+  /// [requestKeyboard] is answered again. Outside a hold it is
+  /// [requestKeyboard].
+  void reopenKeyboard() {
+    if (_disposed) return;
+    _reopenedInHold = true;
+    _keyboardRequests.signal();
+  }
 
   /// Signals each edit made through this controller ([insertText],
   /// [insertContent], [backspace]); the field answers by scrolling its caret
@@ -1033,6 +1075,7 @@ final class ComposerController {
     text.removeListener(_detectQuery);
     _softKeyboard.dispose();
     _keyboardRequests.dispose();
+    _keyboardIntent.dispose();
     _caretReveals.dispose();
     _selectionUiHides.dispose();
     _fieldHeight.dispose();

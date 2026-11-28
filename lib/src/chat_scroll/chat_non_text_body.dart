@@ -14,13 +14,16 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_inline_hit.dart';
 /// gestures. A body that shows media registers the same way.
 ///
 /// The two are not exclusive: the text layout of `ChatEmojiBody` is a text body
-/// and also registers here for the taps on its custom emoji, and the facade
-/// asks this registration first for an inline hit. A single-emoji sticker is
-/// this kind alone.
+/// and also registers here for the taps on its custom emoji, and media with a
+/// caption registers here beside the caption's text body. The facade asks
+/// this registration first for an inline hit and the text body where it
+/// answers null, so a body answers only for its own parts. A single-emoji
+/// sticker is this kind alone.
 abstract interface class ChatNonTextBody {
   /// The activatable part of the body under [globalOffset], or null for the
-  /// rest of it. Evaluated at the time of the call: a body scrolls without
-  /// rebuilding.
+  /// rest of it and for any point outside it (a caption's link is then the
+  /// text body's hit). Evaluated at the time of the call: a body scrolls
+  /// without rebuilding.
   ChatInlineHit? inlineHitAt(Offset globalOffset);
 
   /// The painted rectangle of the body in global coordinates, or null while

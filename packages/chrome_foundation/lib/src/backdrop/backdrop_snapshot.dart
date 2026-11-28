@@ -55,7 +55,7 @@ final class _RenderBackdropSnapshotSource extends RenderProxyBox {
 /// snapshot notifies its listeners then; [ready] completes then too. The
 /// caller owns the snapshot and [dispose]s it when its scrim is gone.
 final class BackdropSnapshot implements Listenable {
-  BackdropSnapshot._();
+  BackdropSnapshot._(this.width, this.height);
 
   /// Captures what the [BackdropSnapshotSource] above [context] painted in
   /// the last frame at 1/[downscale] of its device pixels, now, and then
@@ -82,7 +82,7 @@ final class BackdropSnapshot implements Listenable {
     final density = View.maybeOf(context)?.devicePixelRatio ?? 1;
     final raw = source._capture(density / downscale);
     if (raw == null) return null;
-    final snapshot = BackdropSnapshot._();
+    final snapshot = BackdropSnapshot._(raw.width, raw.height);
     unawaited(
       snapshot._make(
         raw,
@@ -131,6 +131,12 @@ final class BackdropSnapshot implements Listenable {
   final Completer<void> _ready = Completer<void>();
   ui.Image? _image;
   bool _disposed = false;
+
+  /// The still's width in pixels, known from the capture.
+  final int width;
+
+  /// The still's height in pixels, known from the capture.
+  final int height;
 
   /// The still, once it is made; null before, and once [isDisposed].
   ui.Image? get image => _image;

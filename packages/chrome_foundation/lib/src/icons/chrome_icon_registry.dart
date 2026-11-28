@@ -38,6 +38,15 @@ final class ChromeIconRegistry {
     ChromeIconId.reply: ChromeIconPainter.font(Icons.reply_rounded),
     ChromeIconId.edit: ChromeIconPainter.font(Icons.edit_rounded),
     ChromeIconId.lock: ChromeIconPainter.font(Icons.lock_outline_rounded),
+    ChromeIconId.moveUp: ChromeIconPainter.font(
+      Icons.vertical_align_top_rounded,
+    ),
+    ChromeIconId.moveDown: ChromeIconPainter.font(
+      Icons.vertical_align_bottom_rounded,
+    ),
+    ChromeIconId.enlarge: ChromeIconPainter.font(Icons.open_in_full_rounded),
+    ChromeIconId.shrink: ChromeIconPainter.font(Icons.close_fullscreen_rounded),
+    ChromeIconId.delete: ChromeIconPainter.font(Icons.delete_outline_rounded),
   });
 
   final Map<ChromeIconId, ChromeIconPainter> _painters;

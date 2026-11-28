@@ -95,6 +95,21 @@ final class GlassMaterial {
     blurRadius: 80,
   );
 
+  /// A menu on a chrome scrim that offers a glass source: the [menu]'s
+  /// geometry with a 4 dp shadow all round. Its colours are
+  /// `GlassMaterialColors.scrimMenu`, which a surface passes; the theme's
+  /// menu colours raise a backdrop's saturation, which the glass source's
+  /// tone has already done.
+  static const scrimMenu = GlassMaterial(
+    colorRole: GlassColorRole.menu,
+    cornerRadius: 12,
+    strokeWidth: 2 / 3,
+    shadowBlur: 4,
+    shadowOffset: Offset.zero,
+    refracts: false,
+    blurRadius: 80,
+  );
+
   /// A bottom panel (in the keyboard's place, docked, a popup panel): the
   /// island's edges and shadow, its effect running to the panel's edges;
   /// the surface rounds its top corners (`GlassSurface.borderRadius`).

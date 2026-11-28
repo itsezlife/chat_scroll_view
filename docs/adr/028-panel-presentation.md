@@ -195,3 +195,14 @@ Accepted with the draft-options-overlay spec (maintainer, 2026-11-26).
 | ---- | -------- |
 | Occupancy hold | The keyboard-replacement strategy can hold its bottom occupancy at the keyboard's height while the keyboard is hidden, with no animation, until the host releases the hold. It serves an overlay that hides the keyboard while it is up and does not want the composer to drop under it. On release the slot follows the keyboard again: a keyboard that reopens takes the held height over, and one that stays down lets the slot shrink with the usual `listTransition` motion. |
 | Who asks | The host, carrying out the composer's keyboard intent `hold` ([ADR 026](026-composer-model.md) amendment: the draft options overlay). The composer knows no panel and no occupancy. |
+
+## Amendment (2026-11-28): the occupancy hold as built
+
+Recorded from issue 13's `## Decisions` (draft-options-overlay). A difference from the amendment above, not new policy; the maintainer accepts it with the rest.
+
+| Area | As built |
+| ---- | -------- |
+| Hold | `KeyboardReplacementStrategy.holdOccupancy(shrink)` (backed by `KeyboardSlot.holdOccupancy` and `advanceHold`) returns a `KeyboardOccupancyHold`. Holds are counted and a release is idempotent. The held height is the occupancy when the hold is taken, so the host holds before it lowers the keyboard. A keyboard taller than the hold still lifts the occupancy. |
+| Release | A keyboard that reaches the held height takes it over. One that settles lower, stays down, or is still moving after `handOffTimeout` lets the held height shrink over the `shrink` the host passed. The strategy runs the shrink on a ticker of its own, so a hold works when no panel was ever shown. |
+| Events | `PanelPresentationOp.occupancyHold` (`phase` `start` or `end`, `heightPx`) under the `overlay` category. |
+
