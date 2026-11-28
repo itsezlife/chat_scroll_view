@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:mpx_transfer/mpx_transfer.dart';
 
 /// What the outbox uses of the transfer engine: making a publish job,
@@ -48,6 +50,14 @@ abstract interface class OutboxTransfers {
   /// `PublishJob.commit` does; the job takes its place at the end of its
   /// ordering group. Answers false for any other job.
   bool commit(PublishJobId id);
+
+  /// The payload job [id] was made with, as its journal holds it; null for
+  /// a job the engine no longer has.
+  ///
+  /// The outbox reads it after a restart, when the job's message is known
+  /// only from the journal: it decodes the payload into the host's model to
+  /// build the message's row again.
+  Uint8List? payloadOf(PublishJobId id);
 }
 
 final class _OutboxTransfers$Engine implements OutboxTransfers {
@@ -76,4 +86,12 @@ final class _OutboxTransfers$Engine implements OutboxTransfers {
 
   @override
   bool commit(PublishJobId id) => _transfers.publishJob(id)?.commit() ?? false;
+  // The engine keeps a job's payload in its journal and hands it to the
+  // publisher only; its facade has no read of it for the job's owner yet.
+  // Until it has, a restart cannot read a message's payload back here.
+  @override
+  Uint8List? payloadOf(PublishJobId id) => throw UnsupportedError(
+    'The transfer engine does not expose a publish job\'s payload to its '
+    'owner yet, so the outbox cannot restore messages over it.',
+  );
 }

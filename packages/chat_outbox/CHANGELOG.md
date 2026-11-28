@@ -95,8 +95,22 @@ this package is pre-1.0.
 - The snapshot's `cancels`, `itemsDropped` and `cancelsTooLate` counters.
 - `OutboxOp`: `cancelled`, `itemDropped`, `cancelTooLate`,
   `awaitingOwner`, `actionDropped`.
+- `ChatOutbox.pendingFor(chatId)`: after a restart, the chat's outgoing
+  messages read back from its jobs, at fresh tail positions (sending ones,
+  then failed ones, each in creation order), each row built again from the
+  decoded payload. A payload the codec cannot read is failed (unknown), with
+  the host's `undecodableRowOf` row; a job under the prefix that is not a
+  message's is left alone. `ChatOutbox(localKeyOf:, undecodableRowOf:)`.
+- `OutboxTransfers.payloadOf`; `FakeOutboxTransfers.seed` for a job as the
+  journal holds it. The engine adapter throws for `payloadOf` until mpx
+  hands a job's payload to its owner.
+- The snapshot's restores count. `OutboxOp`: `restored`, `foreignJob`.
 
 ### Changed
+
+- The `chat.send` publisher waits for a job's message to be restored
+  instead of failing a job of an earlier run at once; a job still waiting
+  when the outbox is disposed fails as the publisher's error.
 
 - `ChatOutbox` takes the transfer seam, the payload codec, the item
   resolver, the chat's id strategy (`idStrategyOf`) and the host's row

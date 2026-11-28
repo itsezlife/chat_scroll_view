@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:chat_outbox/src/transfers/outbox_transfers.dart';
 import 'package:mpx_transfer/mpx_transfer.dart';
@@ -12,6 +13,8 @@ import 'package:mpx_transfer/mpx_transfer.dart';
 /// `publishing` when there is nothing to upload (no items, or only remote
 /// ones). [setState] moves a job (and, given, its
 /// items); [remove] takes it away, as the engine does with a cancelled job.
+/// [seed] puts a job in as an earlier run's journal holds it, for a
+/// simulated restart, and [payloadOf] answers each job's payload.
 /// Watchers get the current list on listen and the list again after each
 /// change, asynchronously, as the engine's do.
 ///
@@ -105,6 +108,46 @@ final class FakeOutboxTransfers implements OutboxTransfers {
     if (_jobs.last.state is PublishJobState$Publishing) _attempt(id);
     return id;
   }
+
+  /// Puts a job for [request] in the fake as an earlier run's journal holds
+  /// it, in [state] (its first stage unless given), [items] giving its
+  /// items' states by item id (each `waiting` unless given), and answers
+  /// its id: the jobs an outbox finds after a restart.
+  ///
+  /// Unlike [publish], it calls no publisher: a seeded job at its publish
+  /// stage waits for [registerPublisher], as a restored one does.
+  PublishJobId seed(
+    PublishRequest request, {
+    PublishJobState? state,
+    Map<String, PublishItemState> items = const {},
+  }) {
+    _requests.add(request);
+    final id = PublishJobId.parse('job-${_requests.length}');
+    _jobs.add(
+      PublishJobSnapshot(
+        id: id,
+        tag: request.tag,
+        publisher: request.publisher,
+        createdAt: _$clock = _$clock.add(const Duration(seconds: 1)),
+        state: state ?? _firstStateOf(request),
+        items: [
+          for (final item in request.items)
+            PublishItemSnapshot(
+              itemId: item.itemId,
+              key: item.key,
+              state: items[item.itemId] ?? const PublishItemState.waiting(),
+            ),
+        ],
+      ),
+    );
+    _$requestOf[id] = request;
+    _changed();
+    return id;
+  }
+
+  @override
+  Uint8List? payloadOf(PublishJobId id) =>
+      _jobs.any((job) => job.id == id) ? _$requestOf[id]?.payload : null;
 
   /// Moves job [id] to [state]; [items] gives the new state of the items
   /// it names by item id, the others keeping theirs.

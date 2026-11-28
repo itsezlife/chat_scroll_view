@@ -128,7 +128,9 @@ enum OutboxOp implements DiagnosticOp {
   senderFailed,
 
   /// A job's payload did not decode through the host's codec (error):
-  /// `errorType` and `payloadBytes`, its length.
+  /// `errorType` and `payloadBytes`, its length. After a restart the
+  /// message is restored as failed for an unknown reason; at publish the
+  /// job fails as its publisher's error.
   payloadDecodeFailed,
 
   /// The outbox cancelled a message's job, and the message is Absent
@@ -159,4 +161,16 @@ enum OutboxOp implements DiagnosticOp {
   /// `action` (`cancel`), `msSinceAccepted`, the time since the one it
   /// repeats was accepted.
   actionDropped,
+
+  /// A chat's outgoing messages were read back from the engine's jobs after
+  /// a restart (info): `sending` (awaiting the publisher included),
+  /// `failed` and `awaitingPublisher` counts.
+  restored,
+
+  /// A job under the chat's tag prefix that is not an outgoing message's was
+  /// left alone after a restart (warning): `why` (`emptyId` or `separator`,
+  /// a tag that names no client message id, the latter for a remainder
+  /// holding `:`; `itemId`, an item id that is no media item id's string
+  /// form); the job's id in the ids, never its tag.
+  foreignJob,
 }
