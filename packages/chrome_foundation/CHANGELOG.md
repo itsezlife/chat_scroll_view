@@ -6,6 +6,11 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (keyboard timing)
+
+- `ChromeKeyboardTiming` (`heldReopen` 50 ms, `holdRelease` 15 ms): when a
+  keyboard held down under a surface comes back as the surface closes.
+
 ### Added (draft options strings, breaking)
 
 - `ComposerStrings.draftOptions`, a `DraftOptionsStrings` (`linkTitle`,

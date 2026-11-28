@@ -28,6 +28,15 @@ is pre-1.0.
   `keepsChosenLinkSelected` (desktop) set the rule; `open` takes the text's
   `links`. Breaking for hosts implementing `DraftOptionsHost`: they add
   `chooseLink`.
+- The keyboard intent: `ComposerController.keyboardIntent` publishes a
+  `ComposerKeyboardIntent` (`keep`, `hold`, `hide`) a surface states with
+  `setKeyboardIntent`, for the host to carry out. While `hold`,
+  `requestKeyboard` does nothing until `reopenKeyboard`. Given the
+  `composer`, `DraftOptionsController` states `DraftOptionsPolicy.keyboard`
+  (`DraftOptionsKeyboard`; Android holds a raised keyboard, reopens it
+  50 ms into the close and ends the hold 15 ms after the full close; the
+  remove row ends it with `hide`; iOS, desktop and the web keep it) and
+  reports `OverlayOp.keyboardIntent`.
 
 ### Changed (link preview strip, breaking)
 

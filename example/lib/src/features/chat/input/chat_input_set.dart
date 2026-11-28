@@ -26,6 +26,7 @@ import 'package:chat_scroll_view_example/src/features/chat/input/chat_draft_sync
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_format_offer.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_link_preview.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_outgoing_message.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/composer_keyboard_intent_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/composer_panel_field.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/emoji_panel_page.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/media_panel_pages.dart';
@@ -422,6 +423,7 @@ final class ChatInputSet {
     ImeSampleFeed? feed;
     StreamSubscription<PanelEvent>? panelEvents;
     KeyboardPanelDock? dock;
+    ComposerKeyboardIntentHost? keyboardIntent;
     try {
       // A screen opened with the keyboard already up has no stream event yet.
       _imeFeed = feed = ImeSampleFeed(keyboard: keyboardPort, ime: ime);
@@ -429,6 +431,13 @@ final class ChatInputSet {
         presentation: presentation,
         keyboard: keyboardStrategy,
         field: ComposerPanelField(composer),
+        hideKeyboard: _hideKeyboard,
+      );
+      // A surface over the composer (the draft options) states a keyboard
+      // intent through the composer; the slot carries it out.
+      _keyboardIntent = keyboardIntent = ComposerKeyboardIntentHost(
+        composer: composer,
+        keyboard: keyboardStrategy,
         hideKeyboard: _hideKeyboard,
       );
       _panelEvents = panelEvents = shell.events.listen(_onPanelEvent);
@@ -448,6 +457,7 @@ final class ChatInputSet {
       presentation.state.removeListener(_onPresentationState);
       composer.text.removeListener(_onComposerText);
       dock?.dispose();
+      keyboardIntent?.dispose();
       _editing.dispose();
       _busy.dispose();
       _formatOffer.dispose();
@@ -583,6 +593,7 @@ final class ChatInputSet {
   // remembers the height a cold open needs.
   late StreamSubscription<PanelEvent> _panelEvents;
   late final KeyboardPanelDock _dock;
+  late final ComposerKeyboardIntentHost _keyboardIntent;
   ChatPreImeBackClaim? _backClaim;
   PanelAutoHideHold? _autoHideHold;
   var _wasVisible = false;
@@ -1348,6 +1359,7 @@ final class ChatInputSet {
     unawaited(_panelEvents.cancel());
     presentation.state.removeListener(_onPresentationState);
     _dock.dispose();
+    _keyboardIntent.dispose();
     composer.text.removeListener(_onComposerText);
     _offerTimer?.cancel();
     shell.autoHideHolds.removeListener(_onPanelHolds);
