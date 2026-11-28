@@ -85,6 +85,8 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
       doNotPreview: 'Не показывать превью',
       removePreview: 'Убрать превью',
       chooseLinkHint: 'Нажмите на ссылку, чтобы выбрать',
+      save: 'Сохранить',
+      cancel: 'Отмена',
     ),
   ),
   formatting: FormattingStrings(

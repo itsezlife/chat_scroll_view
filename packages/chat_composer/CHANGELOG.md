@@ -6,6 +6,29 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (draft options desktop box)
+
+- On macOS, Windows and Linux the draft options open as `DraftOptionsBox`, a
+  modal box (`DraftOptionsPolicy$Desktop.box`, a `DraftOptionsDesktopBox`:
+  364 wide, radius 8, a title, the preview, the rows pinned under it, Cancel
+  and Save). Save reports the copy and closes; Cancel, Escape and a click
+  outside (on release) discard it; Enter saves. Focus moves into the box on
+  open, Tab walks the rows, then Save, then Cancel, Enter or Space presses a
+  focused row or button, and focus goes back to the composer's field (or
+  what had it) on close. The box fades in and out over 200 ms ease-out-circ
+  with the scrim's dim, at once under an instant motion speed; an option
+  change re-lays it out at once.
+- `DraftOptionsSession.reportMotion` and the `motion` op (`open`, `close`,
+  `change`, with the duration and reduce motion).
+- `DraftOptionsPreview.linkCursor` (the click cursor in the box) and
+  `.change` (the presentation's option change, for the builder's media
+  layout transition).
+- `DraftLinkPagePolicy`: `linkHintPadding`, `linkHintAlign`, `keyboardFocus`
+  and `iconMorph`. The desktop preset now has rows 40 tall (icon 24 at 20,
+  label 14 at 60), a 4 skip in the box's colour, the hint at the start under
+  22 / 8 / 22 / 16, focusable rows and icons that swap at once. Mobile and
+  web presets are unchanged.
+
 ### Added (draft options overlay)
 
 - The Android presentation: `DraftOptionsPolicy$Android` draws the

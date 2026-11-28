@@ -11,12 +11,18 @@ package is pre-1.0.
 - `ChromeCardOverlayTiming` (`show`, `hide`, `offsets`, `listScroll`: 250 ms
   on the list cubic; `offsetsDelay` 50 ms): a full-window card overlay's open,
   close and change, as the draft options overlay's Android card plays them.
+
 ### Added (source spring timing)
 
 - `ChromeSourceSpringTiming`: a surface growing out of its source on the
   context menu's spring (cut at 0.42 s, from scale 0.01), its content fading
   in over 0.15 s and its actions over 0.05 s, closing over 0.2 s ease
   in-out with the content gone after 0.16 s, and resizing over 0.5 s.
+
+### Added (draft options buttons, breaking)
+
+- `DraftOptionsStrings.save` and `.cancel`: the desktop box's buttons.
+  Required: a host that builds `DraftOptionsStrings` adds them.
 
 ### Added (keyboard timing)
 

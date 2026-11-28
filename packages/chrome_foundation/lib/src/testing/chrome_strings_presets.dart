@@ -100,6 +100,8 @@ abstract final class ChromeStringsPresets {
         doNotPreview: 'Do not preview',
         removePreview: 'Remove preview',
         chooseLinkHint: 'Click a link to choose',
+        save: 'Save',
+        cancel: 'Cancel',
       ),
     ),
     formatting: FormattingStrings(
@@ -426,6 +428,8 @@ abstract final class ChromeStringsPresets {
         doNotPreview: 'Не показывать превью',
         removePreview: 'Убрать превью',
         chooseLinkHint: 'Нажмите на ссылку, чтобы выбрать',
+        save: 'Сохранить',
+        cancel: 'Отмена',
       ),
     ),
     formatting: FormattingStrings(

@@ -20,6 +20,10 @@ import 'draft_options/draft_options_card_golden_test.dart'
 import 'draft_options/draft_options_card_test.dart' as draft_options_card_test;
 import 'draft_options/draft_options_card_view_test.dart'
     as draft_options_card_view_test;
+import 'draft_options/draft_options_desktop_golden_test.dart'
+    as draft_options_desktop_golden_test;
+import 'draft_options/draft_options_desktop_test.dart'
+    as draft_options_desktop_test;
 import 'draft_options/draft_options_ios_golden_test.dart'
     as draft_options_ios_golden_test;
 import 'draft_options/draft_options_ios_presentation_test.dart'
@@ -152,6 +156,14 @@ void main() {
   group(
     'draft_options/draft_options_ios_presentation_test.dart',
     draft_options_ios_presentation_test.main,
+  );
+  group(
+    'draft_options/draft_options_desktop_golden_test.dart',
+    draft_options_desktop_golden_test.main,
+  );
+  group(
+    'draft_options/draft_options_desktop_test.dart',
+    draft_options_desktop_test.main,
   );
   group(
     'draft_options/draft_options_keyboard_test.dart',
