@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 import 'dart:ui' show Rect;
 
 import 'package:attach_model/attach_model.dart';
@@ -9,12 +8,16 @@ import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/app/demo_chrome_strings.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_delivery.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outgoing_media.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outgoing_payload.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/fake_chat_server.dart';
+import 'package:content_assets/content_assets.dart'
+    show ContentKeyMedia, MediaKeyContent;
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart' show Listenable, ValueNotifier;
 import 'package:listen/listen.dart' as listen;
 import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_library/mpx_library.dart' show LibraryAssetId, LibraryKeys;
 import 'package:mpx_transfer/mpx_transfer.dart';
 
 /// The demo host's outbox: one `ChatOutbox` for every chat of the app, over
@@ -27,12 +30,18 @@ import 'package:mpx_transfer/mpx_transfer.dart';
 /// send only at its next id.
 final class DemoOutbox {
   /// An outbox making its jobs through [transfers], sending as [sender] to
-  /// [server] (a new one unless given).
+  /// [server] (a new one unless given); the outgoing items' pictures are
+  /// [media]'s (a registry of its own unless given: the app passes the one
+  /// its media fetcher routes through). A fresh row appears as [appearance]
+  /// says, the running platform's preset unless given.
   DemoOutbox({
     required OutboxTransfers transfers,
     FakeChatServer? server,
+    DemoOutgoingMedia? media,
+    OutgoingAppearancePolicy? appearance,
     this.sender = 'Hixie',
-  }) : server = server ?? FakeChatServer() {
+  }) : server = server ?? FakeChatServer(),
+       media = media ?? DemoOutgoingMedia() {
     outbox = ChatOutbox<DemoOutgoingPayload>(
       transfers: transfers,
       codec: const DemoOutgoingPayloadCodec(),
@@ -53,16 +62,22 @@ final class DemoOutbox {
       onSent: (sent) => chat(sent.chatId)._onSent(sent),
       onCancelled: (cancelled) =>
           chat(cancelled.message.chatId)._onCancelled(cancelled),
+      onItemDropped: (dropped) =>
+          chat(dropped.message.chatId)._onItemDropped(dropped),
       onStatusChanged: (message) =>
           chat(message.chatId)._onStatusChanged(message),
       localKeyOf: localKeyOf,
       undecodableRowOf: (message) =>
           chat(message.chatId)._undecodableRow(message),
+      appearance: appearance,
     )..registerSender(_ServerSender(this));
   }
 
   /// The server every chat sends to.
   final FakeChatServer server;
+
+  /// The outgoing items' keys and where their pictures come from.
+  final DemoOutgoingMedia media;
 
   /// The user the demo sends as.
   final String sender;
@@ -82,26 +97,31 @@ final class DemoOutbox {
   DemoOutboxChat chat(String chatId) =>
       _$chats.putIfAbsent(chatId, () => DemoOutboxChat._(this, chatId));
 
-  /// The local content key a send item's [mediaKey] is cached under, the
-  /// inverse of the media key a send gives it.
+  /// The local content key a send item's [mediaKey] is cached under: the
+  /// content key the media key names (`content_assets`' mapping), so a
+  /// cell reading the row's item tracks the upload of that very key. A key
+  /// of an earlier build of the demo, which names no content key, keeps its
+  /// old form.
   static ContentKey localKeyOf(MediaKey mediaKey) =>
-      ContentKey.document('$_localPrefix${mediaKey.encoded}');
+      mediaKey.contentKey ??
+      ContentKey.document('$_legacyLocalPrefix${mediaKey.encoded}');
 
-  static const String _localPrefix = 'local:';
+  static const String _legacyLocalPrefix = 'local:';
 
   // The prepared files of the send being accepted, by attach item: `send`
   // calls [_itemOf] synchronously, item by item.
   Map<AttachItemId, PreparedMedia> _$prepared = const {};
 
-  // An item is uploaded from its prepared file. One the host could not
-  // prepare (no work folder, as on the web) has no file the engine can
-  // read: the demo sends it by its key alone, as content the server holds.
+  // The keys minted for the send being accepted, by attach item: its
+  // payload names them before the outbox asks [_itemOf].
+  Map<AttachItemId, MediaKey> _$minted = const {};
+
+  // An item is uploaded from its prepared file, under a key the chat can
+  // name ([DemoOutgoingMedia]). One the host could not prepare (no work
+  // folder, as on the web) has no file the engine can read: the demo sends
+  // it by its key alone, as content the server holds.
   OutgoingSendItem _itemOf(AttachItem item, SendForm form) {
-    final mediaKey = switch (item.source) {
-      AttachSource$Captured(:final localKey) ||
-      AttachSource$Pasted(:final localKey) => MediaKey.parse(localKey),
-      _ => MediaKey.local(_uuid()),
-    };
+    final mediaKey = _$minted[item.id] ?? media.mint();
     return OutgoingSendItem(
       localKey: localKeyOf(mediaKey),
       mediaKey: mediaKey,
@@ -124,19 +144,6 @@ final class DemoOutbox {
       content: message.body,
       payload: message.extras,
     );
-  }
-
-  static final Random _$random = Random.secure();
-
-  static String _uuid() {
-    final bytes = [for (var i = 0; i < 16; i++) _$random.nextInt(256)];
-    bytes[6] = (bytes[6] & 0x0f) | 0x40;
-    bytes[8] = (bytes[8] & 0x3f) | 0x80;
-    final hex = [
-      for (final byte in bytes) byte.toRadixString(16).padLeft(2, '0'),
-    ].join();
-    return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-'
-        '${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
   }
 
   /// Stops the outbox and the server, and frees the chats' message sources;
@@ -175,6 +182,12 @@ final class DemoOutboxChat {
   CapabilityDenialText? _denialText;
   CapabilityDeniedHandler? _onDenied;
   void Function(String announcement)? _announce;
+  bool Function()? _atBottom;
+
+  /// Whether the list showed its newest message as each outgoing message
+  /// was sent, for its row's appearance: the row may be built only once
+  /// the list has scrolled to it.
+  final Map<String, bool> _$atBottomAtSend = {};
   Future<SourceBytes?> Function(MediaItemId item)? _askForSource;
 
   /// The status of each outgoing message, as the outbox last reported it:
@@ -216,7 +229,8 @@ final class DemoOutboxChat {
   /// [capabilities], [denialText] and [onDenied]. [announce] speaks a
   /// send's start and end to assistive technology; [askForSource] asks the
   /// user for the file of an item whose upload source was lost, for a
-  /// retry.
+  /// retry; [atBottom] reads whether the chat list shows its newest message
+  /// (for a fresh row's appearance, as it was at the send).
   ///
   /// The server's counter starts after the history the source holds, and
   /// that history counts as read by the chat's peers.
@@ -227,6 +241,7 @@ final class DemoOutboxChat {
     CapabilityDeniedHandler? onDenied,
     void Function(String announcement)? announce,
     Future<SourceBytes?> Function(MediaItemId item)? askForSource,
+    bool Function()? atBottom,
   }) async {
     if (_$source case final held? when !identical(held, source)) {
       throw StateError('Chat $chatId is bound to another message source.');
@@ -236,6 +251,7 @@ final class DemoOutboxChat {
     _onDenied = onDenied;
     _announce = announce;
     _askForSource = askForSource;
+    _atBottom = atBottom;
     _owner._$focused = this;
     if (_$source == null) {
       _$source = source;
@@ -263,6 +279,7 @@ final class DemoOutboxChat {
     _onDenied = null;
     _announce = null;
     _askForSource = null;
+    _atBottom = null;
     if (identical(_owner._$focused, this)) _owner._$focused = null;
   }
 
@@ -299,10 +316,12 @@ final class DemoOutboxChat {
     try {
       return [
         for (final (index, send) in sends.indexed)
-          _sendOne(send, bodies[index], origins?[index]),
+          _sendOne(send, bodies[index], origins?[index], prepared),
       ];
     } finally {
-      _owner._$prepared = const {};
+      _owner
+        .._$prepared = const {}
+        .._$minted = const {};
     }
   }
 
@@ -310,11 +329,27 @@ final class DemoOutboxChat {
     PlannedSend send,
     String body,
     List<Rect?>? origins,
+    Map<AttachItemId, PreparedMedia> prepared,
   ) {
+    final (attachItems, form) = switch (send) {
+      PlannedSend$Single(:final item, :final form) => ([item], form),
+      PlannedSend$Group(:final items, :final form) => (items, form),
+      PlannedSend$Text() => (const <AttachItem>[], SendForm.media),
+    };
+    final media = _owner.media;
+    final minted = {for (final item in attachItems) item.id: media.mint()};
+    final items = [
+      for (final item in attachItems)
+        _factsOf(item, form, minted[item.id]!, prepared[item.id]),
+    ];
+    for (final item in items) {
+      if (item.source case final source?) media.know(item.mediaKey, source);
+    }
+    _owner._$minted = minted;
     final message = _outbox.send(
       chatId,
       send,
-      payload: _payloadOf(body, const {}),
+      payload: _payloadOf(body, const {}, items: items),
       origins: origins,
     );
     _accepted(message);
@@ -328,14 +363,62 @@ final class DemoOutboxChat {
   // A send the outbox accepted starts: it reads sending, and says so.
   OutgoingMessage? _accepted(OutgoingMessage? message) {
     if (message == null) return null;
+    if (_atBottom case final atBottom?) {
+      _$atBottomAtSend[message.clientMessageId] = atBottom();
+    }
     _$statuses[message.clientMessageId] = message.status;
     _$statusRevision.value++;
     _announce?.call(DemoOutgoingStrings.sending);
     return message;
   }
 
-  DemoOutgoingPayload _payloadOf(String body, Map<String, Object?> extras) =>
-      DemoOutgoingPayload(sender: _owner.sender, body: body, extras: extras);
+  DemoOutgoingPayload _payloadOf(
+    String body,
+    Map<String, Object?> extras, {
+    List<DemoOutgoingItem> items = const [],
+  }) => DemoOutgoingPayload(
+    sender: _owner.sender,
+    body: body,
+    extras: extras,
+    items: items,
+  );
+
+  // What [item] is, for its row: sent as a file it is one; its size the
+  // prepared file's, else the picker's.
+  static DemoOutgoingItem _factsOf(
+    AttachItem item,
+    SendForm form,
+    MediaKey mediaKey,
+    PreparedMedia? prepared,
+  ) {
+    final facts = item.facts;
+    return DemoOutgoingItem(
+      mediaKey: mediaKey,
+      kind: switch ((form, item.kind)) {
+        (SendForm.file, _) => MediaItemKind.file,
+        (_, AttachKind.photo) => MediaItemKind.photo,
+        (_, AttachKind.video) => MediaItemKind.video,
+        (_, AttachKind.animation) => MediaItemKind.animation,
+        (_, AttachKind.audio || AttachKind.file) => MediaItemKind.file,
+      },
+      width: prepared?.dimensions?.width ?? facts.dimensions?.width,
+      height: prepared?.dimensions?.height ?? facts.dimensions?.height,
+      byteSize: prepared?.byteSize ?? facts.byteSize,
+      duration: facts.duration,
+      fileName: facts.name,
+      source: switch (item.source) {
+        AttachSource$Library(:final assetId) => DemoOutgoingSource.key(
+          LibraryKeys.keyOf(LibraryAssetId(assetId)),
+        ),
+        AttachSource$Captured(:final localKey) ||
+        AttachSource$Pasted(
+          :final localKey,
+        ) => DemoOutgoingSource.key(MediaKey.parse(localKey)),
+        AttachSource$File(:final path) => DemoOutgoingSource.file(path),
+        AttachSource$Blob() => null,
+      },
+    );
+  }
 
   /// Retries the failed message [clientMessageId]. A message whose source
   /// was lost (a web reload over the copy limit) asks the user for each
@@ -429,6 +512,28 @@ final class DemoOutboxChat {
   /// change need not move the row, so the pill cannot wait for one.
   Listenable get deliveryChanges => _$deliveryChanges ?? _$statusRevision;
 
+  /// How the outgoing row at [id] appears, asked once as the row is first
+  /// built ([ChatOutbox.appearanceOf]): null for a row that is not a fresh
+  /// outgoing one, which the outbox is not asked about.
+  ///
+  /// Whether the list was at its bottom is read as it was when the message
+  /// was sent, when [attach] took a reader; else [atBottom], as the row is
+  /// built. A row the list builds only once it scrolled to it may already
+  /// be sent: it is found by the client message id it had.
+  OutgoingAppearance? appearanceAt(
+    int id, {
+    required bool atBottom,
+    required bool reduceMotion,
+  }) => switch (clientMessageIdAt(id)) {
+    final clientMessageId? => _outbox.appearanceOf(
+      chatId,
+      clientMessageId,
+      atBottom: _$atBottomAtSend.remove(clientMessageId) ?? atBottom,
+      reduceMotion: reduceMotion,
+    ),
+    null => null,
+  };
+
   /// The client message id of the outgoing row at [id], or null.
   String? _outgoingAt(int id) => switch (_$source?.getMessage(id)) {
     final row? => _$identities[row],
@@ -453,9 +558,29 @@ final class DemoOutboxChat {
       updatedAt: now,
       content: payload.body,
       payload: payload.extras,
+      media: _mediaOf(message, payload),
     );
     _$identities[row] = message.clientMessageId;
     return row;
+  }
+
+  // The message's items as the row shows them: each one the outbox still
+  // holds, by its id and local key, with what the payload says it is. A
+  // restored message's sources are known again here.
+  List<MediaItem> _mediaOf(
+    OutgoingMessage message,
+    DemoOutgoingPayload payload,
+  ) {
+    final media = _owner.media;
+    for (final fact in payload.items) {
+      if (fact.source case final source?) media.know(fact.mediaKey, source);
+    }
+    final facts = {for (final item in payload.items) item.mediaKey: item};
+    return [
+      for (final item in message.items)
+        if (facts[item.localKey.mediaKey] case final fact?)
+          fact.toMediaItem(id: item.id, localKey: item.localKey),
+    ];
   }
 
   // A payload the codec cannot read: a row in the tail the user can still
@@ -488,6 +613,12 @@ final class DemoOutboxChat {
       updatedAt: DateTime.now(),
       content: payload.body,
       payload: payload.extras,
+      // The server keeps no items in the demo: the row keeps what it showed,
+      // under the local keys its pictures are cached under.
+      media: switch (previous) {
+        final UserChatMessage row => row.media,
+        _ => const [],
+      },
     );
     switch (sent.rowAt) {
       case _?:
@@ -515,6 +646,31 @@ final class DemoOutboxChat {
           OutgoingStatus$Publishing() ||
           OutgoingStatus$Cancelled():
         break;
+    }
+  }
+
+  // An item left a message that goes on (its cross, or the status
+  // control's cancel through the engine): the row shows the rest. The new
+  // row object is the same outgoing message's.
+  void _onItemDropped(OutgoingItemDropped dropped) {
+    final source = _$source;
+    final message = dropped.message;
+    if (source?.getMessage(message.position) case final UserChatMessage row?) {
+      final updated = UserChatMessage.preParsed(
+        id: row.id,
+        sender: row.sender,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+        body: row.body,
+        payload: row.payload,
+        isProtected: row.isProtected,
+        media: [
+          for (final item in row.media)
+            if (item.id != dropped.item.id) item,
+        ],
+      );
+      _$identities[updated] = message.clientMessageId;
+      source!.updateMessage(updated, reason: 'outbox-item-dropped');
     }
   }
 

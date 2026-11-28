@@ -15,16 +15,26 @@ import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 /// so in message selection a tap on it toggles the row as anywhere else on
 /// the message.
 ///
+/// Over media the media is the message's one non-text body, so the badge
+/// does not register: given a [hitArea], it answers through it, and the
+/// media asks the area ahead of its own parts (`chromeHitAt`).
+///
 /// To assistive technology it carries a retry hint and a custom action
 /// that calls [onRetry]; the status itself, "not sent", is the time's.
 class DemoErrorBadge extends StatefulWidget {
-  /// The badge of the message [messageId], registered with [selection].
+  /// The badge of the message [messageId], registered with [selection], or
+  /// answering through [hitArea] when one is given.
   const DemoErrorBadge({
     required this.messageId,
     required this.selection,
     required this.onRetry,
+    this.hitArea,
     super.key,
   });
+
+  /// Where the badge answers its hits instead of registering a body of its
+  /// own: a body that owns the message's hits (its media) asks it first.
+  final DemoErrorBadgeHitArea? hitArea;
 
   /// The failed message.
   final int messageId;
@@ -49,12 +59,23 @@ class DemoErrorBadge extends StatefulWidget {
   State<DemoErrorBadge> createState() => _DemoErrorBadgeState();
 }
 
+/// The hits of an error badge drawn inside another body, which asks
+/// [inlineHitAt] before its own parts; null while no badge is mounted.
+final class DemoErrorBadgeHitArea {
+  _DemoErrorBadgeState? _$badge;
+
+  /// The badge's hit at [globalOffset], or null off it (or with none).
+  ChatInlineHit? inlineHitAt(Offset globalOffset) =>
+      _$badge?.inlineHitAt(globalOffset);
+}
+
 class _DemoErrorBadgeState extends State<DemoErrorBadge>
     implements ChatNonTextBody {
   final GlobalKey _hitBox = GlobalKey();
   Object? _token;
   ChatSelectionController? _registeredWith;
   int? _registeredId;
+  DemoErrorBadgeHitArea? _area;
 
   // The kind of the press under way, recorded before the viewport asks for
   // the part: this leaf's listener sees the down before its ancestors do.
@@ -70,7 +91,8 @@ class _DemoErrorBadgeState extends State<DemoErrorBadge>
   void didUpdateWidget(covariant DemoErrorBadge oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.selection, widget.selection) ||
-        oldWidget.messageId != widget.messageId) {
+        oldWidget.messageId != widget.messageId ||
+        !identical(oldWidget.hitArea, widget.hitArea)) {
       _unregister();
       _register();
     }
@@ -83,12 +105,20 @@ class _DemoErrorBadgeState extends State<DemoErrorBadge>
   }
 
   void _register() {
+    if (widget.hitArea case final area?) {
+      _area = area.._$badge = this;
+      return;
+    }
     _registeredWith = widget.selection;
     _registeredId = widget.messageId;
     _token = widget.selection.putNonTextBody(widget.messageId, this);
   }
 
   void _unregister() {
+    if (_area case final area? when identical(area._$badge, this)) {
+      area._$badge = null;
+    }
+    _area = null;
     if ((_registeredWith, _registeredId) case (final selection?, final id?)) {
       selection.removeNonTextBody(id, token: _token);
     }

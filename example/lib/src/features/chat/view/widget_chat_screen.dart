@@ -71,6 +71,7 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_search_b
 import 'package:chat_scroll_view_example/src/features/chat/widgets/date_separator.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_backend_error.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_row_appearance.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/large_emoji_limit_button.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/notes_dialog.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/scroll_to_bottom_button.dart';
@@ -868,6 +869,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
           onDenied: _rights.showDenied,
           announce: _announceOutgoing,
           askForSource: _askForLostSource,
+          atBottom: () => _controller.isAtTail.value,
         );
         if (!mounted) return;
       }
@@ -1162,9 +1164,10 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     required List<List<Rect?>> origins,
   }) {
     if (_outboxChat case final chat?) {
+      // An outbox row shows its items as media: its text is the caption.
       final messages = chat.sendPlanned(
         sends,
-        bodies: bodies,
+        bodies: [for (final send in sends) ChatAttachMessages.captionOf(send)],
         prepared: prepared,
         origins: origins,
       );
@@ -1790,33 +1793,37 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                         selectionController: _selection,
                         reverse: true,
                         preserveExternalFocus: true,
-                        child: ChatScrollView(
-                          reverse: true,
-                          dataSource: _dataSource!,
-                          controller: _controller,
-                          selectionController: _selection,
-                          onIdleMessageTap: _presentMessageMenu,
-                          onSecondaryMessageTap: _presentMessageMenu,
-                          isSelfMessage: _isSelfMessage,
-                          bottomPadding: insets.bottomPadding,
-                          topPadding: insets.topPadding,
-                          messageBuilder: _buildMessage,
-                          chunkErrorBuilder: _buildChunkError,
-                          emptyBuilder: _buildEmpty,
-                          loadingBuilder: _buildInitialSkeleton,
-                          scrollActivityTiming:
-                              const ChatScrollActivityTiming(),
-                          dayHeaderDelegate: const ChatPushingDayHeader(),
-                          dateSeparatorBuilder: (context, bucket, date) =>
-                              DateSeparator(date: date),
-                          unreadBoundary: _unreadBoundary,
-                          unreadSeparatorBuilder: _buildUnreadSeparator,
-                          senderRunLayout: switch (_unreadBoundary) {
-                            final boundary? => UnreadBoundarySenderRunLayout(
-                              boundary: boundary,
-                            ),
-                            null => DefaultChatSenderRunLayout.instance,
-                          },
+                        // A fresh outgoing row appears as its platform does.
+                        child: DemoRowAppearanceScope(
+                          atBottom: () => _controller.isAtTail.value,
+                          child: ChatScrollView(
+                            reverse: true,
+                            dataSource: _dataSource!,
+                            controller: _controller,
+                            selectionController: _selection,
+                            onIdleMessageTap: _presentMessageMenu,
+                            onSecondaryMessageTap: _presentMessageMenu,
+                            isSelfMessage: _isSelfMessage,
+                            bottomPadding: insets.bottomPadding,
+                            topPadding: insets.topPadding,
+                            messageBuilder: _buildMessage,
+                            chunkErrorBuilder: _buildChunkError,
+                            emptyBuilder: _buildEmpty,
+                            loadingBuilder: _buildInitialSkeleton,
+                            scrollActivityTiming:
+                                const ChatScrollActivityTiming(),
+                            dayHeaderDelegate: const ChatPushingDayHeader(),
+                            dateSeparatorBuilder: (context, bucket, date) =>
+                                DateSeparator(date: date),
+                            unreadBoundary: _unreadBoundary,
+                            unreadSeparatorBuilder: _buildUnreadSeparator,
+                            senderRunLayout: switch (_unreadBoundary) {
+                              final boundary? => UnreadBoundarySenderRunLayout(
+                                boundary: boundary,
+                              ),
+                              null => DefaultChatSenderRunLayout.instance,
+                            },
+                          ),
                         ),
                       ),
                     ),

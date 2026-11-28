@@ -8,9 +8,11 @@ import 'package:chat_outbox/testing.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outbox.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outgoing_media.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/fake_chat_server.dart';
 import 'package:chat_scroll_view_example/src/features/logs/data/diagnostics_journal.dart';
 import 'package:chat_scroll_view_example/src/features/logs/model/journal_view.dart';
+import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -332,5 +334,121 @@ void main() {
       isNot(contains('logged')),
       reason: 'no message text in the journal',
     );
+  });
+
+  group('media rows', () {
+    List<MediaItem> mediaAt(int id) => switch (source.getMessage(id)) {
+      final UserChatMessage message => message.media,
+      _ => const [],
+    };
+
+    OutgoingMessage sendAlbum(DemoOutboxChat bound) => bound
+        .sendPlanned(
+          [
+            PlannedSend.group([
+              AttachItems.photo('p1', width: 400, height: 300),
+              AttachItems.photo('p2'),
+            ], form: SendForm.media),
+          ],
+          bodies: ['two'],
+          prepared: {
+            const AttachItemId('p1'): prepared('/p1.jpg'),
+            const AttachItemId('p2'): prepared('/p2.jpg'),
+          },
+        )
+        .single!;
+
+    test("a media send's row carries its items by the outbox's item ids "
+        'and local keys, with what the picker knew of them', () async {
+      final bound = await openChat();
+
+      final message = sendAlbum(bound);
+
+      final media = mediaAt(message.position);
+      expect(
+        [for (final item in media) item.id],
+        [for (final item in message.items) item.id],
+      );
+      expect(
+        [for (final item in media) item.descriptor.key],
+        [for (final item in message.items) item.localKey],
+      );
+      expect(media.first.kind, MediaItemKind.photo);
+      expect(media.first.descriptor.size, const ContentSize(400, 300));
+      expect(bodyAt(message.position), 'two');
+    });
+
+    test(
+      "each item's upload is tracked under the key its cell reads",
+      () async {
+        final bound = await openChat();
+
+        final message = sendAlbum(bound);
+
+        final request = transfers.requests.single;
+        expect(
+          [for (final item in request.items) item.key],
+          [for (final item in message.items) item.localKey.mediaKey],
+        );
+        expect([
+          for (final item in request.items) item.key,
+        ], everyElement(predicate<MediaKey>(DemoOutgoingMedia.isOutgoing)));
+      },
+    );
+
+    test('an item dropped by its cross leaves the row, which stays the '
+        "outbox's", () async {
+      final bound = await openChat();
+      final message = sendAlbum(bound);
+      await pumpEventQueue();
+
+      transfers.cancelUpload(
+        transfers.jobs.single.id,
+        '${message.items.first.id}',
+      );
+      await pumpEventQueue();
+
+      final row = source.getMessage(message.position)!;
+      expect(
+        [for (final item in mediaAt(message.position)) item.id],
+        [message.items.last.id],
+      );
+      expect(source.identityOf!(row), message.clientMessageId);
+    });
+
+    test('the sent row keeps its media', () async {
+      final bound = await openChat();
+      final message = sendAlbum(bound);
+      await pumpEventQueue();
+
+      transfers.setState(
+        transfers.jobs.single.id,
+        const PublishJobState.publishing(),
+      );
+      await pumpEventQueue();
+
+      expect(
+        statusOf(bound, message.clientMessageId),
+        const OutgoingStatus.sent(),
+      );
+      expect(mediaAt(history), hasLength(2));
+    });
+
+    test('after a restart the row carries its items again', () async {
+      final bound = await openChat();
+      final message = sendAlbum(bound);
+      await pumpEventQueue();
+      await demo.dispose();
+
+      source = GeneratedChatDataSource(messageCount: history);
+      server = FakeChatServer(peerDelay: Duration.zero);
+      demo = outboxOver(transfers);
+      await openChat();
+
+      expect(
+        [for (final item in mediaAt(history)) item.descriptor.key],
+        [for (final item in message.items) item.localKey],
+      );
+    });
   });
 }

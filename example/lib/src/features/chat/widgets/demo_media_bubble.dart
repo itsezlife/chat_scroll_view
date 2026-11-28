@@ -2,8 +2,9 @@ import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_received_link_preview.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_delivery.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_status_motion.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_media_host.dart';
-import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message_meta.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_error_badge.dart';
 import 'package:chrome_foundation/chrome_foundation.dart' show ChromeWidthClass;
 import 'package:content_model/content_model.dart';
 import 'package:content_model/markdown.dart' show RichTextMarkdown;
@@ -22,6 +23,13 @@ import 'package:message_media/message_media.dart';
 /// The host measures the caption (its plain text in the bubble's style), so
 /// a policy that widens media to its caption gets the width
 /// (`MediaLayoutInput.captionWidth`).
+///
+/// The user's own message shows its [delivery] in the time pill, moving
+/// between statuses as the platform does (`DemoDeliveryMeta`), and the
+/// media its send state: an upload's ring and cross while sending, no
+/// status control once failed. A failed message's error badge sits beside
+/// the time; over the media it answers through the media's own hit order
+/// (`chromeHitAt`), since the media is the message's one non-text body.
 class DemoMediaBubble extends StatefulWidget {
   /// The bubble of the message [messageId].
   const DemoMediaBubble({
@@ -41,8 +49,17 @@ class DemoMediaBubble extends StatefulWidget {
     this.caption,
     this.header,
     this.selection,
+    this.delivery,
+    this.onRetry,
     super.key,
   });
+
+  /// What the time pill of the user's own message shows; null for
+  /// another's.
+  final DemoDelivery? delivery;
+
+  /// Sends a failed message again: its error badge's retry action.
+  final VoidCallback? onRetry;
 
   /// The message's id.
   final int messageId;
@@ -100,6 +117,9 @@ class DemoMediaBubble extends StatefulWidget {
 }
 
 class _DemoMediaBubbleState extends State<DemoMediaBubble> {
+  /// Where the error badge answers, for the media to ask first.
+  final DemoErrorBadgeHitArea _badgeHits = DemoErrorBadgeHitArea();
+
   ChatReceivedLinkPreview _received = ChatReceivedLinkPreview.none;
   LinkPreviewRequest? _lookup;
   MediaLayoutInput? _input;
@@ -214,6 +234,20 @@ class _DemoMediaBubbleState extends State<DemoMediaBubble> {
         chatId: widget.host.chatId,
         scrollId: '${widget.messageId}',
       );
+      final badge = switch ((
+        widget.delivery,
+        widget.selection,
+        widget.onRetry,
+      )) {
+        (DemoDelivery.notSent, final selection?, final onRetry?) =>
+          DemoErrorBadge(
+            messageId: widget.messageId,
+            selection: selection,
+            onRetry: onRetry,
+            hitArea: _badgeHits,
+          ),
+        _ => null,
+      };
       final input = composition.inputFor(
         MediaLayoutInput(
           text: MediaLayoutText.of(context),
@@ -227,7 +261,10 @@ class _DemoMediaBubbleState extends State<DemoMediaBubble> {
           isOutgoing: widget.isOutgoing,
           showsAvatar: !widget.isOutgoing,
           chrome: MediaLayoutChrome(
-            timeWidth: widget.isOutgoing ? 48 : 32,
+            // A failed message's badge takes its square beside the time.
+            timeWidth:
+                (widget.isOutgoing ? 48 : 32) +
+                (badge == null ? 0 : DemoErrorBadge.hitSize + 4),
             timeHeight: 13,
             bubbleRadius: widget.borderRadius.topLeft.x,
           ),
@@ -235,12 +272,20 @@ class _DemoMediaBubbleState extends State<DemoMediaBubble> {
         ),
       );
       final layout = _layoutOf(input);
-      final meta = DemoMessageMeta(
+      final time = DemoDeliveryMeta(
         createdAt: widget.createdAt,
         color: widget.metaColor,
-        delivery: widget.isOutgoing ? DemoDelivery.read : null,
+        delivery: widget.delivery,
         edited: widget.edited,
       );
+      // The badge sits beside the time, mirrored with the chat's direction.
+      final meta = switch (badge) {
+        final badge? => Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [time, badge],
+        ),
+        null => time,
+      };
       final placement = MediaBubbleTime.of(layout, input);
       final caption = switch ((widget.caption, placement)) {
         (final caption?, MediaBubbleTime.inText) => Column(
@@ -264,8 +309,9 @@ class _DemoMediaBubbleState extends State<DemoMediaBubble> {
         time: switch (placement) {
           MediaBubbleTime.overMedia => _TimePill(
             createdAt: widget.createdAt,
-            outgoing: widget.isOutgoing,
+            delivery: widget.delivery,
             edited: widget.edited,
+            badge: badge,
           ),
           MediaBubbleTime.underCard => Align(
             alignment: AlignmentDirectional.bottomEnd,
@@ -278,6 +324,12 @@ class _DemoMediaBubbleState extends State<DemoMediaBubble> {
         correlation: correlation,
         selection: widget.selection,
         messageId: widget.messageId,
+        sendState: switch (widget.delivery) {
+          DemoDelivery.sending => MediaSendState.sending,
+          DemoDelivery.notSent => MediaSendState.failed,
+          DemoDelivery.sent || DemoDelivery.read || null => MediaSendState.none,
+        },
+        chromeHitAt: badge == null ? null : _badgeHits.inlineHitAt,
         onOpenViewer: switch (widget.host.onOpenViewer) {
           final open? => (request) => open(context, request, widget.items),
           null => null,
@@ -340,17 +392,19 @@ class _DemoMediaBubbleState extends State<DemoMediaBubble> {
 }
 
 /// The time over the media: the meta on a dark pill, laid out in the rect
-/// the layout reports.
+/// the layout reports, with a failed message's [badge] beside it.
 class _TimePill extends StatelessWidget {
   const _TimePill({
     required this.createdAt,
-    required this.outgoing,
+    required this.delivery,
     required this.edited,
+    this.badge,
   });
 
   final DateTime createdAt;
-  final bool outgoing;
+  final DemoDelivery? delivery;
   final bool edited;
+  final Widget? badge;
 
   @override
   Widget build(BuildContext context) => DecoratedBox(
@@ -359,13 +413,25 @@ class _TimePill extends StatelessWidget {
       borderRadius: BorderRadius.circular(10),
     ),
     child: Center(
-      // The time is status chrome: a click on it is no tap of the row.
-      child: ChatMessageTapBarrier(
-        child: DemoMessageMeta(
-          createdAt: createdAt,
-          color: const Color(0xFFFFFFFF),
-          delivery: outgoing ? DemoDelivery.read : null,
-          edited: edited,
+      // The pill's width follows the layout's transition when the badge
+      // comes or goes: its content shrinks to fit until the pill has grown.
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // The time is status chrome: a click on it is no tap of the row.
+            // The badge is outside the barrier: a click on it is its own.
+            ChatMessageTapBarrier(
+              child: DemoDeliveryMeta(
+                createdAt: createdAt,
+                color: const Color(0xFFFFFFFF),
+                delivery: delivery,
+                edited: edited,
+              ),
+            ),
+            ?badge,
+          ],
         ),
       ),
     ),

@@ -74,6 +74,17 @@ abstract final class ChatAttachMessages {
         },
     ];
   }
+
+  /// The text a message of [send] shows beside its items as media: its
+  /// caption (an album's on the item the plan put it on), empty without
+  /// one.
+  static String captionOf(PlannedSend send) => switch (send) {
+    PlannedSend$Single(:final caption) => caption?.plain ?? '',
+    final PlannedSend$Group group => [
+      for (var i = 0; i < group.items.length; i++) ?group.captionOf(i)?.plain,
+    ].join('\n'),
+    PlannedSend$Text(:final caption) => caption.plain,
+  };
 }
 
 /// Sends a plan's [sends] through the chat's outbox; see

@@ -132,8 +132,12 @@ import 'features/chat/outbox/chat_outbox_screen_test.dart'
 import 'features/chat/outbox/demo_delivery_test.dart'
     as outbox_demo_delivery_test;
 import 'features/chat/outbox/demo_outbox_test.dart' as outbox_demo_outbox_test;
+import 'features/chat/outbox/demo_outgoing_media_test.dart'
+    as outbox_demo_outgoing_media_test;
 import 'features/chat/outbox/demo_outgoing_payload_test.dart'
     as outbox_demo_outgoing_payload_test;
+import 'features/chat/outbox/demo_status_motion_test.dart'
+    as outbox_demo_status_motion_test;
 import 'features/chat/outbox/demo_transfers_test.dart'
     as outbox_demo_transfers_test;
 import 'features/chat/outbox/demo_upload_transport_test.dart'
@@ -148,6 +152,10 @@ import 'features/chat/outbox/outbox_debug_panel_test.dart'
     as outbox_outbox_debug_panel_test;
 import 'features/chat/outbox/outgoing_badge_rtl_test.dart'
     as outbox_outgoing_badge_rtl_test;
+import 'features/chat/outbox/outgoing_media_bubble_test.dart'
+    as outbox_outgoing_media_bubble_test;
+import 'features/chat/outbox/outgoing_row_appearance_test.dart'
+    as outbox_outgoing_row_appearance_test;
 import 'features/chat/outbox/outgoing_status_screen_test.dart'
     as outbox_outgoing_status_screen_test;
 import 'features/chat/outbox/source_lost_prompt_test.dart'
@@ -423,6 +431,22 @@ void main() {
   group(
     'features/chat/outbox/outgoing_status_screen_test.dart',
     outbox_outgoing_status_screen_test.main,
+  );
+  group(
+    'features/chat/outbox/demo_outgoing_media_test.dart',
+    outbox_demo_outgoing_media_test.main,
+  );
+  group(
+    'features/chat/outbox/demo_status_motion_test.dart',
+    outbox_demo_status_motion_test.main,
+  );
+  group(
+    'features/chat/outbox/outgoing_media_bubble_test.dart',
+    outbox_outgoing_media_bubble_test.main,
+  );
+  group(
+    'features/chat/outbox/outgoing_row_appearance_test.dart',
+    outbox_outgoing_row_appearance_test.main,
   );
   group(
     'features/chat/outbox/demo_upload_transport_test.dart',

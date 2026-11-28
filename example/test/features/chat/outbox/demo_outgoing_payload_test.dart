@@ -1,8 +1,11 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outgoing_media.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outgoing_payload.dart';
+import 'package:content_model/content_model.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mpx_core/mpx_core.dart';
 
 void main() {
   const codec = DemoOutgoingPayloadCodec();
@@ -68,6 +71,111 @@ void main() {
     expect(
       () => codec.decode(Uint8List.fromList(utf8.encode('[1]'))),
       throwsFormatException,
+    );
+  });
+
+  test("a media message's items round-trip, each fact optional", () {
+    final payload = DemoOutgoingPayload(
+      sender: 'Hixie',
+      body: 'two',
+      items: [
+        DemoOutgoingItem(
+          mediaKey: const MediaKey.remote('local:a'),
+          kind: MediaItemKind.video,
+          width: 1280,
+          height: 720,
+          byteSize: 2048,
+          duration: const Duration(seconds: 3),
+          fileName: 'clip.mp4',
+          source: DemoOutgoingSource.key(
+            MediaKey.local('00000000-0000-4000-8000-000000000001'),
+          ),
+        ),
+        const DemoOutgoingItem(
+          mediaKey: MediaKey.remote('local:b'),
+          kind: MediaItemKind.file,
+          source: DemoOutgoingSource.file('/files/b.pdf'),
+        ),
+        const DemoOutgoingItem(
+          mediaKey: MediaKey.remote('local:c'),
+          kind: MediaItemKind.photo,
+        ),
+      ],
+    );
+
+    expect(codec.decode(codec.encode(payload)), payload);
+  });
+
+  test('a payload journaled before items were kept reads as none', () {
+    final bytes = Uint8List.fromList(
+      utf8.encode(jsonEncode({'v': 1, 'sender': 'a', 'body': 'b'})),
+    );
+
+    expect(codec.decode(bytes).items, isEmpty);
+  });
+
+  test('an item of the wrong shape throws a FormatException naming it', () {
+    Uint8List bytesOf(Object? items) => Uint8List.fromList(
+      utf8.encode(
+        jsonEncode({'v': 1, 'sender': 'a', 'body': 'b', 'items': items}),
+      ),
+    );
+
+    expect(
+      () => codec.decode(bytesOf('x')),
+      throwsA(
+        isA<FormatException>().having(
+          (e) => e.message,
+          'message',
+          contains('items'),
+        ),
+      ),
+    );
+    expect(
+      () => codec.decode(
+        bytesOf([
+          {'kind': 'photo'},
+        ]),
+      ),
+      throwsA(
+        isA<FormatException>().having(
+          (e) => e.message,
+          'message',
+          contains('key'),
+        ),
+      ),
+    );
+    expect(
+      () => codec.decode(
+        bytesOf([
+          {'key': 'nope', 'kind': 'photo'},
+        ]),
+      ),
+      throwsA(
+        isA<FormatException>().having(
+          (e) => e.message,
+          'message',
+          contains('"key"'),
+        ),
+      ),
+    );
+    expect(
+      () => codec.decode(
+        bytesOf([
+          {
+            'key': const MediaKey.remote('x').encoded,
+            'kind': 'photo',
+            'w': 'wide',
+          },
+        ]),
+      ),
+      throwsA(
+        isA<FormatException>().having(
+          (e) => e.message,
+          'message',
+          contains('"w"'),
+        ),
+      ),
     );
   });
 }

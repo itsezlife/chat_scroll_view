@@ -32,6 +32,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/shipped_packs_se
 import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outbox.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outgoing_media.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_transfers.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_upload_transport.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/outbox_debug_actions.dart';
@@ -634,17 +635,23 @@ final class AppServices {
           }
         },
       );
+      // The user's outgoing media, before the server has it: its keys are
+      // the outbox's items', and its pictures come from where each was
+      // picked (the library, a capture, a file), through the routes below.
+      final outgoingMedia = DemoOutgoingMedia();
       pipeline = owned(
         AssetPipeline(
           // Giphy first, then the corpus, then the bundle: each takes its own
           // keys and hands the rest on.
-          fetcher: _LibraryRoute(
-            deviceLibrary,
-            CaptureMedia.fetcher(
-              store: bytes,
-              client: captureClient,
-              otherwise: sentDocuments.route(
-                _contentFetcher(giphy, corpusPacks, rootBundle),
+          fetcher: outgoingMedia.route(
+            _LibraryRoute(
+              deviceLibrary,
+              CaptureMedia.fetcher(
+                store: bytes,
+                client: captureClient,
+                otherwise: sentDocuments.route(
+                  _contentFetcher(giphy, corpusPacks, rootBundle),
+                ),
               ),
             ),
           ),
@@ -875,6 +882,7 @@ final class AppServices {
       // an earlier run publishes once its chat is opened again.
       final outbox = DemoOutbox(
         transfers: outboxTransfers ?? OutboxTransfers.of(transfers!),
+        media: outgoingMedia,
       );
       unwind.add(outbox.dispose);
       // The outbox debug panel's actions, made once so a kill asked for

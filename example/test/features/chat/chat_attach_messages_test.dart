@@ -124,4 +124,25 @@ void main() {
       expect(documents.document('b1'), isNull);
     });
   });
+
+  group('captionOf', () {
+    test("is a send's caption alone, empty without one", () {
+      final single = _plan([AttachItems.photo('a')], caption: 'look');
+      final bare = _plan([AttachItems.photo('a')]);
+      final album = _plan([
+        AttachItems.photo('a'),
+        AttachItems.photo('b'),
+      ], caption: 'both');
+
+      expect(ChatAttachMessages.captionOf(single.sends.single), 'look');
+      expect(ChatAttachMessages.captionOf(bare.sends.single), '');
+      expect(ChatAttachMessages.captionOf(album.sends.single), 'both');
+      expect(
+        ChatAttachMessages.captionOf(
+          const PlannedSend.text(content.RichText.plain('words')),
+        ),
+        'words',
+      );
+    });
+  });
 }

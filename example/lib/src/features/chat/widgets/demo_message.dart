@@ -15,7 +15,7 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_emoji_me
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_error_badge.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_markdown_theme.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_media_bubble.dart';
-import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message_meta.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_row_appearance.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_row_hover.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/message_row_frame.dart';
 import 'package:chrome_foundation/chrome_foundation.dart' show ChromeTypography;
@@ -230,16 +230,26 @@ class DemoMessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // The pill of the user's own message follows its status, which may
-    // change while the row stays as it is.
+    // change while the row stays as it is; a fresh one appears as its
+    // platform does. Every row follows the list's slide.
     if (outbox case final outbox? when _isOutgoing(message.sender)) {
-      return ListenableBuilder(
-        listenable: outbox.deliveryChanges,
-        builder: (context, _) => _build(context, outbox.deliveryOf(message.id)),
+      return DemoShiftedRow(
+        child: DemoOutgoingRowAppearance(
+          outbox: outbox,
+          messageId: message.id,
+          child: ListenableBuilder(
+            listenable: outbox.deliveryChanges,
+            builder: (context, _) =>
+                _build(context, outbox.deliveryOf(message.id)),
+          ),
+        ),
       );
     }
-    return _build(
-      context,
-      _isOutgoing(message.sender) ? DemoDelivery.read : null,
+    return DemoShiftedRow(
+      child: _build(
+        context,
+        _isOutgoing(message.sender) ? DemoDelivery.read : null,
+      ),
     );
   }
 
@@ -300,6 +310,7 @@ class DemoMessageBubble extends StatelessWidget {
           sender: isFirstInRun ? message.sender : null,
           edited: edited,
           layout: layout,
+          delivery: delivery,
         ),
       (final emoji?, final controller?, final host?) => DemoEmojiMessage(
         messageId: message.id,
@@ -335,7 +346,7 @@ class DemoMessageBubble extends StatelessWidget {
       theme: layout,
       outgoing: outgoing,
       runLayout: runLayout,
-      bubble: bubble,
+      bubble: DemoOutgoingRowAppearance.bubble(context, bubble),
       avatar: !outgoing && isLastInRun
           ? MessageAvatar(
               sender: message.sender,
@@ -363,6 +374,7 @@ extension on DemoMessageBubble {
     required String? sender,
     required bool edited,
     required ChatMessageThemeData layout,
+    required DemoDelivery? delivery,
   }) {
     final textStyle = demoBubbleTextStyle(outgoing: outgoing);
     final body = markdown?.markdown ?? '';
@@ -392,6 +404,11 @@ extension on DemoMessageBubble {
         theme: layout,
       ).resolve(Directionality.of(context)),
       selection: registersMedia ? selection : null,
+      delivery: delivery,
+      onRetry: switch (outbox) {
+        final outbox? => () => unawaited(outbox.retryAt(message.id)),
+        null => null,
+      },
       caption: switch (markdown) {
         final md? when body.trim().isNotEmpty => _RegisteredChatMdBody(
           selection: selection,
