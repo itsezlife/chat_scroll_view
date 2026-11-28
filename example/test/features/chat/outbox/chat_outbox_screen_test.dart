@@ -14,7 +14,9 @@ import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_composer_spec.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/fake_chat_server.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/outbox_debug_panel.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message.dart';
+import 'package:chrome_foundation/testing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mpx_core/mpx_core.dart';
@@ -184,6 +186,28 @@ void main() {
       const OutgoingStatus.failed(OutgoingFailure.rejected('demo.rejected')),
     );
     expect(bubbleOf('rejected one'), findsOneWidget);
+  });
+
+  testWidgets("the chat's debug chrome opens the outbox debug panel on the "
+      'chat', (tester) async {
+    final services = await pumpApp(tester);
+    services.outbox.server.script(chat, FakeServerScript.reject);
+    await sendFromComposer(tester, 'kept in the tail');
+
+    await tester.tap(find.byKey(OutboxDebugPanel.openKey));
+    await settle(tester);
+
+    final panel = tester.widget<OutboxDebugPanel>(
+      find.byType(OutboxDebugPanel),
+    );
+    expect(panel.chatId, chat);
+    expect(panel.actions, same(services.debugActions));
+    expect(
+      find.byKey(OutboxDebugPanel.rowKey(outgoing(services).clientMessageId)),
+      findsOneWidget,
+    );
+    expect(find.textContaining('kept in the tail'), findsNothing);
+    expectChromeText(tester, within: find.byType(OutboxDebugPanel));
   });
 
   testWidgets('after a restart pendingFor restores the rows', (tester) async {

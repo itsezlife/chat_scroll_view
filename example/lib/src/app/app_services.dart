@@ -34,6 +34,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pa
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outbox.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_transfers.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_upload_transport.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/outbox_debug_actions.dart';
 import 'package:chat_scroll_view_example/src/features/chat/wallpaper/demo_wallpaper.dart';
 import 'package:chat_scroll_view_example/src/features/logs/data/diagnostics_journal.dart';
 import 'package:content_assets/content_assets.dart';
@@ -175,9 +176,15 @@ final class AppServices {
     required RangedBytes? rangedBytes,
     required this.outbox,
     required this.transfers,
+    required this.uploadTransport,
+    required this.debugActions,
+    required DemoNetworkCut networkCut,
+    required HttpBytesClient? devServerClient,
     required VoidCallback? stopNetworkFeed,
   }) : _deviceLibrary = deviceLibrary,
        _stopNetworkFeed = stopNetworkFeed,
+       _networkCut = networkCut,
+       _devServerClient = devServerClient,
        _autoDownload = autoDownload,
        _downloads = downloads,
        _bytes = bytes,
@@ -562,12 +569,35 @@ final class AppServices {
       // cache scope's, so a cell's status control shows an upload. A test's
       // fake leaves it unopened.
       final signals = deviceSignals ?? ownedSignals!;
+      // The debug panel's network cut, read by the engine's connectivity
+      // feed and by every request to the dev upload server.
+      final networkCut = owned(DemoNetworkCut(), (cut) => cut.dispose());
+      final uploadTransport = DemoUploadTransport();
+      final devServer = outboxTransfers == null
+          ? DemoTransfers.devServer
+          : null;
+      final devServerClient = switch (devServer) {
+        null => null,
+        _ => owned(
+          HttpBytesClient(
+            middlewares: [
+              networkCut.middleware,
+              const HttpBytesTimeoutMiddleware().call,
+            ],
+          ),
+          (client) => client.close(),
+        ),
+      };
       final transfers = outboxTransfers != null
           ? null
           : owned(
               await DemoTransfers.open(
                 lifecycle: lifecycleSource,
-                transports: [DemoUploadTransport()],
+                transports: DemoTransfers.transportsFor(
+                  demo: uploadTransport,
+                  devServer: devServer,
+                  client: devServerClient,
+                ),
                 online: signals.network.value != NetworkClass.none,
                 store: bytes,
                 // The journal is the outbox's truth, not a cache: the disk
@@ -580,6 +610,7 @@ final class AppServices {
         final transfers? => DemoTransfers.followNetwork(
           transfers,
           signals.network,
+          cut: networkCut,
         ),
         null => null,
       };
@@ -846,10 +877,31 @@ final class AppServices {
         transfers: outboxTransfers ?? OutboxTransfers.of(transfers!),
       );
       unwind.add(outbox.dispose);
+      // The outbox debug panel's actions, made once so a kill asked for
+      // outlives the panel; debug builds only, like the panel.
+      final debugActions = kDebugMode
+          ? owned(
+              OutboxDebugActions(
+                engine: switch (transfers) {
+                  final transfers? => TransferDebugHooks.engine(
+                    transfers,
+                    cut: networkCut,
+                    transport: uploadTransport,
+                  ),
+                  null => null,
+                },
+              ),
+              (actions) => actions.dispose(),
+            )
+          : null;
 
       return AppServices._(
         outbox: outbox,
         transfers: transfers,
+        uploadTransport: transfers == null ? null : uploadTransport,
+        debugActions: debugActions,
+        networkCut: networkCut,
+        devServerClient: devServerClient,
         stopNetworkFeed: stopNetworkFeed,
         deviceLibrary: deviceLibrary,
         keyValueStore: storage,
@@ -1183,6 +1235,18 @@ final class AppServices {
   /// when a test gave the outbox a fake.
   final Transfers? transfers;
 
+  /// The in-process upload transport the engine sends to, for the debug
+  /// panel's switches; null when a test gave the outbox a fake.
+  final DemoUploadTransport? uploadTransport;
+
+  /// The outbox debug panel's actions: kill, network cut, system
+  /// interruption (without an engine only the kill acts); null in a
+  /// release or profile build, which has no panel.
+  final OutboxDebugActions? debugActions;
+
+  final DemoNetworkCut _networkCut;
+  final HttpBytesClient? _devServerClient;
+
   final VoidCallback? _stopNetworkFeed;
   final WidgetsPlaybackLifecycleSource _lifecycleSource;
   final ValueNotifier<bool> _reducedMotion;
@@ -1254,10 +1318,16 @@ final class AppServices {
     _disposed = true;
     // The outbox first: it stops watching the jobs and frees the chats'
     // message sources; the engine after it, its jobs journaled.
+    debugActions?.dispose();
     _stopNetworkFeed?.call();
+    _networkCut.dispose();
     final engine = transfers;
+    final devServerClient = _devServerClient;
     _closeReporting(
-      outbox.dispose().then((_) => engine?.dispose()),
+      outbox
+          .dispose()
+          .then((_) => engine?.dispose())
+          .then((_) => devServerClient?.close()),
       'the outbox and the transfer engine',
     );
     _ownedJournal?.dispose();

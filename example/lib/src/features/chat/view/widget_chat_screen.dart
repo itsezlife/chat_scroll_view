@@ -42,6 +42,7 @@ import 'package:chat_scroll_view_example/src/features/chat/input/chat_pack_sheet
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_delivery.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outbox.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/fake_server_script_sheet.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/outbox_debug_panel.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/source_lost_prompt.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_bulletins.dart';
@@ -1954,6 +1955,26 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                         ),
                         icon: const Icon(Icons.dns_outlined, size: 20),
                       ),
+                      if (widget.services.debugActions
+                          case final debugActions?) ...[
+                        const SizedBox(width: 4),
+                        IconButton.filledTonal(
+                          key: OutboxDebugPanel.openKey,
+                          tooltip: 'Outbox debug',
+                          onPressed: () => unawaited(
+                            Navigator.of(context).push(
+                              OutboxDebugPanel.route(
+                                outbox: widget.services.outbox,
+                                chatId: widget.chatId,
+                                actions: debugActions,
+                                journal: widget.services.journal,
+                                transport: widget.services.uploadTransport,
+                              ),
+                            ),
+                          ),
+                          icon: const Icon(Icons.bug_report_outlined, size: 20),
+                        ),
+                      ],
                     ],
                     if (kDebugMode) ...[
                       const SizedBox(width: 4),

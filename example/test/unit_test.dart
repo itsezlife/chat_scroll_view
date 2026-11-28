@@ -131,16 +131,22 @@ import 'features/chat/outbox/demo_delivery_test.dart'
 import 'features/chat/outbox/demo_outbox_test.dart' as outbox_demo_outbox_test;
 import 'features/chat/outbox/demo_outgoing_payload_test.dart'
     as outbox_demo_outgoing_payload_test;
-import 'features/chat/outbox/outgoing_badge_rtl_test.dart'
-    as outbox_outgoing_badge_rtl_test;
-import 'features/chat/outbox/outgoing_status_screen_test.dart'
-    as outbox_outgoing_status_screen_test;
+import 'features/chat/outbox/demo_transfers_test.dart'
+    as outbox_demo_transfers_test;
 import 'features/chat/outbox/demo_upload_transport_test.dart'
     as outbox_demo_upload_transport_test;
 import 'features/chat/outbox/fake_chat_server_test.dart'
     as outbox_fake_chat_server_test;
 import 'features/chat/outbox/fake_server_script_sheet_test.dart'
     as outbox_fake_server_script_sheet_test;
+import 'features/chat/outbox/outbox_debug_actions_test.dart'
+    as outbox_outbox_debug_actions_test;
+import 'features/chat/outbox/outbox_debug_panel_test.dart'
+    as outbox_outbox_debug_panel_test;
+import 'features/chat/outbox/outgoing_badge_rtl_test.dart'
+    as outbox_outgoing_badge_rtl_test;
+import 'features/chat/outbox/outgoing_status_screen_test.dart'
+    as outbox_outgoing_status_screen_test;
 import 'features/chat/outbox/source_lost_prompt_test.dart'
     as outbox_source_lost_prompt_test;
 import 'features/chat/packed_path_test.dart' as packed_path_test;
@@ -402,6 +408,10 @@ void main() {
     outbox_demo_outgoing_payload_test.main,
   );
   group(
+    'features/chat/outbox/demo_transfers_test.dart',
+    outbox_demo_transfers_test.main,
+  );
+  group(
     'features/chat/outbox/outgoing_badge_rtl_test.dart',
     outbox_outgoing_badge_rtl_test.main,
   );
@@ -420,6 +430,14 @@ void main() {
   group(
     'features/chat/outbox/fake_server_script_sheet_test.dart',
     outbox_fake_server_script_sheet_test.main,
+  );
+  group(
+    'features/chat/outbox/outbox_debug_actions_test.dart',
+    outbox_outbox_debug_actions_test.main,
+  );
+  group(
+    'features/chat/outbox/outbox_debug_panel_test.dart',
+    outbox_outbox_debug_panel_test.main,
   );
   group(
     'features/chat/outbox/source_lost_prompt_test.dart',
