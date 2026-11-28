@@ -9,6 +9,7 @@ import 'package:chat_composer/src/draft_options/overlay_op.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart' hide RichText;
 import 'package:content_model/content_model.dart' as model show RichText;
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -92,7 +93,8 @@ final class DraftOptionsController {
 
   /// Opens the overlay at [part] over the window of [context], with the
   /// host's current [value], the link's [page] and the draft's [text]; true
-  /// when it opened.
+  /// when it opened. [links] are the text's links in text order, the ones a
+  /// tap in the live preview may choose (none: every tap is ignored).
   ///
   /// Called between frames (a tap handler), so the scrim's still is of the
   /// window without the overlay. [stripRect] is the strip's global rect, the
@@ -108,6 +110,7 @@ final class DraftOptionsController {
     model.RichText text = model.RichText.empty,
     DraftPart part = DraftPart.link,
     Rect? stripRect,
+    List<Uri> links = const [],
   }) {
     assert(
       policy.usesOverlay,
@@ -147,6 +150,7 @@ final class DraftOptionsController {
       initial: value,
       page: page,
       origin: stripRect,
+      links: links,
       clock: _clock,
       keyboardWasUp: (MediaQuery.maybeViewInsetsOf(context)?.bottom ?? 0) > 0,
       correlation: _correlation,
@@ -308,6 +312,9 @@ class DraftOptionsOverlay extends StatelessWidget {
     super.key,
   });
 
+  /// The key of the chosen link's highlight above the live preview.
+  static const Key linkHighlightKey = ValueKey('draftOptionsLinkHighlight');
+
   /// The open's value, page and close.
   final DraftOptionsSession session;
 
@@ -410,20 +417,102 @@ class _DraftOptionsPage extends StatelessWidget {
             final subtitle? => Text(subtitle, style: style),
             null => null,
           },
-          ValueListenableBuilder(
-            valueListenable: session.page,
-            builder: (context, page, _) => ValueListenableBuilder(
-              valueListenable: session.value,
-              builder: (context, part, _) => bubbleBuilder(
-                context,
-                DraftOptionsPreview(text: text, part: part, page: page),
+          Stack(
+            children: [
+              ValueListenableBuilder(
+                valueListenable: session.page,
+                builder: (context, page, _) => ValueListenableBuilder(
+                  valueListenable: session.value,
+                  builder: (context, part, _) => bubbleBuilder(
+                    context,
+                    DraftOptionsPreview(
+                      text: text,
+                      part: part,
+                      page: page,
+                      onLinkTap: session.tapLink,
+                    ),
+                  ),
+                ),
               ),
-            ),
+              Positioned.fill(
+                child: _DraftLinkHighlightLayer(highlight: session.highlight),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
+}
+
+/// The chosen link's mark above the live preview: its contour filled in the
+/// accent and, while its page is pending, a spinner over it.
+///
+/// A layer of its own over the host's bubble, so the bubble's text engine
+/// draws nothing new; it takes no presses, so a tap on another link still
+/// reaches the bubble.
+class _DraftLinkHighlightLayer extends StatelessWidget {
+  const _DraftLinkHighlightLayer({required this.highlight});
+
+  /// The size of the spinner over a pending link.
+  static const double _spinnerExtent = 20;
+
+  final ValueListenable<DraftLinkHighlight?> highlight;
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+    child: ValueListenableBuilder(
+      valueListenable: highlight,
+      builder: (context, shown, _) => switch (shown) {
+        null => const SizedBox.shrink(),
+        final shown => _mark(context, shown),
+      },
+    ),
+  );
+
+  Widget _mark(BuildContext context, DraftLinkHighlight shown) {
+    final accent = ChromeThemeScope.paletteOf(context).accent;
+    final center = shown.contour.getBounds().center;
+    return Stack(
+      key: DraftOptionsOverlay.linkHighlightKey,
+      clipBehavior: Clip.none,
+      children: [
+        Positioned.fill(
+          child: CustomPaint(
+            painter: _ContourPainter(
+              shown.contour,
+              accent.withValues(alpha: 0.2),
+            ),
+          ),
+        ),
+        if (shown.pending)
+          Positioned(
+            left: center.dx - _spinnerExtent / 2,
+            top: center.dy - _spinnerExtent / 2,
+            child: const ChromeSpinner(
+              extent: _spinnerExtent,
+              strokeWidth: 2,
+              inset: 2,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _ContourPainter extends CustomPainter {
+  _ContourPainter(this.contour, this.color);
+
+  final Path contour;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) =>
+      canvas.drawPath(contour, Paint()..color = color);
+
+  @override
+  bool shouldRepaint(_ContourPainter old) =>
+      !identical(old.contour, contour) || old.color != color;
 }
 
 /// Lets presses through to what is under it while [passes] answers true.
