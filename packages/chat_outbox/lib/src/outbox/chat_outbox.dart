@@ -67,9 +67,12 @@ final class ChatOutbox<M> {
   /// read at.
   ///
   /// [onSent] hears of each message the server published, inside the
-  /// publish call: the host's duty there is to replace the outbox's row with
-  /// the confirmed message (see [OutgoingSent]), before the chat's next
-  /// outgoing row publishes.
+  /// publish call: the host's duty there, synchronously, is to replace the
+  /// outbox's row with the confirmed message, or to place the message when
+  /// the row left (see [OutgoingSent]). Required: the outbox's row keeps
+  /// its provisional identity until the host replaces it, so the tail's next
+  /// move, which leaves it out of the order, would take it out of the
+  /// chat.
   ///
   /// [onCancelled] hears of each message the outbox cancelled, whoever
   /// asked (the host's [cancel] or [cancelItem], or a cell's status
@@ -109,11 +112,11 @@ final class ChatOutbox<M> {
     required OutgoingSendItemResolver itemOf,
     required OutgoingIdStrategy Function(String chatId) idStrategyOf,
     required OutgoingRowBuilder<M> rowOf,
+    required void Function(OutgoingSent<M> sent) onSent,
     ValueListenable<ChatCapabilities>? Function(String chatId)? capabilitiesOf,
     CapabilityFeedback feedback = CapabilityFeedback.none,
     String Function()? clientMessageIds,
     DateTime Function() now = DateTime.now,
-    void Function(OutgoingSent<M> sent)? onSent,
     void Function(OutgoingCancelled cancelled)? onCancelled,
     void Function(OutgoingItemDropped dropped)? onItemDropped,
     void Function(OutgoingMessage message)? onStatusChanged,
@@ -151,11 +154,11 @@ final class ChatOutbox<M> {
     required OutgoingSendItemResolver itemOf,
     required OutgoingIdStrategy Function(String chatId) idStrategyOf,
     required OutgoingRowBuilder<M> rowOf,
+    required void Function(OutgoingSent<M> sent) onSent,
     ValueListenable<ChatCapabilities>? Function(String chatId)? capabilitiesOf,
     CapabilityFeedback feedback = CapabilityFeedback.none,
     String Function()? clientMessageIds,
     DateTime Function() now = DateTime.now,
-    void Function(OutgoingSent<M> sent)? onSent,
     void Function(OutgoingCancelled cancelled)? onCancelled,
     void Function(OutgoingItemDropped dropped)? onItemDropped,
     void Function(OutgoingMessage message)? onStatusChanged,
@@ -222,7 +225,7 @@ final class ChatOutbox<M> {
   final CapabilityFeedback _feedback;
   final String Function() _issueClientMessageId;
   final DateTime Function() _now;
-  final void Function(OutgoingSent<M> sent)? _onSent;
+  final void Function(OutgoingSent<M> sent) _onSent;
   final void Function(OutgoingCancelled cancelled)? _onCancelled;
   final void Function(OutgoingItemDropped dropped)? _onItemDropped;
   final void Function(OutgoingMessage message)? _onStatusChanged;
@@ -320,9 +323,10 @@ final class ChatOutbox<M> {
   ///
   /// Reports `refusedBeforeJob`, or `accepted`, `jobCreated`,
   /// `positionAllocated` and, with [origins], `sendOriginStored`. Throws an [ArgumentError] when
-  /// [itemIds] or [origins] does not give one entry per item, and
-  /// whatever the engine throws for a request it cannot run, after which
-  /// the outbox holds nothing of the send.
+  /// [itemIds] or [origins] does not give one entry per item, whatever the
+  /// engine throws for a request it cannot run, and whatever the host's row
+  /// builder throws, after which neither the outbox nor the engine holds
+  /// anything of the send (the job made for it is cancelled).
   OutgoingMessage? send(
     String chatId,
     PlannedSend send, {
@@ -426,12 +430,21 @@ final class ChatOutbox<M> {
           OutgoingItem(id: ids[index], localKey: item.localKey),
       ],
     );
-    final message = at(
-      strategy.allocate(
+    final int position;
+    try {
+      position = strategy.allocate(
         clientMessageId,
         (position) => _rowOf(at(position), payload),
-      ),
-    );
+      );
+    } on Object {
+      // The host's row builder (or its data source) threw, so no row holds
+      // the message: a job left behind would wait at publish for a message
+      // that never comes, and hold every later job of the chat's ordering
+      // group behind it.
+      _transfers.cancel(jobId);
+      rethrow;
+    }
+    final message = at(position);
     _projection
       ..put(message, fresh: true, job: OutboxJobView(jobId))
       ..putSendFacts(
@@ -558,7 +571,13 @@ final class ChatOutbox<M> {
     );
   }
 
-  void _refuse(SendRefusal refusal, ChatCorrelation correlation) {
+  /// Refuses a send, or a [retry] of a failed message, for [refusal]:
+  /// reported, and the host's `onDenied` hears of it.
+  void _refuse(
+    SendRefusal refusal,
+    ChatCorrelation correlation, {
+    bool retry = false,
+  }) {
     ChatDiagnostics.current.emit(
       ChatEventLevel.info,
       ChatEventCategory.outbox,
@@ -567,6 +586,7 @@ final class ChatOutbox<M> {
       fields: () => {
         'action': refusal.rule,
         'reason': refusal.reason.diagnosticForm,
+        if (retry) 'retry': true,
       },
     );
     _feedback.onDenied(
@@ -1075,9 +1095,15 @@ final class ChatOutbox<M> {
   /// by item id, and each such item uploads again from zero. Throws an
   /// [ArgumentError] for an id that is not one of the message's items.
   ///
+  /// A retry is one more send unit of the chat: slow mode holds it as it
+  /// holds a send, during its countdown or while another message of the
+  /// chat is sending ([OutgoingRetryOutcome.refused], the host's `onDenied`
+  /// hearing `sendNow`).
+  ///
   /// Guarded against a burst: once a retry is accepted, another changes
   /// nothing ([OutgoingRetryOutcome.dropped]) until the message fails again.
-  /// Reports `retried`, `tailRebased` (reason `retry`) or `actionDropped`.
+  /// Reports `retried`, `tailRebased` (reason `retry`), `refusedBeforeJob`
+  /// (with `retry`) or `actionDropped`.
   OutgoingRetryOutcome retry(
     String chatId,
     String clientMessageId, {
@@ -1107,6 +1133,21 @@ final class ChatOutbox<M> {
     }
     final job = _projection.jobOf(chatId, clientMessageId);
     if (job == null) return OutgoingRetryOutcome.unknown;
+    if (_capabilitiesOf?.call(chatId)?.value case final capabilities?) {
+      final refusal = SendCheck.ofRetry(
+        capabilities,
+        now: _now(),
+        inFlight: _projection.hasInFlight(chatId),
+      );
+      if (refusal != null) {
+        _refuse(
+          refusal,
+          ChatCorrelation(chatId: chatId, clientMessageId: clientMessageId),
+          retry: true,
+        );
+        return OutgoingRetryOutcome.refused;
+      }
+    }
     // The items given a source first, each from its new bytes; then whatever
     // else failed, which a job failed by those items alone no longer has.
     var reopened = false;
@@ -1624,7 +1665,11 @@ final class ChatOutbox<M> {
     final (status: projected, :stage) = JobProjection.of(job, message.status);
     // A message whose payload did not decode stays failed: its row cannot
     // show it sending, and its publish fails at the decode anyway.
-    final status = _projection.isUndecodable(chatId, clientMessageId)
+    // A sent message stays sent (one settled from history whose job then
+    // fails, say): the server has it.
+    final status =
+        _projection.isUndecodable(chatId, clientMessageId) ||
+            message.status is OutgoingStatus$Sent
         ? message.status
         : projected;
     final changed = status != message.status;
@@ -1740,6 +1785,57 @@ final class ChatOutbox<M> {
       },
     );
     return message;
+  }
+
+  /// Settles the outgoing message [clientMessageId] of [chatId] as sent at
+  /// [serverId], where the chat's fetched history holds the server's copy of
+  /// it, and answers the message as settled; null when the outbox holds no
+  /// unsent message by that id.
+  ///
+  /// The case is a restart: the server stored the message before the app
+  /// went, but its job never heard the answer, so the restored row and the
+  /// history's copy would show it twice until the job's replay answers. Its
+  /// row leaves the provisional tail now (one `rebaseTail`, reason
+  /// `removed`), the history's row is its one row, and the replay's answer
+  /// later moves nothing. A cancel of it is too late from here.
+  ///
+  /// The host's duty: once [pendingFor] has answered, hand every message
+  /// of fetched history that names a client message id
+  /// [byClientMessageId] answers for here instead of keeping both. Reports
+  /// `statusChanged` (`source: history`).
+  OutgoingMessage? settleFromHistory(
+    String chatId,
+    String clientMessageId, {
+    required int serverId,
+  }) {
+    _checkNotDisposed();
+    final held = _projection.lookup(chatId, clientMessageId);
+    if (held == null || held.status is OutgoingStatus$Sent) return null;
+    _projection.accepted.add((chatId, clientMessageId));
+    _$strategies[chatId]?.remove(clientMessageId);
+    final settled = held
+        .withStatus(const OutgoingStatus.sent())
+        .withPosition(serverId);
+    _projection.put(settled);
+    ChatDiagnostics.current.emit(
+      ChatEventLevel.debug,
+      ChatEventCategory.outbox,
+      OutboxOp.statusChanged,
+      correlation: ChatCorrelation(
+        chatId: chatId,
+        clientMessageId: clientMessageId,
+        jobId: _projection.jobOf(chatId, clientMessageId)?.id,
+        scrollId: '$serverId',
+      ),
+      fields: () => {
+        'from': held.status.name,
+        'to': settled.status.name,
+        'source': 'history',
+      },
+    );
+    _syncInFlight(chatId);
+    _onStatusChanged?.call(settled);
+    return settled;
   }
 
   /// Whether the outgoing row [clientMessageId] of [chatId] is new, so the

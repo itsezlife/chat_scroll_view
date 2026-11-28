@@ -55,6 +55,10 @@ final class FakeOutgoingTail implements OutgoingTailTarget {
   /// Every row inserted, oldest first.
   final List<IChatMessage> inserted = [];
 
+  /// The ids of the rows inserted with no self-insert follow (restored
+  /// rows), oldest first.
+  final List<int> insertedWithoutFollow = [];
+
   /// The id of the newest row.
   int get newest => _$newest;
 
@@ -101,8 +105,21 @@ final class FakeOutgoingTail implements OutgoingTailTarget {
     _$slots[message.id] = message;
   }
 
+  /// Writes a confirmed message into an empty slot below the tail, as a
+  /// range fetch or a host placing a message it learned of does.
+  void place(IChatMessage message) {
+    if (message.id >= tailStart || _$slots[message.id] != null) {
+      throw StateError(
+        'place: ${message.id} is not an empty slot below the tail',
+      );
+    }
+    _$slots[message.id] = message;
+  }
+
+  /// Inserts a new row; [followSelf] false inserts it as a restored row,
+  /// which a reader scrolled up is not pulled down to.
   @override
-  void insertMessage(IChatMessage message) {
+  void insertMessage(IChatMessage message, {bool followSelf = true}) {
     if (message.id <= _$newest) {
       throw StateError(
         'insertMessage: ${message.id} is not after the newest ${_$newest}',
@@ -111,6 +128,7 @@ final class FakeOutgoingTail implements OutgoingTailTarget {
     _$slots[message.id] = message;
     _$newest = message.id;
     inserted.add(message);
+    if (!followSelf) insertedWithoutFollow.add(message.id);
   }
 
   @override

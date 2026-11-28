@@ -135,8 +135,10 @@ abstract interface class OutgoingTailTarget {
   /// range fetch put before the tail) may have changed.
   int? positionOf(Object identity);
 
-  /// Inserts a new row (`ChatDataSource.insertMessage`).
-  void insertMessage(IChatMessage message);
+  /// Inserts a new row (`ChatDataSource.insertMessage`). [followSelf] false
+  /// is a row placed again after a restart: the viewport does not pull a
+  /// reader scrolled up to it, as it does for the user's new message.
+  void insertMessage(IChatMessage message, {bool followSelf = true});
 
   /// Moves the provisional tail in one atomic step
   /// (`ChatDataSource.rebaseTail`).
@@ -171,7 +173,8 @@ final class _DataSourceTail implements OutgoingTailTarget {
   }
 
   @override
-  void insertMessage(IChatMessage message) => _source.insertMessage(message);
+  void insertMessage(IChatMessage message, {bool followSelf = true}) =>
+      _source.insertMessage(message, followSelf: followSelf);
 
   @override
   void rebaseTail({

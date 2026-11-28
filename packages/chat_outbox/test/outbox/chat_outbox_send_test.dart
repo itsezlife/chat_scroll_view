@@ -23,6 +23,7 @@ void main() {
       codec: const NotePayloadCodec(),
       itemOf: sendItemOf,
       idStrategyOf: fakeIdStrategyOf,
+      onSent: (_) {},
       rowOf: fakeRowOf,
       clientMessageIds: clientMessageIdsFrom(),
     );
@@ -208,5 +209,53 @@ void main() {
 
       expect(message?.status, const OutgoingStatus.publishing());
     });
+  });
+
+  test('a row builder that throws leaves no job behind to hold the chat\'s '
+      'ordering group', () async {
+    final transfers = FakeOutboxTransfers();
+    final sender = RecordingOutgoingSender<Note>();
+    var failRow = true;
+    final outbox = ChatOutbox<Note>(
+      transfers: transfers,
+      codec: const NotePayloadCodec(),
+      itemOf: sendItemOf,
+      idStrategyOf: fakeIdStrategyOf,
+      rowOf: (message, payload) {
+        if (failRow) throw StateError('the host could not build the row');
+        return fakeRowOf(message, payload);
+      },
+      onSent: (_) {},
+      clientMessageIds: clientMessageIdsFrom(),
+    );
+    addTearDown(outbox.dispose);
+
+    expect(
+      () => outbox.sendText(
+        'c1',
+        const RichText.plain('one'),
+        payload: const Note(text: 'one'),
+      ),
+      throwsStateError,
+    );
+    expect(transfers.cancelled, [const PublishJobId.parse('job-1')]);
+    expect(transfers.jobs, isEmpty);
+    expect(outbox.byClientMessageId('c1', 'cm1'), isNull);
+
+    failRow = false;
+    outbox
+      ..registerSender(sender)
+      ..sendText(
+        'c1',
+        const RichText.plain('two'),
+        payload: const Note(text: 'two'),
+      );
+    await pumpEventQueue();
+
+    expect([for (final r in sender.requests) r.clientMessageId], ['cm2']);
+    expect(
+      outbox.byClientMessageId('c1', 'cm2')!.status,
+      const OutgoingStatus.sent(),
+    );
   });
 }

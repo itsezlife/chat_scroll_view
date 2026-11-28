@@ -29,6 +29,7 @@ void main() {
       codec: const NotePayloadCodec(),
       itemOf: sendItemOf,
       idStrategyOf: fakeIdStrategyOf,
+      onSent: (_) {},
       rowOf: fakeRowOf,
       capabilitiesOf: (chatId) => chatId == 'c1' ? capabilities : null,
       feedback: feedback,
@@ -69,6 +70,73 @@ void main() {
         ),
       ]);
       expect(outbox.byClientMessageId('c1', 'cm1'), isNull);
+    });
+
+    group('a retry', () {
+      const failed = PublishJobState.failed(
+        stage: PublishStage.publish,
+        reason: PublishFailureReason('network'),
+        retryable: true,
+      );
+
+      Future<void> failFirst() async {
+        sendText('one');
+        await pumpEventQueue();
+        transfers.setState(transfers.jobs.first.id, failed);
+        await pumpEventQueue();
+        expect(
+          outbox.byClientMessageId('c1', 'cm1')?.status,
+          isA<OutgoingStatus$Failed>(),
+        );
+      }
+
+      test('during the countdown is refused as a send is, nothing '
+          'repeats', () async {
+        await failFirst();
+        capabilities.value = ChatCapabilities(
+          slowMode: SlowMode.active(
+            interval: const Duration(seconds: 30),
+            nextSendAt: now.add(const Duration(seconds: 12)),
+          ),
+        );
+
+        expect(outbox.retry('c1', 'cm1'), OutgoingRetryOutcome.refused);
+        expect(transfers.retried, isEmpty);
+        expect(feedback.denials, [
+          (
+            action: CapabilityAction.sendNow,
+            reason: DenialReason.restricted(
+              until: now.add(const Duration(seconds: 12)),
+            ),
+          ),
+        ]);
+        expect(
+          outbox.byClientMessageId('c1', 'cm1')?.status,
+          isA<OutgoingStatus$Failed>(),
+        );
+      });
+
+      test('while another message is in flight is refused', () async {
+        await failFirst();
+        // Sent before slow mode came on: still publishing.
+        sendText('two');
+        capabilities.value = const ChatCapabilities(
+          slowMode: SlowMode.active(interval: Duration(seconds: 30)),
+        );
+
+        expect(outbox.retry('c1', 'cm1'), OutgoingRetryOutcome.refused);
+        expect(
+          feedback.denials.single.reason,
+          const DenialReason.sendPending(),
+        );
+        expect(transfers.retried, isEmpty);
+      });
+
+      test('with slow mode off goes', () async {
+        await failFirst();
+        expect(outbox.retry('c1', 'cm1'), OutgoingRetryOutcome.retried);
+        expect(feedback.denials, isEmpty);
+      });
     });
 
     test('while the host marks a send pending refuses sendNow', () {

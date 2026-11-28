@@ -27,6 +27,7 @@ void main() {
       codec: const NotePayloadCodec(),
       itemOf: sendItemOf,
       idStrategyOf: (chatId) => SequentialServerIds(chatId: chatId, tail: tail),
+      onSent: (_) {},
       rowOf: (message, payload) =>
           FakeTailMessage(message.position, message.clientMessageId),
       undecodableRowOf: (message) =>
@@ -125,7 +126,7 @@ void main() {
       final answer = Completer<OutgoingSendAnswer<Note>>();
       addTearDown(() {
         if (!answer.isCompleted) {
-          answer.complete(OutgoingSendAnswer.rejected('x'));
+          answer.complete(const OutgoingSendAnswer.rejected('x'));
         }
       });
       sender.answerBy((_) => answer.future);
@@ -149,7 +150,11 @@ void main() {
     group('reads its job failure as a closed reason', () {
       final cases = <String, (PublishStage, String, String)>{
         'the network': (PublishStage.upload, 'network', 'network'),
-        'a rejection': (PublishStage.publish, 'chatClosed', 'rejected'),
+        'a rejection': (
+          PublishStage.publish,
+          'chat.rejected:chatClosed',
+          'rejected',
+        ),
         'a server denial': (
           PublishStage.publish,
           'chat.denied:${CapabilityAction.sendPhoto.name}',
@@ -230,7 +235,9 @@ void main() {
         'message id', () async {
       final diagnostics = RecordingDiagnostics.install();
       final sender = RecordingOutgoingSender<Note>()
-        ..answerWith(OutgoingSendAnswer.rejected('busy', retryable: true));
+        ..answerWith(
+          const OutgoingSendAnswer.rejected('busy', retryable: true),
+        );
       outbox.registerSender(sender);
       sendPhoto('remote-a');
       await pumpEventQueue();

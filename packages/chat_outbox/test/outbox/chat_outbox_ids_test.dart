@@ -24,6 +24,7 @@ void main() {
         strategiesMade.add(chatId);
         return SequentialServerIds(chatId: chatId, tail: tail);
       },
+      onSent: (_) {},
       rowOf: (message, payload) =>
           FakeTailMessage(message.position, message.clientMessageId),
       clientMessageIds: clientMessageIdsFrom(),
@@ -50,6 +51,7 @@ void main() {
       codec: const NotePayloadCodec(),
       itemOf: sendItemOf,
       idStrategyOf: (chatId) => SequentialServerIds(chatId: chatId, tail: tail),
+      onSent: (_) {},
       rowOf: (message, payload) =>
           FakeTailMessage(message.position, message.clientMessageId),
       capabilitiesOf: (_) => null,

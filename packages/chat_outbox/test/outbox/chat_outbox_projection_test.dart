@@ -21,6 +21,7 @@ void main() {
       codec: const NotePayloadCodec(),
       itemOf: sendItemOf,
       idStrategyOf: fakeIdStrategyOf,
+      onSent: (_) {},
       rowOf: fakeRowOf,
       clientMessageIds: clientMessageIdsFrom(),
     );
@@ -166,7 +167,7 @@ void main() {
 
     test("the publisher's rejection keeps its code", () async {
       expect(
-        await failedAt(PublishStage.publish, 'chatClosed'),
+        await failedAt(PublishStage.publish, 'chat.rejected:chatClosed'),
         const OutgoingStatus.failed(OutgoingFailure.rejected('chatClosed')),
       );
     });
@@ -183,6 +184,16 @@ void main() {
         );
       });
     }
+
+    test(
+      "a code at publish that is not the chat publisher's is unknown",
+      () async {
+        expect(
+          await failedAt(PublishStage.publish, 'chatClosed'),
+          const OutgoingStatus.failed(OutgoingFailure.unknown()),
+        );
+      },
+    );
 
     test('an unknown code before publish is unknown', () async {
       expect(

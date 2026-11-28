@@ -623,10 +623,21 @@ final class DemoOutboxChat {
     switch (sent.rowAt) {
       case _?:
         source.updateMessage(confirmed, reason: 'outbox-sent');
-      // The row left the tail (a replay at an id it could not reach): the
-      // message goes in once the chat's history reaches its id.
-      case null when sent.position == source.nextInsertId:
-        source.insertMessage(confirmed, reason: 'outbox-sent');
+      // The row left the tail, since it could not sit at the server's id: a
+      // peer's message delivered while the send was out took the tail past
+      // it (the move left the id's slot unloaded), or a replay at an id the
+      // chat reaches next. The message was on screen already, so the reader
+      // is not pulled down to it.
+      case null
+          when sent.position <= source.nextInsertId &&
+              source.getMessage(sent.position) == null:
+        source.insertMessage(
+          confirmed,
+          reason: 'outbox-sent',
+          followSelf: false,
+        );
+      // A fetch brought it already, or the chat does not reach its id yet:
+      // the history places it.
       case null:
         break;
     }

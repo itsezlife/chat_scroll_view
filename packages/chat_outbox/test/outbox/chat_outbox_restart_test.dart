@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -28,6 +29,7 @@ void main() {
       codec: const NotePayloadCodec(),
       itemOf: sendItemOf,
       idStrategyOf: (chatId) => SequentialServerIds(chatId: chatId, tail: tail),
+      onSent: (_) {},
       rowOf: (message, payload) =>
           FakeTailMessage(message.position, message.clientMessageId),
       localKeyOf: (mediaKey) => ContentKey.document('local:$mediaKey'),
@@ -83,7 +85,7 @@ void main() {
   );
   const failedRejected = PublishJobState.failed(
     stage: PublishStage.publish,
-    reason: PublishFailureReason('spam'),
+    reason: PublishFailureReason('chat.rejected:spam'),
     retryable: false,
   );
 
@@ -460,5 +462,102 @@ void main() {
 
     expect(sent.position, 102);
     expect(tail.provisional, ['a', 'cm1']);
+  });
+
+  test('restored rows go in as no send of the user\'s, so a reader '
+      'scrolled up is not pulled down; a new send still is', () async {
+    final answer = Completer<OutgoingSendAnswer<Note>>();
+    sender.answerBy((_) => answer.future);
+    seed('a', state: const PublishJobState.awaitingPublisher());
+    seed('b', state: failedNetwork);
+    outbox.registerSender(sender);
+
+    await outbox.pendingFor('c1');
+    await pumpEventQueue();
+    // The restored job publishes, its answer still out.
+    expect(sender.requests.single.clientMessageId, 'a');
+
+    expect([for (final row in tail.inserted) row.id], [101, 102]);
+    expect(tail.insertedWithoutFollow, [101, 102]);
+
+    outbox.sendText(
+      'c1',
+      const RichText.plain('new'),
+      payload: const Note(text: 'new'),
+    );
+    expect([for (final row in tail.inserted) row.id], [101, 102, 103]);
+    expect(tail.insertedWithoutFollow, [101, 102]);
+
+    answer.complete(const OutgoingSendAnswer.sent(serverMessageId: 101));
+    await pumpEventQueue();
+    expect(
+      outbox.byClientMessageId('c1', 'a')?.status,
+      const OutgoingStatus.sent(),
+    );
+  });
+
+  test(
+    'a message the server accepted before the restart, met in fetched '
+    'history, settles there: its restored row leaves and no twin stays',
+    () async {
+      final diagnostics = RecordingDiagnostics.install();
+      final answer = Completer<OutgoingSendAnswer<Note>>();
+      sender.answerBy((_) => answer.future);
+      final statuses = <OutgoingStatus>[];
+      outbox = ChatOutbox<Note>(
+        transfers: transfers,
+        codec: const NotePayloadCodec(),
+        itemOf: sendItemOf,
+        idStrategyOf: (chatId) =>
+            SequentialServerIds(chatId: chatId, tail: tail),
+        rowOf: (message, payload) =>
+            FakeTailMessage(message.position, message.clientMessageId),
+        onSent: (_) {},
+        onStatusChanged: (message) => statuses.add(message.status),
+        localKeyOf: (mediaKey) => ContentKey.document('local:$mediaKey'),
+        clientMessageIds: clientMessageIdsFrom(),
+      );
+      addTearDown(outbox.dispose);
+      // The journal still has the job publishing: the app died after the
+      // server stored the message at 100, before the job completed.
+      seed('a', state: const PublishJobState.publishing());
+      seed('b', state: const PublishJobState.uploading());
+      outbox.registerSender(sender);
+      await outbox.pendingFor('c1');
+      await pumpEventQueue();
+      expect(tail.provisional, ['a', 'b']);
+      expect(sender.requests.single.clientMessageId, 'a');
+
+      // The chat's history (the tip, 100) is the server's copy of 'a'.
+      final settled = outbox.settleFromHistory('c1', 'a', serverId: 100);
+
+      expect(settled?.status, const OutgoingStatus.sent());
+      expect(settled?.position, 100);
+      expect(tail.provisional, ['b']);
+      expect(tail.identityAt(101), 'b');
+      expect(outbox.byClientMessageId('c1', 'a')?.position, 100);
+      expect(statuses, [const OutgoingStatus.sent()]);
+      expect(outbox.cancel('c1', 'a'), OutgoingCancelOutcome.tooLate);
+      expect(
+        diagnostics.whereOp(OutboxOp.tailRebased).last.fields,
+        containsPair('reason', 'removed'),
+      );
+
+      // The replay's answer finds it settled: nothing moves again.
+      answer.complete(const OutgoingSendAnswer.sent(serverMessageId: 100));
+      await pumpEventQueue();
+      expect(tail.provisional, ['b']);
+      expect(
+        outbox.byClientMessageId('c1', 'a')?.status,
+        const OutgoingStatus.sent(),
+      );
+      expect(statuses, [const OutgoingStatus.sent()]);
+    },
+  );
+
+  test('settleFromHistory answers null for a message the outbox does not '
+      'hold', () async {
+    await outbox.pendingFor('c1');
+    expect(outbox.settleFromHistory('c1', 'nope', serverId: 100), isNull);
   });
 }

@@ -285,7 +285,9 @@ void main() {
         isChatEvent(fields: {'deleted': 0, 'pending': 2}),
       ]);
       accept.complete(const OutgoingSendAnswer.sent(serverMessageId: 101));
-      reject.complete(OutgoingSendAnswer.rejected('spam', retryable: true));
+      reject.complete(
+        const OutgoingSendAnswer.rejected('spam', retryable: true),
+      );
       await pumpEventQueue();
 
       expect(

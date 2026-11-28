@@ -148,6 +148,7 @@ void main() {
         itemOf: sendItemOf,
         idStrategyOf: (chatId) =>
             SequentialServerIds(chatId: chatId, tail: FakeOutgoingTail()),
+        onSent: (_) {},
         rowOf: (message, payload) =>
             FakeTailMessage(message.position, message.clientMessageId),
         clientMessageIds: () => (ids..moveNext()).current,
@@ -459,7 +460,9 @@ void main() {
 
       expect(outbox.cancel('c1', 'cm1'), OutgoingCancelOutcome.pending);
       expect(cancelled, isEmpty);
-      answer.complete(OutgoingSendAnswer.rejected('spam', retryable: true));
+      answer.complete(
+        const OutgoingSendAnswer.rejected('spam', retryable: true),
+      );
       await pumpEventQueue();
 
       expect(transfers.cancelled, [job]);

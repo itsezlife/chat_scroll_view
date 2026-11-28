@@ -43,7 +43,7 @@ abstract final class JobProjection {
     PublishJobState$Paused() => _byStage(job),
     PublishJobState$AwaitingOwner() => (status: current, stage: null),
     PublishJobState$Failed(:final stage, :final reason) => (
-      status: OutgoingStatus.failed(failureOf(stage, reason)),
+      status: OutgoingStatus.failed(failureOf(reason)),
       stage: stage,
     ),
     PublishJobState$Completed() => (
@@ -52,27 +52,25 @@ abstract final class JobProjection {
     ),
   };
 
-  /// The closed failure a job failed at [stage] for [reason] reads as.
+  /// The closed failure a job failed for [reason] reads as.
   ///
-  /// The engine's reasons are an open set of codes: the network and a lost
-  /// source are their own failures, `tooLarge` (a preparer's or a
-  /// publisher's code) is too large, and any other reason the publish stage
-  /// gives is the chat publisher's: a denial or a rejection kept as its
-  /// code (`PublishRejectionCodec`). The engine's own
-  /// codes for its faults, and any other code at an earlier stage, are
-  /// unknown.
-  static OutgoingFailure failureOf(
-    PublishStage stage,
-    PublishFailureReason reason,
-  ) => switch (reason.code) {
-    _network => const OutgoingFailure.network(),
-    _sourceLost => const OutgoingFailure.sourceLost(),
-    _tooLarge => const OutgoingFailure.tooLarge(),
-    final code when _engineCodes.contains(code) =>
-      const OutgoingFailure.unknown(),
-    final code when stage == PublishStage.publish => _publisherFailureOf(code),
-    _ => const OutgoingFailure.unknown(),
-  };
+  /// The chat publisher's codes (`PublishRejectionCodec`, all but
+  /// `tooLarge` under the `chat.` prefix) are its rejections and denials,
+  /// and `tooLarge` (a preparer's or a publisher's code) is too large. Of
+  /// the engine's open set of reasons, the network and a lost source are
+  /// their own failures; every other one, the engine's codes for its own
+  /// faults included, is unknown. A server's rejection code never reaches
+  /// this space bare, so one that spells an engine reason stays a
+  /// rejection.
+  static OutgoingFailure failureOf(PublishFailureReason reason) =>
+      switch (reason.code) {
+        final code when PublishRejectionCodec.owns(code) => _publisherFailureOf(
+          code,
+        ),
+        _network => const OutgoingFailure.network(),
+        _sourceLost => const OutgoingFailure.sourceLost(),
+        _ => const OutgoingFailure.unknown(),
+      };
 
   // The chat publisher's own codes: a rejection, a denial, or a code this
   // build cannot read (a denial of an action it no longer knows).
@@ -84,27 +82,9 @@ abstract final class JobProjection {
     }
   }
 
-  // The upload failure kinds' names (`TransferFailureKind`) and the code a
-  // preparer or publisher gives for content over the server's size.
+  // The upload failure kinds' names (`TransferFailureKind`).
   static const _network = 'network';
   static const _sourceLost = 'sourceLost';
-  static const _tooLarge = 'tooLarge';
-
-  /// The engine's codes for its own faults and the upload failure kinds
-  /// that are not the user's to read: never a publisher's rejection.
-  static final Set<String> _engineCodes = {
-    PublishFailureReason.noPreparation,
-    PublishFailureReason.cancelled,
-    PublishFailureReason.unexpected,
-    PublishFailureReason.unknownTransport,
-    PublishFailureReason.sourceUnwritable,
-    PublishFailureReason.thumbnailUnreadable,
-    PublishFailureReason.transport,
-    PublishFailureReason.publisherError,
-    PublishFailureReason.reuploadRefused,
-    TransferFailureKind.server.name,
-    TransferFailureKind.local.name,
-  };
 
   // A paused or waiting job has no stage of its own: its items tell it.
   static ({OutgoingStatus status, PublishStage? stage}) _byStage(

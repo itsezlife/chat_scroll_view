@@ -153,7 +153,9 @@ final class ProvisionalTailOrder {
     final first = _start;
     final row = _Row(clientMessageId, created: _$created++, failed: failed);
     final sending = _sendingCount;
-    target.insertMessage(build(first + _$rows.length));
+    // A restored row is the user's, but no send of this run: inserted as one,
+    // it would pull a reader scrolled into history down to the tail.
+    target.insertMessage(build(first + _$rows.length), followSelf: !restored);
     _$start = first;
     _$rows.add(row);
     final before = _positions();

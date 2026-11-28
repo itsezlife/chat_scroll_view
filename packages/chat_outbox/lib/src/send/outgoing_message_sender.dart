@@ -97,9 +97,10 @@ sealed class OutgoingSendAnswer<M> {
   /// host's that the message's failure keeps; [retryable] when sending
   /// again may succeed.
   ///
-  /// Codes starting with `chat.` are the outbox's own: an [ArgumentError]
-  /// for one.
-  factory OutgoingSendAnswer.rejected(String reason, {bool retryable}) =
+  /// The code is the host's whatever it spells: the outbox journals it
+  /// apart from the engine's own failure reasons, so it reads back as this
+  /// rejection after a restart too.
+  const factory OutgoingSendAnswer.rejected(String reason, {bool retryable}) =
       OutgoingSendAnswer$Rejected<M>;
 
   /// The server denied [action] in this chat for [reason]: the message
@@ -208,19 +209,8 @@ final class OutgoingSendAnswer$Conflict<M> extends OutgoingSendAnswer<M> {
 /// [OutgoingSendAnswer.rejected].
 final class OutgoingSendAnswer$Rejected<M> extends OutgoingSendAnswer<M> {
   /// See [OutgoingSendAnswer.rejected].
-  OutgoingSendAnswer$Rejected(this.reason, {this.retryable = false})
-    : super._() {
-    if (reason.startsWith(reservedPrefix)) {
-      throw ArgumentError.value(
-        reason,
-        'reason',
-        'Codes starting with "$reservedPrefix" are the outbox\'s own.',
-      );
-    }
-  }
-
-  /// The prefix of the outbox's own rejection codes.
-  static const String reservedPrefix = 'chat.';
+  const OutgoingSendAnswer$Rejected(this.reason, {this.retryable = false})
+    : super._();
 
   /// The host's code for why.
   final String reason;
@@ -261,10 +251,13 @@ final class OutgoingSendAnswer$Denied<M> extends OutgoingSendAnswer<M> {
 /// the confirmed message (one `updateMessage` at that id, a message the
 /// data source's `identityOf` answers null for), from [payloadAsStored]
 /// when given (the reconcile of the rich-text wire, ADR 034), else
-/// [payload]. When [rowAt] is null the row has left the list (the server
-/// stored the message at an id the chat does not reach yet): the host
+/// [payload]. When [rowAt] is null the row has left the list, since it
+/// could not sit at the server's id: a replay at an id the chat does not
+/// reach yet, or a peer's message delivered (or a fetch's rows) while the
+/// call was out moved the tail past the id the server gave it. The host
 /// places the confirmed message at [position] as it does any message it
-/// learns of.
+/// learns of: in the slot below the tail that the move left unloaded, unless
+/// a fetch already brought it there.
 @immutable
 final class OutgoingSent<M> {
   /// The published message [clientMessageId] of [chatId].

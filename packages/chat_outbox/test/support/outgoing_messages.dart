@@ -17,6 +17,7 @@ ChatOutbox<Note> outboxOver(
   codec: const NotePayloadCodec(),
   itemOf: sendItemOf,
   idStrategyOf: fakeIdStrategyOf,
+  onSent: (_) {},
   rowOf: fakeRowOf,
 );
 

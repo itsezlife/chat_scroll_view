@@ -60,7 +60,7 @@ final class ChatSendPublisher<M> implements Publisher {
     required OutgoingPayloadCodec<M> codec,
     required OutgoingMessageSender<M> sender,
     required CapabilityFeedback feedback,
-    required void Function(OutgoingSent<M> sent)? onSent,
+    required void Function(OutgoingSent<M> sent) onSent,
     required PublishCounters counters,
     required DateTime Function() now,
     required Future<OutgoingMessage?> Function(String clientMessageId)
@@ -86,7 +86,7 @@ final class ChatSendPublisher<M> implements Publisher {
   final OutgoingPayloadCodec<M> _codec;
   final OutgoingMessageSender<M> _sender;
   final CapabilityFeedback _feedback;
-  final void Function(OutgoingSent<M> sent)? _onSent;
+  final void Function(OutgoingSent<M> sent) _onSent;
   final void Function(OutgoingMessage message)? _onStatusChanged;
   final PublishCounters _counters;
   final DateTime Function() _now;
@@ -332,26 +332,31 @@ final class ChatSendPublisher<M> implements Publisher {
     _projection.accepted.add((chatId, clientMessageId));
     final serverId = result.serverMessageId ?? proposedId;
     int? rowAt;
-    if (proposedId != null && serverId != null && serverId != proposedId) {
-      // An idempotent replay: the server has the message at another id.
-      _report(
-        ChatEventLevel.warning,
-        OutboxOp.replayRebased,
-        ChatCorrelation(
-          chatId: chatId,
-          clientMessageId: clientMessageId,
-          jobId: jobId,
-          scrollId: '$serverId',
-        ),
-        {'distance': serverId - proposedId},
-      );
-      if (serverId > proposedId) _placeBefore(strategy, result.missing);
+    if (proposedId != null && serverId != null) {
+      if (serverId != proposedId) {
+        // An idempotent replay: the server has the message at another id.
+        _report(
+          ChatEventLevel.warning,
+          OutboxOp.replayRebased,
+          ChatCorrelation(
+            chatId: chatId,
+            clientMessageId: clientMessageId,
+            jobId: jobId,
+            scrollId: '$serverId',
+          ),
+          {'distance': serverId - proposedId},
+        );
+        if (serverId > proposedId) _placeBefore(strategy, result.missing);
+      }
+      // The row may not sit at the server's id even for an accept at the
+      // proposal: a peer's message delivered, or a fetch's rows, while the
+      // call was out moved the tail past it. Confirming the row where it
+      // sits would settle the message at an id the server gave another
+      // message. The row leaves instead (as for a replay at an id it cannot
+      // reach), and the host places the message at the server's id.
       if (strategy.positionOf(clientMessageId) == serverId) {
         rowAt = strategy.confirm(clientMessageId);
       } else {
-        // The server's id is one the row cannot sit at: below the tip, or
-        // past positions the chat does not hold. The row leaves, and the
-        // host places the confirmed message where it learns of it.
         strategy.remove(clientMessageId);
       }
     } else {
@@ -366,7 +371,7 @@ final class ChatSendPublisher<M> implements Publisher {
       null => null,
     };
     try {
-      _onSent?.call(
+      _onSent(
         OutgoingSent(
           chatId: chatId,
           clientMessageId: clientMessageId,

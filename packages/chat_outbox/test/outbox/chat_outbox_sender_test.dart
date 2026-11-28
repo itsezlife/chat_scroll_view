@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:attach_model/attach_model.dart';
 import 'package:chat_capabilities/chat_capabilities.dart';
 import 'package:chat_capabilities/testing.dart';
@@ -33,8 +35,17 @@ void main() {
       // The host's duty: the confirmed message replaces the outbox's row.
       onSent: (message) {
         sent.add(message);
-        if (message.rowAt case final rowAt?) {
-          tail.update(FakeTailMessage(rowAt));
+        switch (message.rowAt) {
+          case final rowAt?:
+            tail.update(FakeTailMessage(rowAt));
+          // The row left: the host places the message at the server's id,
+          // unless the chat holds it there already (a fetch brought it).
+          case null
+              when message.position < tail.tailStart &&
+                  tail.at(message.position) == null:
+            tail.place(FakeTailMessage(message.position));
+          case null:
+            break;
         }
       },
       clientMessageIds: clientMessageIdsFrom(),
@@ -102,6 +113,69 @@ void main() {
     expect(tail.identityAt(102), 'confirmed');
     expect(tail.provisional, isEmpty);
     expect(jobStateOf(0), isA<PublishJobState$Completed>());
+  });
+
+  group('an answer accepted at the proposal while the call was out', () {
+    late Completer<OutgoingSendAnswer<Note>> answer;
+
+    setUp(() {
+      answer = Completer();
+      sender.answerBy((_) => answer.future);
+      outbox.registerSender(sender);
+    });
+
+    test('a peer delivered meanwhile keeps its id and the message lands at '
+        'the server id, not where the peer pushed the row', () async {
+      sendText('one');
+      // Still uploading behind it.
+      outbox.send(
+        'c1',
+        PlannedSend.single(photo('a'), form: SendForm.media),
+        payload: const Note(text: 'photo'),
+      );
+      await pumpEventQueue();
+      expect(sender.requests.single.proposedId, 101);
+
+      // The server gave 101 to the message and 102 to a peer, whose
+      // delivery comes first: the rows move up past it.
+      outbox.idStrategy('c1').incoming([FakeTailMessage(102)]);
+      expect(tail.provisional, ['cm1', 'cm2']);
+      expect(tail.tailStart, 103);
+
+      answer.complete(const OutgoingSendAnswer.sent(serverMessageId: 101));
+      await pumpEventQueue();
+
+      expect(sent.first.clientMessageId, 'cm1');
+      expect((sent.first.position, sent.first.rowAt), (101, null));
+      expect(tail.identityAt(101), 'confirmed');
+      expect(tail.identityAt(102), 'confirmed');
+      expect(statusOf('cm1'), const OutgoingStatus.sent());
+      // The row behind it moves down into the freed position, after the
+      // peer, and proposes it next; nothing sits twice.
+      expect(tail.provisional, ['cm2']);
+      expect(tail.identityAt(103), 'cm2');
+      expect(tail.identityAt(104), isNull);
+      expect(outbox.idStrategy('c1').proposedId, 103);
+    });
+
+    test('a fetch that brought the message meanwhile holds it: the row '
+        'leaves and no twin stays', () async {
+      sendText('one');
+      await pumpEventQueue();
+
+      // The data source routes a fetch's rows inside the tail through a
+      // move: the server's copy of the message takes 101.
+      tail.rebaseTail(order: ['cm1'], insert: [FakeTailMessage(101)]);
+      expect(tail.identityAt(102), 'cm1');
+
+      answer.complete(const OutgoingSendAnswer.sent(serverMessageId: 101));
+      await pumpEventQueue();
+
+      expect((sent.single.position, sent.single.rowAt), (101, null));
+      expect(tail.provisional, isEmpty);
+      expect(tail.identityAt(102), isNull);
+      expect(outbox.byClientMessageId('c1', 'cm1')!.position, 101);
+    });
   });
 
   test('a row publishing moves to tip+1 first: a later row sent while an '
@@ -316,7 +390,9 @@ void main() {
   test('a rejection fails the message with its reason, kept out of the '
       'events', () async {
     final diagnostics = RecordingDiagnostics.install();
-    sender.answerWith(OutgoingSendAnswer.rejected('flood', retryable: true));
+    sender.answerWith(
+      const OutgoingSendAnswer.rejected('flood', retryable: true),
+    );
     outbox.registerSender(sender);
 
     sendText('one');
@@ -335,11 +411,29 @@ void main() {
     );
   });
 
-  test("a sender reason in the outbox's own codes is refused", () {
-    expect(
-      () => OutgoingSendAnswer<Note>.rejected('chat.denied:sendText'),
-      throwsArgumentError,
-    );
+  group("a server's rejection code stays its own, whatever it spells", () {
+    for (final code in [
+      'network',
+      'tooLarge',
+      'sourceLost',
+      PublishFailureReason.cancelled,
+      PublishFailureReason.publisherError,
+      'chat.conflict',
+      'chat.denied:sendText',
+    ]) {
+      test(code, () async {
+        sender.answerWith(OutgoingSendAnswer.rejected(code));
+        outbox.registerSender(sender);
+
+        sendText('one');
+        await pumpEventQueue();
+
+        expect(
+          statusOf('cm1'),
+          OutgoingStatus.failed(OutgoingFailure.rejected(code)),
+        );
+      });
+    }
   });
 
   test('a denial journaled for an action this build does not know reads as '

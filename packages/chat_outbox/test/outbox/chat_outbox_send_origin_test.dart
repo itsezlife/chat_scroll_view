@@ -34,6 +34,7 @@ void main() {
       codec: const NotePayloadCodec(),
       itemOf: sendItemOf,
       idStrategyOf: fakeIdStrategyOf,
+      onSent: (_) {},
       rowOf: fakeRowOf,
       clientMessageIds: clientMessageIdsFrom(),
       now: () => clock,
@@ -102,6 +103,7 @@ void main() {
         codec: const NotePayloadCodec(),
         itemOf: sendItemOf,
         idStrategyOf: fakeIdStrategyOf,
+        onSent: (_) {},
         rowOf: fakeRowOf,
         clientMessageIds: clientMessageIdsFrom(),
         capabilitiesOf: (_) => ValueNotifier(

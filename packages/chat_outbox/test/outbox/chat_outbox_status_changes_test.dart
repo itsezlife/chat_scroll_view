@@ -21,6 +21,7 @@ void main() {
       itemOf: sendItemOf,
       idStrategyOf: (chatId) =>
           SequentialServerIds(chatId: chatId, tail: FakeOutgoingTail()),
+      onSent: (_) {},
       rowOf: (message, payload) =>
           FakeTailMessage(message.position, message.clientMessageId),
       clientMessageIds: clientMessageIdsFrom(),
