@@ -178,6 +178,7 @@ class _PanelShellState extends State<PanelShell> {
   @override
   void initState() {
     super.initState();
+    _barVisibility.visible.addListener(_onBarVisible);
     _bind(widget.controller);
     if (!_fieldMounted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -239,6 +240,18 @@ class _PanelShellState extends State<PanelShell> {
   }
 
   void _onPageSelected() => _barVisibility.show();
+
+  // The hint goes with the bar: it fades out as the bar slides away (the
+  // layer follows the bar's visibility) and is dropped once the fade has
+  // run, so the bar comes back without it.
+  void _onBarVisible() {
+    if (_barVisibility.visible.value || _hint.value == null) return;
+    _hintTimer?.cancel();
+    _hintTimer = Timer(_hintFade, () => _hint.value = null);
+  }
+
+  Duration get _hintFade =>
+      ChromeMotionScope.of(context).specOf(MotionRole.headerReveal).duration;
 
   // A panel opened afresh shows its bar, wherever reading on left it.
   void _onFreshOpen() => _barVisibility.show();
@@ -467,6 +480,7 @@ class _PanelShellState extends State<PanelShell> {
 
   // The hint of a dimmed tab, over everything the shell draws and after the
   // tabs it follows; gone once the page is no longer dimmed.
+  // It fades with the bar's visibility, on the bar's own motion.
   Widget _hintLayer({required bool below}) => Positioned(
     left: 0,
     top: 0,
@@ -476,7 +490,24 @@ class _PanelShellState extends State<PanelShell> {
         final availability = _shell.availability.value;
         return switch ((hint, availability[hint?.pageId])) {
           ((:final pageId, :final text), PageAvailability$Dimmed()) =>
-            PanelTabHint(link: _tabLinks.of(pageId), text: text, below: below),
+            ListenValueBuilder<bool>(
+              listenable: _barVisibility.visible,
+              builder: (context, visible) {
+                final fade = ChromeMotionScope.of(
+                  context,
+                ).specOf(MotionRole.headerReveal);
+                return AnimatedOpacity(
+                  opacity: visible ? 1 : 0,
+                  duration: fade.duration,
+                  curve: fade.curve,
+                  child: PanelTabHint(
+                    link: _tabLinks.of(pageId),
+                    text: text,
+                    below: below,
+                  ),
+                );
+              },
+            ),
           _ => const SizedBox.shrink(),
         };
       },
