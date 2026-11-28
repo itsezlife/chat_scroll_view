@@ -114,6 +114,12 @@ final class FakeOutgoingIdStrategy implements OutgoingIdStrategy {
   }
 
   @override
+  Set<String> removeAll(List<String> clientMessageIds) {
+    calls.add('removeAll ${clientMessageIds.join(' ')}');
+    return _order.removeAll(clientMessageIds);
+  }
+
+  @override
   int? confirm(String clientMessageId) {
     calls.add('confirm $clientMessageId');
     return _order.confirm(clientMessageId);

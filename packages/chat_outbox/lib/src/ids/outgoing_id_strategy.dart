@@ -96,6 +96,15 @@ abstract interface class OutgoingIdStrategy {
   /// host removes that row itself.
   bool remove(String clientMessageId);
 
+  /// The rows [clientMessageIds] leave together (a cancel of every job in
+  /// the system's transfer envelope): as [remove], with every row gone in
+  /// one `rebaseTail`, so the chat lays out once rather than once per row.
+  ///
+  /// Answers the ids whose rows were in the tail; the host removes any
+  /// other row itself, as after [remove]. Moves nothing when it answers
+  /// none.
+  Set<String> removeAll(List<String> clientMessageIds);
+
   /// The row [clientMessageId] is confirmed and leaves the tail; answers the
   /// position it was confirmed at, or null when the strategy holds no such
   /// row.

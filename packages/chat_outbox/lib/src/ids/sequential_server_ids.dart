@@ -73,5 +73,9 @@ final class SequentialServerIds implements OutgoingIdStrategy {
   bool remove(String clientMessageId) => _order.remove(clientMessageId);
 
   @override
+  Set<String> removeAll(List<String> clientMessageIds) =>
+      _order.removeAll(clientMessageIds);
+
+  @override
   int? confirm(String clientMessageId) => _order.confirm(clientMessageId);
 }

@@ -138,7 +138,10 @@ enum OutboxOp implements DiagnosticOp {
   /// no text; `lastItemNoText`, the cross on the last item left of an album
   /// with no text; `statusControl`, a cell's cancel of the last item's
   /// upload with no text; `delete`, the menu's delete, followed by
-  /// `deleted`) and `stage`, the job's stage at the cancel
+  /// `deleted`; `systemInterruption`, the system ended the transfer envelope
+  /// and the host chose to delete; `notificationCancelAll`, the user
+  /// cancelled every job of the envelope from the system's UI) and `stage`,
+  /// the job's stage at the cancel
   /// (`prepare`, `upload`, `publish`) or the status it read (`failed`).
   cancelled,
 
@@ -192,4 +195,21 @@ enum OutboxOp implements DiagnosticOp {
   /// it had at the delete. The `cancelled` event of its job, trigger
   /// `delete`, comes just before.
   deleted,
+
+  /// The system ended the transfer envelope a message's job ran in, and the
+  /// job paused (info): `action`, `kept` (the message keeps sending and
+  /// resumes in the foreground) or `deleted` (the outbox was made with
+  /// `deleteOnSystemInterruption`).
+  systemInterrupted,
+
+  /// A job the system's end of its envelope paused goes on (info): `stage`,
+  /// the one it resumed in (`prepare`, `upload`, `publish`).
+  resumed,
+
+  /// The user cancelled every job of the transfer envelope from the system's
+  /// UI, and the chat's messages among them are deleted (info): `deleted`,
+  /// the messages made Absent at once, and `pending`, those whose server
+  /// answer was in flight, which go once it comes unless it is an accept;
+  /// the chat's id only.
+  envelopeCancelAll,
 }

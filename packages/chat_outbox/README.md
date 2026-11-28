@@ -17,7 +17,7 @@ Decision: [ADR 048](../../docs/adr/048-outgoing-messages.md). Diagnostics:
 | `OutgoingSendAnswer<M>` | What the server said: `sent` (`OutgoingSendResult(serverMessageId, serverKeys, payloadAsStored, missing)`), `reuploadItems(ids)`, `conflict(nextId, missing)`, `rejected(reason, retryable)` or `denied(action, reason)`. |
 | `OutgoingSent<M>` | What `onSent` hands the host for a published message: its id from now on, the row to replace (`rowAt`), the payload as sent and as stored, the server keys. |
 | `OutgoingMessage` | Chat id, `clientMessageId` (its identity), its current position in the provisional tail, its items (`OutgoingItem`: `MediaItemId` and local `ContentKey`), status and payload bytes. |
-| `OutgoingIdStrategy` | The `allocate` / `rebase` seam of one chat's provisional tail: `allocate` places a new row, `incoming`, `publishStart`, `fail`, `retry`, `remove` and `confirm` move it, each move one `rebaseTail`. It writes through `OutgoingTailTarget` (`OutgoingTailTarget.of(dataSource)`). A host may supply its own, held to `OutgoingIdStrategyContract` (`testing.dart`). |
+| `OutgoingIdStrategy` | The `allocate` / `rebase` seam of one chat's provisional tail: `allocate` places a new row, `incoming`, `publishStart`, `fail`, `retry`, `remove`, `removeAll` and `confirm` move it, each move one `rebaseTail`. It writes through `OutgoingTailTarget` (`OutgoingTailTarget.of(dataSource)`). A host may supply its own, held to `OutgoingIdStrategyContract` (`testing.dart`). |
 | `SequentialServerIds` | For a server with one sequential id counter per chat that accepts a proposed id only if it is the next one: `proposedId` is `tip+1`, read at publish. |
 | `LocalIds` | For global or UUID server ids: the host numbers rows with local ids (`nextIncomingId` for an incoming message) and keeps the server id in its model. `appendIncoming` puts incoming messages after the outgoing rows, which then stop moving. |
 | `OutgoingStatus` | `preparing`, `uploading`, `publishing`, `sent`, `failed(OutgoingFailure)`, `cancelled`. |
@@ -48,6 +48,7 @@ Decision: [ADR 048](../../docs/adr/048-outgoing-messages.md). Diagnostics:
 | Pass the chat's capabilities | `capabilitiesOf(chatId)` returns the listenable the chat's other consumers read; the outbox checks slow mode and the limits against it before each job. |
 | Fold the send in flight | Put `sendInFlight(chatId)` into the chat's capabilities as `slowMode.pending`, so the composer and the picker hold the next send. |
 | Hand the send origins | Pass the picker's rects by item order with the send (`send(..., origins:)`), and the outbox's `takeSendOrigin` to the media state as its one-shot origin lookup. |
+| Set up the transfer envelope | The system envelope that keeps uploads going in the background is `mpx_transfer`'s, set up by the host there: its notification's strings, the iOS `Info.plist` entries, the Android permissions and the Play Console declaration (that package's README, "Android" and "iOS"). The outbox only reads what the jobs do (see System envelope). |
 | Dispose | `dispose()` when the outbox goes; the jobs run on in the engine. |
 
 ## The publish job
@@ -115,6 +116,20 @@ next message may take its row's position.
 
 A repeated retry changes nothing (`dropped`) until the message fails
 again; a repeated delete changes nothing either.
+
+## System envelope
+
+| The envelope | The outbox does |
+| --- | --- |
+| the system ends it (an OS time limit, expiry, a low-memory kill), and its jobs pause `systemInterrupted` | by default keeps each message sending in its stage; it goes on once the app is in the foreground and the job resumes |
+| the same, with `ChatOutbox(deleteOnSystemInterruption: true)` | cancels each job and deletes its message, as a cancel does |
+| the user cancels all from its notification or the system's progress UI | reads the jobs' removal (it did not cancel them) and deletes every outgoing message among them, their rows leaving in one `rebaseTail` per chat |
+| the app is force quit | nothing: the next start's `pendingFor` reads the jobs back and they resume |
+
+`deleteOnSystemInterruption` is false on every platform. A message whose
+server answer is in flight when its job is cancelled waits for it, as a
+cancel does: an accept leaves it sent. A sent message stays sent when its
+job leaves.
 
 ## Send origin
 
