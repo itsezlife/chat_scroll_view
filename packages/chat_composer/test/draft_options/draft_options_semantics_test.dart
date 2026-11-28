@@ -28,10 +28,10 @@ final _page = LinkPreviewState.loaded(LinkPreview(url: _url, title: 'Story'));
 final _otherPage = LinkPreview(url: _other, title: 'Guide');
 final _contour = Path()..addRect(const Rect.fromLTWH(10, 20, 60, 16));
 
-const _platforms = <(String, DraftOptionsPolicy)>[
-  ('Android', DraftOptionsPolicy.android()),
-  ('iOS', DraftOptionsPolicy.ios()),
-  ('desktop', DraftOptionsPolicy.desktop()),
+const _platforms = <(String, DraftOptionsOverlayPolicy)>[
+  ('Android', DraftOptionsPolicy$Android()),
+  ('iOS', DraftOptionsPolicy$IOS()),
+  ('desktop', DraftOptionsPolicy$Desktop()),
 ];
 
 void main() {
@@ -52,7 +52,7 @@ void main() {
 
   Future<DraftOptionsController> openOn(
     WidgetTester tester,
-    DraftOptionsPolicy policy, {
+    DraftOptionsOverlayPolicy policy, {
     LinkPreviewState? page,
     TextDirection textDirection = TextDirection.ltr,
   }) async {
@@ -84,7 +84,7 @@ void main() {
       links: [_url, _other],
     );
     await tester.pumpAndSettle();
-    clock.advance(DraftOptionsController.openGuard);
+    clock.advance(DraftOptionsPolicy.openGuard);
     return controller;
   }
 
@@ -157,8 +157,8 @@ void main() {
 
   group('announcements', () {
     for (final (name, policy) in [
-      ('Android', const DraftOptionsPolicy.android()),
-      ('iOS', const DraftOptionsPolicy.ios()),
+      ('Android', const DraftOptionsPolicy$Android()),
+      ('iOS', const DraftOptionsPolicy$IOS()),
     ]) {
       testWidgets('$name: opened on a pending page, "loading preview" is '
           'announced politely, and again once it loads', (tester) async {
@@ -205,7 +205,7 @@ void main() {
         'once loaded', (tester) async {
       final controller = await openOn(
         tester,
-        const DraftOptionsPolicy.desktop(),
+        const DraftOptionsPolicy$Desktop(),
       );
       expect(tester.takeAnnouncements(), isEmpty);
 
@@ -228,7 +228,7 @@ void main() {
 
     testWidgets('a loaded page and a page that comes to nothing announce '
         'nothing', (tester) async {
-      final controller = await openOn(tester, const DraftOptionsPolicy.ios());
+      final controller = await openOn(tester, const DraftOptionsPolicy$IOS());
       expect(tester.takeAnnouncements(), isEmpty);
 
       controller.page = LinkPreviewState.none;
@@ -257,11 +257,11 @@ void main() {
 
     for (final (name, policy, iconRight, labelRight) in [
       // The icon 17 from the right, the label ending 59 from it.
-      ('Android', const DraftOptionsPolicy.android(), 17.0, 59.0),
+      ('Android', const DraftOptionsPolicy$Android(), 17.0, 59.0),
       // The context row mirrored: the icon 16 from the left, the label
       // ending 16 from the right.
-      ('iOS', const DraftOptionsPolicy.ios(), null, 16.0),
-      ('desktop', const DraftOptionsPolicy.desktop(), 20.0, 60.0),
+      ('iOS', const DraftOptionsPolicy$IOS(), null, 16.0),
+      ('desktop', const DraftOptionsPolicy$Desktop(), 20.0, 60.0),
     ]) {
       testWidgets('$name mirrors its rows: the label right-aligned', (
         tester,
@@ -288,7 +288,7 @@ void main() {
     ) async {
       await openOn(
         tester,
-        const DraftOptionsPolicy.android(),
+        const DraftOptionsPolicy$Android(),
         textDirection: TextDirection.rtl,
       );
 

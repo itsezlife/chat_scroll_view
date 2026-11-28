@@ -75,6 +75,19 @@ enum DraftOptionsCloseTrigger {
   disposed,
 }
 
+/// Why a link tap in the live preview chose nothing, as its
+/// `linkTapIgnored` event names it.
+enum DraftLinkTapIgnored {
+  /// The text has one link and the policy chooses only among several.
+  singleLink,
+
+  /// The tapped link is not one of the text's links.
+  notInText,
+
+  /// The tapped link is the one previewed already.
+  current,
+}
+
 /// A motion of the draft options overlay's presentation, as its `motion`
 /// event names it.
 enum DraftOptionsMotionPhase {
@@ -121,7 +134,7 @@ enum DraftOptionsAnnouncement {
 /// ([DraftOptionsHost.chooseLink]) and [highlight] marks the link while the
 /// lookup is pending; the page follows the lookup, and the highlight goes at
 /// loaded or none (kept, settled, on loaded under
-/// [DraftOptionsPolicy.keepsChosenLinkSelected]). A newer choice drops the
+/// [DraftOptionsOverlayPolicy.keepsChosenLinkSelected]). A newer choice drops the
 /// older lookup: its late answer changes nothing.
 ///
 /// ## Announcements
@@ -231,6 +244,13 @@ final class DraftOptionsSession {
 
   bool get _live => policy.apply == DraftOptionsApply.liveApply;
 
+  // The web's menu has no preview, so nothing there is ever selected.
+  bool get _keepsChosenLinkSelected => switch (policy) {
+    DraftOptionsOverlayPolicy(:final keepsChosenLinkSelected) =>
+      keepsChosenLinkSelected,
+    DraftOptionsPolicy$Web() => false,
+  };
+
   /// The link's page moved to [state].
   set pageState(LinkPreviewState state) => _setPage(state);
 
@@ -252,7 +272,7 @@ final class DraftOptionsSession {
   /// Chooses it when it is one of [links], the policy allows a choice with
   /// this many links, and it is not the link previewed already; otherwise
   /// the tap is reported ignored. A tap on the previewed link marks it
-  /// selected under [DraftOptionsPolicy.keepsChosenLinkSelected], and a
+  /// selected under [DraftOptionsOverlayPolicy.keepsChosenLinkSelected], and a
   /// burst of taps on one link asks the host once.
   void tapLink(String url, Path contourPath) {
     if (isClosing) return;
@@ -264,14 +284,15 @@ final class DraftOptionsSession {
       _
           when policy.linkChoice == DraftOptionsLinkChoice.severalLinks &&
               links.length < 2 =>
-        'singleLink',
-      < 0 => 'notInText',
-      _ when links[index] == _value.value.options.url => 'current',
+        DraftLinkTapIgnored.singleLink,
+      < 0 => DraftLinkTapIgnored.notInText,
+      _ when links[index] == _value.value.options.url =>
+        DraftLinkTapIgnored.current,
       _ => null,
     };
     if (ignored case final why?) {
-      if (why == 'current' &&
-          policy.keepsChosenLinkSelected &&
+      if (why == DraftLinkTapIgnored.current &&
+          _keepsChosenLinkSelected &&
           _highlight.value == null) {
         _highlight.value = DraftLinkHighlight(
           index: index,
@@ -279,7 +300,11 @@ final class DraftOptionsSession {
           pending: false,
         );
       }
-      _emit(ChatEventLevel.debug, OverlayOp.linkTapIgnored, () => {'why': why});
+      _emit(
+        ChatEventLevel.debug,
+        OverlayOp.linkTapIgnored,
+        () => {'why': why.name},
+      );
       return;
     }
     final chosen = links[index];
@@ -373,14 +398,16 @@ final class DraftOptionsSession {
     },
   );
 
-  /// Reports the host's value with the preview removed: link previews were
-  /// denied while the overlay was up, and it has closed.
+  /// Reports the host's value with the preview removed as a denial
+  /// ([DraftOptionsHost.previewDenied]): link previews were denied while the
+  /// overlay was up, and it has closed. Emits `editReported` for `remove`.
   void reportRemoved() {
     final options = _reported.options;
     if (options.removed) return;
-    _report(_reported.copyWith(options: options.copyWith(removed: true)), [
-      DraftOptionsField.remove,
-    ]);
+    final denied = _reported.copyWith(options: options.copyWith(removed: true));
+    _reported = denied;
+    _emitReported(DraftOptionsField.remove);
+    _host.previewDenied(denied);
   }
 
   /// Lets go of the listenables; called by the session's owner once the
@@ -433,8 +460,7 @@ final class DraftOptionsSession {
     if (!state.isTerminal) return;
     _unfollow();
     _highlight.value = switch ((state, _highlight.value)) {
-      (LinkPreviewState$Loaded(), final shown?)
-          when policy.keepsChosenLinkSelected =>
+      (LinkPreviewState$Loaded(), final shown?) when _keepsChosenLinkSelected =>
         DraftLinkHighlight(
           index: shown.index,
           contour: shown.contour,
@@ -451,16 +477,18 @@ final class DraftOptionsSession {
 
   void _report(DraftLinkPart part, List<DraftOptionsField> fields) {
     _reported = part;
-    final mode = _live || isClosing ? 'live' : 'onSave';
-    for (final field in List.of(fields)) {
-      _emit(
-        ChatEventLevel.debug,
-        OverlayOp.editReported,
-        () => {'field': field.name, 'mode': mode},
-      );
-    }
+    List.of(fields).forEach(_emitReported);
     _unsaved.clear();
     _host.linkPartEdited(part);
+  }
+
+  void _emitReported(DraftOptionsField field) {
+    final mode = _live || isClosing ? 'live' : 'onSave';
+    _emit(
+      ChatEventLevel.debug,
+      OverlayOp.editReported,
+      () => {'field': field.name, 'mode': mode},
+    );
   }
 
   void _emit(

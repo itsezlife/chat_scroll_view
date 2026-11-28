@@ -19,6 +19,8 @@ export 'src/draft_options/draft_options_box.dart';
 export 'src/draft_options/draft_options_card.dart';
 export 'src/draft_options/draft_options_card_view.dart';
 export 'src/draft_options/draft_options_desktop_box.dart';
+export 'src/draft_options/draft_options_entry.dart';
+export 'src/draft_options/draft_options_gate.dart' show DraftOptionsOpenRefusal;
 export 'src/draft_options/draft_options_host.dart';
 export 'src/draft_options/draft_options_overlay.dart';
 export 'src/draft_options/draft_options_policy.dart';

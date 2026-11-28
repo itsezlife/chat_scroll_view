@@ -37,7 +37,7 @@ void main() {
         await tester.binding.setSurfaceSize(const Size(480, 560));
         addTearDown(() => tester.binding.setSurfaceSize(null));
         final controller = DraftOptionsController(
-          policy: const DraftOptionsPolicy.desktop(),
+          policy: const DraftOptionsPolicy$Desktop(),
           host: RecordingDraftOptionsHost(),
           bubbleBuilder: FakeDraftBubbleBuilder().call,
         );

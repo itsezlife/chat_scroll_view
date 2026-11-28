@@ -3,19 +3,22 @@ import 'dart:math' as math;
 
 import 'package:chat_composer/src/draft_options/draft_options_desktop_box.dart';
 import 'package:chat_composer/src/draft_options/draft_options_key_focus.dart';
+import 'package:chat_composer/src/draft_options/draft_options_presentation_motion.dart';
 import 'package:chat_composer/src/draft_options/draft_options_session.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/widgets.dart';
 
-/// The draft options as a desktop modal box: the page's [title], the live
-/// [preview] and the link page's [rows] pinned under it, then Cancel and
-/// Save, laid out by [box].
+/// The draft options as a desktop modal box: the page's [title] and
+/// [subtitle], the live [preview] and the link page's [rows] pinned under
+/// it, then Cancel and Save, laid out by [box].
 ///
 /// The skin of `DraftOptionsPolicy$Desktop` inside a `DraftOptionsOverlay`,
 /// over the session's commit on save: Save is the session's apply (it
 /// reports the copy and closes), Cancel its cancel (the copy is dropped).
-/// Enter and Escape, focus into the box and back to the field, and the
-/// close on a click outside are the overlay's and the scrim's.
+/// The box takes keyboard focus: the overlay gives it a scope of its own
+/// around the scrim, where Enter saves and Escape closes, and the
+/// controller gives focus back to the field on close. A click outside is
+/// the scrim's.
 ///
 /// The box fades in beside the scrim's dim and out once the [scrim]
 /// closes, by [DraftOptionsDesktopBox.fadeIn] and
@@ -35,6 +38,7 @@ class DraftOptionsBox extends StatefulWidget {
     required this.scrim,
     required this.preview,
     this.title,
+    this.subtitle,
     this.rows,
     super.key,
   });
@@ -60,6 +64,9 @@ class DraftOptionsBox extends StatefulWidget {
   /// The page's title; null for none.
   final String? title;
 
+  /// The page's subtitle under the title; null for none.
+  final String? subtitle;
+
   /// The link page's rows; null for none.
   final Widget? rows;
 
@@ -68,88 +75,77 @@ class DraftOptionsBox extends StatefulWidget {
 }
 
 class _DraftOptionsBoxState extends State<DraftOptionsBox>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, DraftOptionsPresentationMotion {
   late final AnimationController _fade = AnimationController(vsync: this);
   late final CurvedAnimation _eased = CurvedAnimation(
     parent: _fade,
     curve: widget.box.fadeIn.curve,
     reverseCurve: widget.box.fadeOut.curve.flipped,
   );
-  var _started = false;
-  var _closing = false;
 
   DraftOptionsSession get _session => widget.session;
 
   @override
+  DraftOptionsSession get motionSession => widget.session;
+
+  @override
+  ChromeScrimController get motionScrim => widget.scrim;
+
+  @override
   void initState() {
     super.initState();
-    widget.scrim.addListener(_onScrim);
     _session.value.addListener(_onChange);
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_started) return;
-    _started = true;
-    final spec = widget.box.fadeIn.withSpeed(_speed);
-    _report(DraftOptionsMotionPhase.open, spec.duration);
-    _fade.duration = spec.duration;
-    if (spec.duration == Duration.zero) {
-      _fade.value = 1;
-    } else {
-      unawaited(_fade.forward());
-    }
-  }
-
-  @override
   void dispose() {
-    widget.scrim.removeListener(_onScrim);
     _session.value.removeListener(_onChange);
     _eased.dispose();
     _fade.dispose();
     super.dispose();
   }
 
-  ChromeMotionSpeed get _speed => ChromeMotionScope.of(context).speed;
+  @override
+  Duration playOpen(ChromeMotionSpeed speed) {
+    final duration = _fade.duration = speed.scale(widget.box.fadeIn.duration);
+    if (duration == Duration.zero) {
+      _fade.value = 1;
+    } else {
+      unawaited(_fade.forward());
+    }
+    return duration;
+  }
 
-  void _onScrim() {
-    final scrim = widget.scrim;
-    if (_closing || !scrim.isClosing || scrim.isDone) return;
-    _closing = true;
-    final spec = widget.box.fadeOut.withSpeed(_speed);
-    _report(DraftOptionsMotionPhase.close, spec.duration);
-    _fade.reverseDuration = spec.duration;
-    if (spec.duration == Duration.zero) {
+  @override
+  Duration playClose(ChromeMotionSpeed speed) {
+    final duration = _fade.reverseDuration = speed.scale(
+      widget.box.fadeOut.duration,
+    );
+    if (duration == Duration.zero) {
       _fade.value = 0;
     } else {
       unawaited(_fade.reverse());
     }
+    return duration;
   }
 
   void _onChange() {
     if (_session.isClosing) return;
-    _report(
+    reportMotion(
       DraftOptionsMotionPhase.change,
-      widget.box.optionChange.withSpeed(_speed).duration,
+      motionSpeed.scale(widget.box.optionChange.duration),
     );
   }
 
-  void _report(DraftOptionsMotionPhase phase, Duration duration) =>
-      _session.reportMotion(
-        phase,
-        duration,
-        reduceMotion: _speed == ChromeMotionSpeed.instant,
-      );
-
   @override
   Widget build(BuildContext context) {
+    final title = widget.title;
+    final subtitle = widget.subtitle;
+    final rows = widget.rows;
     final box = widget.box;
     final palette = ChromeThemeScope.paletteOf(context);
     final radius = BorderRadius.circular(box.radius);
     final window = MediaQuery.sizeOf(context);
-    final title = widget.title;
-    final rows = widget.rows;
     return Center(
       child: FadeTransition(
         opacity: _eased,
@@ -176,6 +172,10 @@ class _DraftOptionsBoxState extends State<DraftOptionsBox>
                   children: [
                     ?switch (title) {
                       final title? => _title(context, title),
+                      null => null,
+                    },
+                    ?switch (subtitle) {
+                      final subtitle? => _subtitle(context, subtitle),
                       null => null,
                     },
                     // Only the preview gives way to a short window: the
@@ -228,6 +228,24 @@ class _DraftOptionsBoxState extends State<DraftOptionsBox>
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _subtitle(BuildContext context, String subtitle) {
+    final box = widget.box;
+    return Padding(
+      padding: EdgeInsetsDirectional.only(
+        start: box.titleStart,
+        end: box.titleStart,
+      ),
+      child: Text(
+        subtitle,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: ChromeTypography.of(
+          context,
+        ).copyWith(color: ChromeThemeScope.paletteOf(context).onSurfaceMuted),
       ),
     );
   }

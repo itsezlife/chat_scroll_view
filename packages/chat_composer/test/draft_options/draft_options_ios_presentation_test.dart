@@ -269,7 +269,7 @@ void main() {
     }
 
     DraftOptionsController controllerOf(
-      DraftOptionsPolicy policy, {
+      DraftOptionsOverlayPolicy policy, {
       DraftOptionsBubbleBuilder? bubble,
     }) {
       final controller = DraftOptionsController(
@@ -333,7 +333,7 @@ void main() {
     ) async {
       sizeWindow(tester, _phone);
       final controller = controllerOf(
-        const DraftOptionsPolicy.ios(),
+        const DraftOptionsPolicy$IOS(),
         bubble: tallBubble,
       );
       await tester.tap(await mountStrip(tester, controller));
@@ -361,7 +361,7 @@ void main() {
       tester,
     ) async {
       sizeWindow(tester, _phone);
-      final short = controllerOf(const DraftOptionsPolicy.ios());
+      final short = controllerOf(const DraftOptionsPolicy$IOS());
       await tester.tap(await mountStrip(tester, short));
       await tester.pumpAndSettle();
 
@@ -371,7 +371,7 @@ void main() {
       await tester.pumpAndSettle();
       clock.advance(const Duration(seconds: 1));
       final tall = controllerOf(
-        const DraftOptionsPolicy.ios(),
+        const DraftOptionsPolicy$IOS(),
         bubble: (context, preview) => const SizedBox(height: 900),
       );
       await tester.tap(await mountStrip(tester, tall));
@@ -383,7 +383,7 @@ void main() {
     testWidgets('an iPad lays the content at most 400 wide, centred on the '
         'strip', (tester) async {
       sizeWindow(tester, _pad);
-      final controller = controllerOf(const DraftOptionsPolicy.ios(iPad: true));
+      final controller = controllerOf(const DraftOptionsPolicy$IOS(iPad: true));
       await tester.pumpWidget(
         composerHarness(
           Builder(
@@ -416,7 +416,7 @@ void main() {
         '0.15 s, the actions over 0.05 s, both scale from 0.01 on the 0.42 s '
         'spring', (tester) async {
       sizeWindow(tester, _phone);
-      final controller = controllerOf(const DraftOptionsPolicy.ios());
+      final controller = controllerOf(const DraftOptionsPolicy$IOS());
       final strip = await mountStrip(tester, controller);
       final stripCentre = tester.getRect(strip).center;
       await tester.tap(strip);
@@ -466,12 +466,12 @@ void main() {
       tester,
     ) async {
       sizeWindow(tester, _phone);
-      final controller = controllerOf(const DraftOptionsPolicy.ios());
+      final controller = controllerOf(const DraftOptionsPolicy$IOS());
       final strip = await mountStrip(tester, controller);
       final stripCentre = tester.getRect(strip).center;
       await tester.tap(strip);
       await tester.pumpAndSettle();
-      clock.advance(DraftOptionsController.openGuard);
+      clock.advance(DraftOptionsPolicy.openGuard);
       final rest = tester.getRect(content());
 
       final press = await tester.startGesture(const Offset(20, 20));
@@ -523,7 +523,7 @@ void main() {
       tester,
     ) async {
       sizeWindow(tester, _phone);
-      final controller = controllerOf(const DraftOptionsPolicy.ios());
+      final controller = controllerOf(const DraftOptionsPolicy$IOS());
       final strip = await mountStrip(tester, controller);
 
       await tester.tap(strip);
@@ -540,7 +540,7 @@ void main() {
     testWidgets('a surface without the haptic plays none', (tester) async {
       sizeWindow(tester, _phone);
       final controller = controllerOf(
-        const DraftOptionsPolicy.ios(
+        const DraftOptionsPolicy$IOS(
           surface: DraftOptionsSpringSurface(hapticOnOpen: false),
         ),
       );
@@ -555,7 +555,7 @@ void main() {
     ) async {
       sizeWindow(tester, _phone);
       final controller = controllerOf(
-        const DraftOptionsPolicy.ios(),
+        const DraftOptionsPolicy$IOS(),
         bubble: tallBubble,
       );
       await tester.tap(await mountStrip(tester, controller));
@@ -587,7 +587,7 @@ void main() {
     testWidgets('reduce motion lands the open and the close on their end '
         'states at once', (tester) async {
       sizeWindow(tester, _phone);
-      final controller = controllerOf(const DraftOptionsPolicy.ios());
+      final controller = controllerOf(const DraftOptionsPolicy$IOS());
       await tester.tap(
         await mountStrip(
           tester,
@@ -603,7 +603,7 @@ void main() {
 
       // The backdrop keeps its own fade; let it come up before closing.
       await tester.pumpAndSettle();
-      clock.advance(DraftOptionsController.openGuard);
+      clock.advance(DraftOptionsPolicy.openGuard);
       await tester.tapAt(const Offset(20, 20));
       await tester.pump();
 
@@ -636,7 +636,7 @@ void main() {
       tester,
     ) async {
       sizeWindow(tester, _phone);
-      final controller = controllerOf(const DraftOptionsPolicy.ios());
+      final controller = controllerOf(const DraftOptionsPolicy$IOS());
       await tester.tap(await mountStrip(tester, controller));
       await tester.pumpAndSettle();
 

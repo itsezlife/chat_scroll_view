@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:chat_composer/src/draft_options/draft_options_presentation_motion.dart';
 import 'package:chat_composer/src/draft_options/draft_options_session.dart';
 import 'package:chat_composer/src/draft_options/draft_options_spring_surface.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
@@ -57,62 +58,52 @@ class DraftOptionsSpringView extends StatefulWidget {
 }
 
 class _DraftOptionsSpringViewState extends State<DraftOptionsSpringView>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, DraftOptionsPresentationMotion {
   late final AnimationController _open = AnimationController(vsync: this);
   late final AnimationController _close = AnimationController(vsync: this);
   late final Listenable _clocks = Listenable.merge([_open, _close]);
   final _frame = _SpringFrameHolder();
-  ChromeMotionSpeed _speed = ChromeMotionSpeed.normal;
-  bool _started = false;
 
   DraftOptionsSpringMotion get _motion => widget.surface.motion;
 
   @override
+  DraftOptionsSession get motionSession => widget.session;
+
+  @override
+  ChromeScrimController get motionScrim => widget.scrim;
+
+  @override
   void initState() {
     super.initState();
-    widget.scrim.addListener(_onScrim);
     widget.session.value.addListener(_onEdit);
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _speed = ChromeMotionScope.of(context).speed;
-    if (_started) return;
-    _started = true;
-    _open.duration = _speed.scale(_motion.springCut);
-    _report(DraftOptionsMotionPhase.open, _open.duration!);
-    unawaited(_open.forward());
-    // A scrim that closed before the first build.
-    _onScrim();
-  }
-
-  @override
   void dispose() {
-    widget.scrim.removeListener(_onScrim);
     widget.session.value.removeListener(_onEdit);
     _open.dispose();
     _close.dispose();
     super.dispose();
   }
 
-  void _onScrim() {
-    if (!widget.scrim.isClosing || _close.isAnimating || _close.value > 0) {
-      return;
-    }
-    _close.duration = _speed.scale(_motion.close.duration);
-    _report(DraftOptionsMotionPhase.close, _close.duration!);
-    unawaited(_close.forward());
+  @override
+  Duration playOpen(ChromeMotionSpeed speed) {
+    final duration = _open.duration = speed.scale(_motion.springCut);
+    unawaited(_open.forward());
+    return duration;
   }
 
-  void _onEdit() => _report(
-    DraftOptionsMotionPhase.change,
-    _speed.scale(_motion.change.duration),
-  );
+  @override
+  Duration playClose(ChromeMotionSpeed speed) {
+    final duration = _close.duration = speed.scale(_motion.close.duration);
+    unawaited(_close.forward());
+    return duration;
+  }
 
-  void _report(DraftOptionsMotionPhase phase, Duration duration) => widget
-      .session
-      .reportMotion(phase, duration, reduceMotion: _speed.isInstant);
+  void _onEdit() => reportMotion(
+    DraftOptionsMotionPhase.change,
+    motionSpeed.scale(_motion.change.duration),
+  );
 
   /// The pose of the content and the actions at the clocks' values: the
   /// open's spring and fades, then the close's ease and fade over it.
@@ -154,7 +145,7 @@ class _DraftOptionsSpringViewState extends State<DraftOptionsSpringView>
     final surface = widget.surface;
     final palette = ChromeThemeScope.of(context).palette;
     final origin = widget.session.origin?.center.dy;
-    final change = surface.motion.change.withSpeed(_speed);
+    final change = surface.motion.change.withSpeed(motionSpeed);
     final content = ClipRRect(
       key: DraftOptionsSpringView.contentKey,
       borderRadius: BorderRadius.circular(surface.cornerRadius),

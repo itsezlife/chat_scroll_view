@@ -101,3 +101,19 @@ Recorded from the `## Decisions` of the draft-options-overlay issues 06 to 15. T
 | Semantics | The dismiss node closes through the session, so a screen reader's tap reports `closed` (trigger `outside`) without `scrimDismissed`. Announcements are decided by the session and spoken by the skin (14). |
 | Example | The preview bubble is the chat's own outgoing bubble behind `IgnorePointer`, reading links through its own selection controller. Desktop Save asks the resolver once more for a chosen link (15). |
 
+## Amendment (2026-11-28): the draft options after review
+
+Recorded from the code review of the draft-options-overlay branch. They reshape the as-built table above; the maintainer accepts them with the rest.
+
+| Area | After review |
+| ---- | ------------ |
+| One owner | A host binds the strip to one `DraftOptionsEntry`, which opens the overlay or the web's menu by the policy and feeds `page` and `linkPreviewsAllowed` to whichever is up. The two controllers share the open's rules and its events through an internal gate (`DraftOptionsGate`); `DraftOptionsPolicy.openGuard` is the one guard. |
+| Policy shape | `DraftOptionsOverlayPolicy` (Android, iOS, desktop) carries the apply mode, `opensOnPending`, the title, the keyboard, `keepsChosenLinkSelected` and the scrim; `DraftOptionsPolicy$Web` takes none of them and applies live. `DraftOptionsTitle.linkHeading` is the one title mapping. |
+| Platform form | Without a host policy the entry takes the platform's at each open from the window there, so an iPad window that became regular width opens the iPad form (D14); a form that is up stays until it closes. |
+| Denial | `DraftOptionsHost.previewDenied` reports a preview removed by denied previews, apart from the user's edits, so a host runs no dismissal follow-up for it (spec §5.10). |
+| Size row | iOS and desktop offer it only for a page whose media is large by default (`LinkPreviewMediaSizeRule.offersSwitch` reads `hasLargeMedia`); Android for any shrinkable photo (spec §5.4). |
+| Back | The iOS and iPad scrim presets take no back (`ChromeScrimPreset.closesOnBack`, spec §5.8). |
+| Focus | The desktop box's focus scope, Enter and focus return follow the box (`DraftOptionsPolicy$Desktop`), not the apply mode. The three presentations share their open / close lifecycle (`DraftOptionsPresentationMotion`). |
+| Tags | Refusals and ignored link taps are enums (`DraftOptionsOpenRefusal`, `DraftLinkTapIgnored`); `desktopNotLoaded` is `notLoaded`, named by the rule. With no draft link an open is refused `noDraft`. |
+| Traces | `chat_scroll_view.overlay.scrimCapture`, `…scrimStill` (an async span from capture to the still made) and `…previewBuild`, for the overlay and the content preview, through each package's trace enum (ADR 041). |
+

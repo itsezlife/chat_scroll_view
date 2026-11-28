@@ -249,7 +249,7 @@ void main() {
       await _openFromStrip(tester);
       await _settle(tester);
 
-      rig.set.draftOptions.overlaySession!.tapLink('$_b', Path());
+      rig.set.draftOptions.session!.tapLink('$_b', Path());
       await tester.pump();
       resolver.completeAll();
       await tester.pump();
@@ -301,6 +301,40 @@ void main() {
         'mode': 'live',
       });
       expect(rig.set.linkPreview.outgoing?.options.removed, isTrue);
+    });
+
+    testWidgets('are the chat\'s, not a remove: no dismissal follows', (
+      tester,
+    ) async {
+      final rights = FakeChatCapabilitiesSource();
+      addTearDown(rights.dispose);
+      final rig = await _pumpRig(
+        tester,
+        resolver: resolver,
+        capabilities: rights,
+      );
+      await _typeAndAnswer(tester, rig, resolver, 'see $_a ');
+      await _openFromStrip(tester);
+      await _settle(tester);
+      var draftWrites = 0;
+      void count() => draftWrites++;
+      rig.set.linkPreview.draftChanged.addListener(count);
+      addTearDown(() => rig.set.linkPreview.draftChanged.removeListener(count));
+
+      rights.set(
+        const ChatCapabilities(
+          sending: SendingCapabilities(
+            linkPreviews: Capability.denied(DenialReason.everyone()),
+          ),
+        ),
+      );
+      await tester.pump();
+      await _settle(tester);
+
+      expect(_overlay, findsNothing);
+      expect(rig.set.linkPreview.outgoing?.options.removed, isTrue);
+      expect(rig.set.linkPreview.draft.dismissal, isNull);
+      expect(draftWrites, 1, reason: 'the availability, and no dismissal');
     });
   });
 

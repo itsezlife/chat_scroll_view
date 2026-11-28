@@ -381,11 +381,12 @@ void main() {
 
       controller.linkPreviewsAllowed = false;
       await tester.pump();
-      expect(host.edits, isEmpty);
+      expect(host.denials, isEmpty);
       await tester.pumpAndSettle();
 
       expect(menu(), findsNothing);
-      expect(host.edits.single.options.removed, isTrue);
+      expect(host.edits, isEmpty);
+      expect(host.denials.single.options.removed, isTrue);
       expect(diagnostics.whereOp(OverlayOp.webMenuClosed).single.fields, {
         'trigger': 'denied',
       });

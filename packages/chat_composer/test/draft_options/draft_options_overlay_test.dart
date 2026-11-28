@@ -40,7 +40,7 @@ void main() {
     clock = ManualComposerClock(DateTime(2026, 11, 28));
   });
 
-  DraftOptionsController controllerOf(DraftOptionsPolicy policy) {
+  DraftOptionsController controllerOf(DraftOptionsOverlayPolicy policy) {
     final controller = DraftOptionsController(
       policy: policy,
       host: host,
@@ -86,7 +86,7 @@ void main() {
   group('opening', () {
     testWidgets('a tap on the strip opens the overlay at the link page over '
         'a scrim with the platform preset', (tester) async {
-      final controller = controllerOf(const DraftOptionsPolicy.android());
+      final controller = controllerOf(const DraftOptionsPolicy$Android());
       final strip = await mountStrip(tester, controller);
 
       await tester.tap(strip);
@@ -107,7 +107,7 @@ void main() {
     testWidgets('mobile opens on a pending page, the preview loading', (
       tester,
     ) async {
-      final controller = controllerOf(const DraftOptionsPolicy.ios());
+      final controller = controllerOf(const DraftOptionsPolicy$IOS());
       await tester.tap(await mountStrip(tester, controller));
       await tester.pumpAndSettle();
 
@@ -123,7 +123,7 @@ void main() {
     });
 
     testWidgets('desktop refuses a pending page', (tester) async {
-      final controller = controllerOf(const DraftOptionsPolicy.desktop());
+      final controller = controllerOf(const DraftOptionsPolicy$Desktop());
       await tester.tap(await mountStrip(tester, controller));
       await tester.pumpAndSettle();
 
@@ -134,13 +134,13 @@ void main() {
           level: ChatEventLevel.debug,
           category: ChatEventCategory.overlay,
           correlation: const ChatCorrelation(chatId: 'chat-1'),
-          fields: {'why': 'desktopNotLoaded'},
+          fields: {'why': 'notLoaded'},
         ),
       ]);
     });
 
     testWidgets('desktop opens on a loaded page', (tester) async {
-      final controller = controllerOf(const DraftOptionsPolicy.desktop());
+      final controller = controllerOf(const DraftOptionsPolicy$Desktop());
       await tester.tap(await mountStrip(tester, controller, page: _loaded));
       await tester.pumpAndSettle();
 
@@ -150,7 +150,7 @@ void main() {
 
     testWidgets('a page that moves while the overlay is up reaches the '
         'preview', (tester) async {
-      final controller = controllerOf(const DraftOptionsPolicy.android());
+      final controller = controllerOf(const DraftOptionsPolicy$Android());
       await tester.tap(await mountStrip(tester, controller));
       await tester.pumpAndSettle();
 
@@ -165,7 +165,7 @@ void main() {
     testWidgets('a burst of taps on the strip opens one overlay', (
       tester,
     ) async {
-      final controller = controllerOf(const DraftOptionsPolicy.android());
+      final controller = controllerOf(const DraftOptionsPolicy$Android());
       final strip = await mountStrip(tester, controller);
 
       await tester.tap(strip);
@@ -184,7 +184,7 @@ void main() {
     testWidgets('opens within the guard of the accepted one are dropped', (
       tester,
     ) async {
-      final controller = controllerOf(const DraftOptionsPolicy.android());
+      final controller = controllerOf(const DraftOptionsPolicy$Android());
       late BuildContext context;
       await tester.pumpWidget(
         composerHarness(
@@ -223,7 +223,7 @@ void main() {
   group('closing', () {
     testWidgets('a press outside closes it; liveApply edits are already '
         'reported', (tester) async {
-      final controller = controllerOf(const DraftOptionsPolicy.android());
+      final controller = controllerOf(const DraftOptionsPolicy$Android());
       await tester.tap(await mountStrip(tester, controller));
       await tester.pumpAndSettle();
 
@@ -233,7 +233,7 @@ void main() {
       controller.session!.edit(larger, field: DraftOptionsField.size);
       expect(host.edits, [larger]);
 
-      clock.advance(DraftOptionsController.openGuard);
+      clock.advance(DraftOptionsPolicy.openGuard);
       await tester.tapAt(const Offset(4, 4));
       await tester.pumpAndSettle();
 
@@ -249,11 +249,11 @@ void main() {
     });
 
     testWidgets('a press on the page does not close it', (tester) async {
-      final controller = controllerOf(const DraftOptionsPolicy.android());
+      final controller = controllerOf(const DraftOptionsPolicy$Android());
       await tester.tap(await mountStrip(tester, controller));
       await tester.pumpAndSettle();
 
-      clock.advance(DraftOptionsController.openGuard);
+      clock.advance(DraftOptionsPolicy.openGuard);
       await tester.tap(find.byKey(FakeDraftBubbleBuilder.bubbleKey));
       await tester.pumpAndSettle();
 
@@ -263,7 +263,7 @@ void main() {
     testWidgets('apply closes; the overlay can open again after', (
       tester,
     ) async {
-      final controller = controllerOf(const DraftOptionsPolicy.android());
+      final controller = controllerOf(const DraftOptionsPolicy$Android());
       final strip = await mountStrip(tester, controller);
       await tester.tap(strip);
       await tester.pumpAndSettle();
@@ -279,7 +279,7 @@ void main() {
     });
 
     testWidgets('commitOnSave: Escape discards the copy', (tester) async {
-      final controller = controllerOf(const DraftOptionsPolicy.desktop());
+      final controller = controllerOf(const DraftOptionsPolicy$Desktop());
       await tester.tap(await mountStrip(tester, controller, page: _loaded));
       await tester.pumpAndSettle();
 
@@ -299,7 +299,7 @@ void main() {
     });
 
     testWidgets('commitOnSave: Enter saves the copy', (tester) async {
-      final controller = controllerOf(const DraftOptionsPolicy.desktop());
+      final controller = controllerOf(const DraftOptionsPolicy$Desktop());
       await tester.tap(await mountStrip(tester, controller, page: _loaded));
       await tester.pumpAndSettle();
 
@@ -321,7 +321,7 @@ void main() {
       tester,
     ) async {
       final controller = DraftOptionsController(
-        policy: const DraftOptionsPolicy.android(),
+        policy: const DraftOptionsPolicy$Android(),
         host: host,
         bubbleBuilder: bubble.call,
         clock: clock,
@@ -345,7 +345,7 @@ void main() {
     testWidgets('close the overlay with its animation, then set removed', (
       tester,
     ) async {
-      final controller = controllerOf(const DraftOptionsPolicy.android());
+      final controller = controllerOf(const DraftOptionsPolicy$Android());
       await tester.tap(await mountStrip(tester, controller));
       await tester.pumpAndSettle();
 
@@ -355,11 +355,12 @@ void main() {
 
       // Still fading out: nothing reported yet.
       expect(find.byType(DraftOptionsOverlay), findsOneWidget);
-      expect(host.edits, isEmpty);
+      expect(host.denials, isEmpty);
 
       await tester.pumpAndSettle();
       expect(find.byType(DraftOptionsOverlay), findsNothing);
-      expect(host.edits, [
+      expect(host.edits, isEmpty);
+      expect(host.denials, [
         _initial.copyWith(options: _initial.options.copyWith(removed: true)),
       ]);
       expect(
@@ -369,7 +370,7 @@ void main() {
     });
 
     testWidgets('refuse an open', (tester) async {
-      final controller = controllerOf(const DraftOptionsPolicy.android())
+      final controller = controllerOf(const DraftOptionsPolicy$Android())
         ..linkPreviewsAllowed = false;
       await tester.tap(await mountStrip(tester, controller));
       await tester.pumpAndSettle();
@@ -382,7 +383,10 @@ void main() {
   });
 
   group('title', () {
-    Future<void> openOn(WidgetTester tester, DraftOptionsPolicy policy) async {
+    Future<void> openOn(
+      WidgetTester tester,
+      DraftOptionsOverlayPolicy policy,
+    ) async {
       final controller = controllerOf(policy);
       await tester.tap(await mountStrip(tester, controller, page: _loaded));
       await tester.pumpAndSettle();
@@ -391,7 +395,7 @@ void main() {
     final strings = ChromeStringsPresets.english.composer.draftOptions;
 
     testWidgets('Android: title and subtitle', (tester) async {
-      await openOn(tester, const DraftOptionsPolicy.android());
+      await openOn(tester, const DraftOptionsPolicy$Android());
 
       expect(find.text(strings.linkTitle), findsOneWidget);
       expect(find.text(strings.linkSubtitle), findsOneWidget);
@@ -399,14 +403,14 @@ void main() {
     });
 
     testWidgets('desktop: a title with one part', (tester) async {
-      await openOn(tester, const DraftOptionsPolicy.desktop());
+      await openOn(tester, const DraftOptionsPolicy$Desktop());
 
       expect(find.text(strings.linkTitle), findsOneWidget);
       expect(find.text(strings.linkSubtitle), findsNothing);
     });
 
     testWidgets('iOS: none', (tester) async {
-      await openOn(tester, const DraftOptionsPolicy.ios());
+      await openOn(tester, const DraftOptionsPolicy$IOS());
 
       expect(find.text(strings.linkTitle), findsNothing);
       expect(find.text(strings.linkSubtitle), findsNothing);
@@ -417,10 +421,10 @@ void main() {
     testWidgets('report the scrim phases with owner draftOptions', (
       tester,
     ) async {
-      final controller = controllerOf(const DraftOptionsPolicy.desktop());
+      final controller = controllerOf(const DraftOptionsPolicy$Desktop());
       await tester.tap(await mountStrip(tester, controller, page: _loaded));
       await tester.pumpAndSettle();
-      clock.advance(DraftOptionsController.openGuard);
+      clock.advance(DraftOptionsPolicy.openGuard);
       await tester.tapAt(const Offset(4, 4));
       await tester.pumpAndSettle();
 
@@ -450,10 +454,10 @@ void main() {
     });
 
     testWidgets('no event carries the URL', (tester) async {
-      final controller = controllerOf(const DraftOptionsPolicy.android());
+      final controller = controllerOf(const DraftOptionsPolicy$Android());
       await tester.tap(await mountStrip(tester, controller, page: _loaded));
       await tester.pumpAndSettle();
-      clock.advance(DraftOptionsController.openGuard);
+      clock.advance(DraftOptionsPolicy.openGuard);
       await tester.tapAt(const Offset(4, 4));
       await tester.pumpAndSettle();
 

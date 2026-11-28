@@ -60,7 +60,7 @@ void main() {
   Future<void> shoot(
     WidgetTester tester, {
     required String name,
-    required DraftOptionsPolicy policy,
+    required DraftOptionsOverlayPolicy policy,
     required Size window,
     required Rect strip,
     Brightness brightness = Brightness.light,
@@ -106,7 +106,7 @@ void main() {
     await shoot(
       tester,
       name: 'phone_light',
-      policy: const DraftOptionsPolicy.ios(),
+      policy: const DraftOptionsPolicy$IOS(),
       window: const Size(390, 844),
       strip: const Rect.fromLTWH(0, 760, 390, 44),
     );
@@ -116,7 +116,7 @@ void main() {
     await shoot(
       tester,
       name: 'phone_dark',
-      policy: const DraftOptionsPolicy.ios(),
+      policy: const DraftOptionsPolicy$IOS(),
       window: const Size(390, 844),
       strip: const Rect.fromLTWH(0, 760, 390, 44),
       brightness: Brightness.dark,
@@ -127,7 +127,7 @@ void main() {
     await shoot(
       tester,
       name: 'ipad_light',
-      policy: const DraftOptionsPolicy.ios(iPad: true),
+      policy: const DraftOptionsPolicy$IOS(iPad: true),
       window: const Size(1024, 768),
       strip: const Rect.fromLTWH(600, 690, 300, 44),
     );

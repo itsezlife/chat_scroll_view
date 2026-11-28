@@ -44,7 +44,7 @@ void main() {
 
   Future<DraftOptionsController> openOn(
     WidgetTester tester,
-    DraftOptionsPolicy policy, {
+    DraftOptionsOverlayPolicy policy, {
     LinkPreviewState? page,
     List<Uri>? links,
     LinkPreviewDismissal? dismissal,
@@ -81,7 +81,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     // Past the opening's guard, so presses land on the overlay.
-    clock.advance(DraftOptionsController.openGuard);
+    clock.advance(DraftOptionsPolicy.openGuard);
     return controller;
   }
 
@@ -93,7 +93,7 @@ void main() {
   group('rows', () {
     testWidgets('Android draws its rows with the chrome strings, in chrome '
         'text, pressing with a ripple', (tester) async {
-      await openOn(tester, const DraftOptionsPolicy.android());
+      await openOn(tester, const DraftOptionsPolicy$Android());
 
       for (final label in [
         strings.moveUp,
@@ -116,7 +116,7 @@ void main() {
 
     testWidgets('a row is 48 tall, its icon 24 at 17, its label at 59 in '
         '16 text', (tester) async {
-      await openOn(tester, const DraftOptionsPolicy.android());
+      await openOn(tester, const DraftOptionsPolicy$Android());
 
       final row = tester.getRect(rowOf(strings.moveUp));
       expect(row.height, 48);
@@ -150,7 +150,7 @@ void main() {
     testWidgets('RTL puts the icon at the end', (tester) async {
       await openOn(
         tester,
-        const DraftOptionsPolicy.android(),
+        const DraftOptionsPolicy$Android(),
         textDirection: TextDirection.rtl,
       );
 
@@ -165,7 +165,7 @@ void main() {
     });
 
     testWidgets('iOS presses with the highlight', (tester) async {
-      await openOn(tester, const DraftOptionsPolicy.ios());
+      await openOn(tester, const DraftOptionsPolicy$IOS());
       expect(
         tester
             .widgetList<ChromeInk>(find.byType(ChromeInk))
@@ -180,7 +180,7 @@ void main() {
     ) async {
       await openOn(
         tester,
-        const DraftOptionsPolicy.desktop(),
+        const DraftOptionsPolicy$Desktop(),
         links: [_url, _other],
       );
 
@@ -202,7 +202,7 @@ void main() {
         'ignored', (tester) async {
       await openOn(
         tester,
-        const DraftOptionsPolicy.android(),
+        const DraftOptionsPolicy$Android(),
         page: _page(),
         links: [_url, _other],
       );
@@ -237,7 +237,7 @@ void main() {
   group('taps', () {
     testWidgets('position edits invertMedia; the label cross-fades over '
         '300 ms and the icon morphs', (tester) async {
-      await openOn(tester, const DraftOptionsPolicy.android());
+      await openOn(tester, const DraftOptionsPolicy$Android());
 
       await tester.tap(rowOf(strings.moveUp));
       await tester.pump();
@@ -285,7 +285,7 @@ void main() {
     });
 
     testWidgets('desktop changes the label at once', (tester) async {
-      await openOn(tester, const DraftOptionsPolicy.desktop());
+      await openOn(tester, const DraftOptionsPolicy$Desktop());
 
       await tester.tap(rowOf(strings.moveUp));
       await tester.pump();
@@ -302,7 +302,7 @@ void main() {
       );
       final controller = await openOn(
         tester,
-        const DraftOptionsPolicy.ios(),
+        const DraftOptionsPolicy$IOS(),
         dismissal: dismissal,
       );
 
@@ -322,7 +322,7 @@ void main() {
         'the close runs', (tester) async {
       final controller = await openOn(
         tester,
-        const DraftOptionsPolicy.android(),
+        const DraftOptionsPolicy$Android(),
       );
 
       await tester.tap(rowOf(strings.moveUp));

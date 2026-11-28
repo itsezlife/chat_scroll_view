@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:chat_composer/src/draft_options/draft_link_part.dart';
 import 'package:chat_composer/src/draft_options/draft_options_card.dart';
+import 'package:chat_composer/src/draft_options/draft_options_presentation_motion.dart';
 import 'package:chat_composer/src/draft_options/draft_options_session.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -76,7 +77,7 @@ class DraftOptionsCardView extends StatefulWidget {
 }
 
 class _DraftOptionsCardViewState extends State<DraftOptionsCardView>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, DraftOptionsPresentationMotion {
   late final AnimationController _appear = AnimationController(vsync: this);
   late final CurvedAnimation _appearEased = CurvedAnimation(
     parent: _appear,
@@ -90,8 +91,6 @@ class _DraftOptionsCardViewState extends State<DraftOptionsCardView>
   );
   final ScrollController _scroll = ScrollController();
   Timer? _offsetsDelay;
-  var _closing = false;
-  var _started = false;
 
   // What the layout reads: the area, the display, the measured menu glass
   // and preview. The preview and menu report their sizes after a layout, so
@@ -114,36 +113,21 @@ class _DraftOptionsCardViewState extends State<DraftOptionsCardView>
   DraftOptionsCardMotion get _motion => widget.motion;
 
   @override
+  DraftOptionsSession get motionSession => widget.session;
+
+  @override
+  ChromeScrimController get motionScrim => widget.scrim;
+
+  @override
   void initState() {
     super.initState();
     _offsets.value = 1;
-    widget.scrim.addListener(_onScrim);
     _shownValue = _session.value.value;
     _session.value.addListener(_onValue);
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_started) return;
-    _started = true;
-    final speed = ChromeMotionScope.of(context).speed;
-    final duration = speed.scale(_motion.open.duration);
-    _appear
-      ..duration = duration
-      ..reverseDuration = speed.scale(_motion.close.duration);
-    _session.reportMotion(
-      DraftOptionsMotionPhase.open,
-      duration,
-      reduceMotion: speed.isInstant,
-    );
-    unawaited(_appear.forward());
-    _onScrim();
-  }
-
-  @override
   void dispose() {
-    widget.scrim.removeListener(_onScrim);
     _session.value.removeListener(_onValue);
     _offsetsDelay?.cancel();
     _appearEased.dispose();
@@ -156,16 +140,20 @@ class _DraftOptionsCardViewState extends State<DraftOptionsCardView>
 
   // --- Open and close ---
 
-  void _onScrim() {
-    if (_closing || !widget.scrim.isClosing || !mounted) return;
-    _closing = true;
-    final speed = ChromeMotionScope.of(context).speed;
-    _session.reportMotion(
-      DraftOptionsMotionPhase.close,
-      speed.scale(_motion.close.duration),
-      reduceMotion: speed.isInstant,
-    );
+  @override
+  Duration playOpen(ChromeMotionSpeed speed) {
+    final duration = speed.scale(_motion.open.duration);
+    _appear
+      ..duration = duration
+      ..reverseDuration = speed.scale(_motion.close.duration);
+    unawaited(_appear.forward());
+    return duration;
+  }
+
+  @override
+  Duration playClose(ChromeMotionSpeed speed) {
     unawaited(_appear.reverse());
+    return speed.scale(_motion.close.duration);
   }
 
   // --- Following a change ---
@@ -190,7 +178,7 @@ class _DraftOptionsCardViewState extends State<DraftOptionsCardView>
     if (position.maxScrollExtent <= 0) return;
     // The list is reversed: 0 is its bottom.
     final target = part.invertMedia ? position.maxScrollExtent : 0.0;
-    final speed = ChromeMotionScope.of(context).speed;
+    final speed = motionSpeed;
     final duration = speed.scale(_motion.scroll.duration);
     if (duration == Duration.zero) {
       _scroll.jumpTo(target);
@@ -255,7 +243,7 @@ class _DraftOptionsCardViewState extends State<DraftOptionsCardView>
       setState(() => _from = _to = target);
       return;
     }
-    final speed = ChromeMotionScope.of(context).speed;
+    final speed = motionSpeed;
     final duration = speed.scale(_motion.offsets.duration);
     _offsetsDelay?.cancel();
     if (speed.isInstant) {

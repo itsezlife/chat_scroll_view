@@ -53,8 +53,8 @@ void main() {
       for (final platform in TargetPlatform.values) {
         final policy = DraftOptionsPolicy.forPlatform(platform, isWeb: true);
         expect(policy, isA<DraftOptionsPolicy$Web>(), reason: '$platform');
-        expect(policy.usesOverlay, isFalse);
-        expect(policy.scrim, isNull);
+        expect(policy, isNot(isA<DraftOptionsOverlayPolicy>()));
+        expect(policy.apply, DraftOptionsApply.liveApply);
       }
     });
   });
@@ -137,9 +137,12 @@ void main() {
     });
 
     test('the overlay is the mobile and desktop form', () {
-      expect(const DraftOptionsPolicy$Android().usesOverlay, isTrue);
-      expect(const DraftOptionsPolicy$IOS().usesOverlay, isTrue);
-      expect(const DraftOptionsPolicy$Desktop().usesOverlay, isTrue);
+      for (final policy in [
+        for (final platform in TargetPlatform.values)
+          DraftOptionsPolicy.forPlatform(platform),
+      ]) {
+        expect(policy, isA<DraftOptionsOverlayPolicy>(), reason: '$policy');
+      }
     });
   });
 
@@ -218,19 +221,15 @@ void main() {
       );
     });
 
-    test('desktop and the web have no soft keyboard to change', () {
+    test('desktop has no soft keyboard to change', () {
       expect(
         const DraftOptionsPolicy$Desktop().keyboard.intent,
-        ComposerKeyboardIntent.keep,
-      );
-      expect(
-        const DraftOptionsPolicy$Web().keyboard.intent,
         ComposerKeyboardIntent.keep,
       );
     });
 
     test('a host may override it', () {
-      const policy = DraftOptionsPolicy.android(
+      const policy = DraftOptionsPolicy$Android(
         keyboard: DraftOptionsKeyboard.keep,
       );
 

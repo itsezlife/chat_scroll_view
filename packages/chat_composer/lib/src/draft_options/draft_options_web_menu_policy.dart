@@ -154,7 +154,6 @@ final class DraftOptionsWebMenuPolicy {
     required this.widerSide,
     required this.touch,
     required this.mouse,
-    this.openGuard = ChromeTapTiming.repeatGuard,
   });
 
   /// The web's defaults: hover 200 ms, reveal 0.2 s from 0.8, anchored 8 in
@@ -208,11 +207,6 @@ final class DraftOptionsWebMenuPolicy {
 
   /// The style for a mouse.
   final DraftOptionsMenuStyle mouse;
-
-  /// Within this of an accepted open, another open is dropped and a press on
-  /// the catcher passes through, so a burst of taps on the strip opens one
-  /// menu and does not close it again.
-  final Duration openGuard;
 
   /// The preferred side in a window of [widthClass].
   DraftOptionsMenuSide sideFor(ChromeWidthClass widthClass) =>
@@ -296,7 +290,6 @@ final class DraftOptionsWebMenuPolicy {
     DraftOptionsMenuSide? widerSide,
     DraftOptionsMenuStyle? touch,
     DraftOptionsMenuStyle? mouse,
-    Duration? openGuard,
   }) => DraftOptionsWebMenuPolicy(
     hoverDelay: hoverDelay ?? this.hoverDelay,
     leaveGrace: leaveGrace ?? this.leaveGrace,
@@ -309,7 +302,6 @@ final class DraftOptionsWebMenuPolicy {
     widerSide: widerSide ?? this.widerSide,
     touch: touch ?? this.touch,
     mouse: mouse ?? this.mouse,
-    openGuard: openGuard ?? this.openGuard,
   );
 
   @override
@@ -325,8 +317,7 @@ final class DraftOptionsWebMenuPolicy {
       other.compactSide == compactSide &&
       other.widerSide == widerSide &&
       other.touch == touch &&
-      other.mouse == mouse &&
-      other.openGuard == openGuard;
+      other.mouse == mouse;
 
   @override
   int get hashCode => Object.hash(
@@ -341,6 +332,5 @@ final class DraftOptionsWebMenuPolicy {
     widerSide,
     touch,
     mouse,
-    openGuard,
   );
 }

@@ -66,7 +66,7 @@ void main() {
       ..devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final controller = DraftOptionsController(
-      policy: const DraftOptionsPolicy.android(),
+      policy: const DraftOptionsPolicy$Android(),
       host: host,
       bubbleBuilder: bubble ?? bubbleOf(),
       clock: clock,

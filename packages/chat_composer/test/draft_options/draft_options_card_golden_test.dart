@@ -31,7 +31,7 @@ void main() {
         ..devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       final controller = DraftOptionsController(
-        policy: const DraftOptionsPolicy.android(),
+        policy: const DraftOptionsPolicy$Android(),
         host: RecordingDraftOptionsHost(),
         bubbleBuilder: FakeDraftBubbleBuilder().call,
         clock: ManualComposerClock(DateTime(2026, 11, 28)),
