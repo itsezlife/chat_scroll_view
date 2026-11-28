@@ -106,6 +106,12 @@ their changes.
   the iOS flight from the send origin.
 - `MediaLayout.lerp` and the per-message clock `MessageMediaTransition`
   animate a change of the layout, jumping to the end under reduce motion.
+- `chromeHitAt` (`MediaChromeHitTest`) on `MessageMediaView`,
+  `MessageMediaTransition` and `MessageMediaBubbleLayout`: the host's
+  chrome over the media (an error badge by the time pill) is asked before
+  the media's own parts, inside the media's registration with the facade,
+  and a cell under it is not hovered. One pointer position asks it once,
+  for its hover and its hit alike.
 
 ### Diagnostics
 

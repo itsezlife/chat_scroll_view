@@ -72,5 +72,13 @@
 	<string>Lets you take a photo or a video to send.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Records the sound of the videos you take.</string>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>$(PRODUCT_BUNDLE_IDENTIFIER).mpx.transfer.*</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>processing</string>
+	</array>
 </dict>
 </plist>

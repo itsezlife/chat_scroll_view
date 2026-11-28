@@ -1,15 +1,21 @@
+import 'dart:async';
+
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_delivery.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outbox.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_status_motion.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_media_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/document_embed.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_emoji_message.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_error_badge.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_markdown_theme.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_media_bubble.dart';
-import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message_meta.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_row_appearance.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/emoji_message/emoji_row_hover.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/message_row_frame.dart';
 import 'package:chrome_foundation/chrome_foundation.dart' show ChromeTypography;
@@ -44,6 +50,7 @@ Widget buildDemoMessage(
   MessageRunLayout runLayout, {
   ChatSelectionController? selection,
   ChatBodyHost? host,
+  DemoOutboxChat? outbox,
   void Function(String sender)? onAvatarTap,
   void Function(String sender)? onSenderTap,
 }) {
@@ -53,6 +60,7 @@ Widget buildDemoMessage(
     runLayout: runLayout,
     selection: selection,
     host: host,
+    outbox: outbox,
     onAvatarTap: onAvatarTap,
     onSenderTap: onSenderTap,
   );
@@ -182,11 +190,17 @@ class DemoMessageBubble extends StatelessWidget {
     ),
     this.selection,
     this.host,
+    this.outbox,
     this.onAvatarTap,
     this.onSenderTap,
     this.registersMedia = true,
     super.key,
   });
+
+  /// The chat's outbox binding, which says what the time pill of the
+  /// user's own message shows ([DemoOutboxChat.deliveryOf]); without one an
+  /// own message shows two checks.
+  final DemoOutboxChat? outbox;
 
   /// Message to display — drives sender alignment and bubble styling.
   final IChatMessage message;
@@ -215,6 +229,31 @@ class DemoMessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The pill of the user's own message follows its status, which may
+    // change while the row stays as it is; a fresh one appears as its
+    // platform does. Every row follows the list's slide.
+    if (outbox case final outbox? when _isOutgoing(message.sender)) {
+      return DemoShiftedRow(
+        child: DemoOutgoingRowAppearance(
+          outbox: outbox,
+          messageId: message.id,
+          child: ListenableBuilder(
+            listenable: outbox.deliveryChanges,
+            builder: (context, _) =>
+                _build(context, outbox.deliveryOf(message.id)),
+          ),
+        ),
+      );
+    }
+    return DemoShiftedRow(
+      child: _build(
+        context,
+        _isOutgoing(message.sender) ? DemoDelivery.read : null,
+      ),
+    );
+  }
+
+  Widget _build(BuildContext context, DemoDelivery? delivery) {
     final host = this.host;
     // Only a message whose text is emoji-only follows the setting, live.
     if (host != null && selection != null && message.emojiOnly != null) {
@@ -224,7 +263,7 @@ class DemoMessageBubble extends StatelessWidget {
           // The family carries the user's cap on enlarged emoji (desktop's).
           final platform = policy.family();
           final emojiOnly = policy.emojiOnlyOf(message, platform: platform);
-          if (emojiOnly == null) return _row(context);
+          if (emojiOnly == null) return _row(context, delivery: delivery);
           // A platform whose emoji-only layout does not mirror keeps its
           // sides in a right-to-left chat: the row stays left to right.
           return Directionality(
@@ -241,13 +280,14 @@ class DemoMessageBubble extends StatelessWidget {
         },
       );
     }
-    return _row(context);
+    return _row(context, delivery: delivery);
   }
 
   Widget _row(
     BuildContext context, {
     EmojiOnly? emojiOnly,
     bool hovered = false,
+    DemoDelivery? delivery,
   }) {
     final content = message.text ?? 'Message #${message.id}';
     // Prefer the host pre-parsed AST — parsing belongs at ingest, not mount.
@@ -270,6 +310,7 @@ class DemoMessageBubble extends StatelessWidget {
           sender: isFirstInRun ? message.sender : null,
           edited: edited,
           layout: layout,
+          delivery: delivery,
         ),
       (final emoji?, final controller?, final host?) => DemoEmojiMessage(
         messageId: message.id,
@@ -294,13 +335,18 @@ class DemoMessageBubble extends StatelessWidget {
         selection: selection,
         embedResolver: host?.embedResolver,
         onSenderTap: onSenderTap,
+        delivery: delivery,
+        onRetry: switch (outbox) {
+          final outbox? => () => unawaited(outbox.retryAt(message.id)),
+          null => null,
+        },
       ),
     };
     return MessageRowFrame(
       theme: layout,
       outgoing: outgoing,
       runLayout: runLayout,
-      bubble: bubble,
+      bubble: DemoOutgoingRowAppearance.bubble(context, bubble),
       avatar: !outgoing && isLastInRun
           ? MessageAvatar(
               sender: message.sender,
@@ -328,6 +374,7 @@ extension on DemoMessageBubble {
     required String? sender,
     required bool edited,
     required ChatMessageThemeData layout,
+    required DemoDelivery? delivery,
   }) {
     final textStyle = demoBubbleTextStyle(outgoing: outgoing);
     final body = markdown?.markdown ?? '';
@@ -357,6 +404,11 @@ extension on DemoMessageBubble {
         theme: layout,
       ).resolve(Directionality.of(context)),
       selection: registersMedia ? selection : null,
+      delivery: delivery,
+      onRetry: switch (outbox) {
+        final outbox? => () => unawaited(outbox.retryAt(message.id)),
+        null => null,
+      },
       caption: switch (markdown) {
         final md? when body.trim().isNotEmpty => _RegisteredChatMdBody(
           selection: selection,
@@ -406,10 +458,19 @@ class _Bubble extends StatelessWidget {
     this.selection,
     this.embedResolver,
     this.onSenderTap,
+    this.delivery,
+    this.onRetry,
   });
 
   /// Stable id for body registration and selection.
   final int messageId;
+
+  /// What the time pill shows for the user's own message; null for
+  /// another's.
+  final DemoDelivery? delivery;
+
+  /// Sends a failed message again: its error badge's retry action.
+  final VoidCallback? onRetry;
 
   /// `null` suppresses the sender label — non-first messages in a run.
   final String? sender;
@@ -537,15 +598,33 @@ class _Bubble extends StatelessWidget {
     content: body,
     // The time is status chrome, not the message: a mouse click on it is
     // neither a toggle of the row nor a message tap.
-    metaBuilder: (context, editedOpacity) => ChatMessageTapBarrier(
-      child: DemoMessageMeta(
-        createdAt: createdAt,
-        color: metaColor,
-        showStatus: isOutgoing,
-        edited: edited,
-        editedOpacity: editedOpacity,
-      ),
-    ),
+    metaBuilder: (context, editedOpacity) {
+      final time = ChatMessageTapBarrier(
+        child: DemoDeliveryMeta(
+          createdAt: createdAt,
+          color: metaColor,
+          delivery: delivery,
+          edited: edited,
+          editedOpacity: editedOpacity,
+        ),
+      );
+      // The badge sits beside the time, outside the barrier: a click on it
+      // is the badge's, and it opens the menu.
+      return switch ((delivery, selection, onRetry)) {
+        (DemoDelivery.notSent, final selection?, final onRetry?) => Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            time,
+            DemoErrorBadge(
+              messageId: messageId,
+              selection: selection,
+              onRetry: onRetry,
+            ),
+          ],
+        ),
+        _ => time,
+      };
+    },
   );
 }
 

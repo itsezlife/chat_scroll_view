@@ -190,3 +190,33 @@ so far).
 Without it, or on another platform, the build still succeeds and the app
 runs: it logs once that video stickers are off and those items keep their
 placeholder. The web does not play video yet.
+
+## Outgoing messages and the outbox debug panel
+
+A message sent in the demo goes through `chat_outbox`: a row at once, its job
+journaled by the transfer engine, a fake accept-if-next server answering. The
+host wiring is under `lib/src/features/chat/outbox/`; the package's
+[README](../packages/chat_outbox/README.md) says what each duty is.
+
+The demo server scripts its next answer per chat from the script sheet in the
+chat's debug chrome: a peer message during an upload, a conflict, a rejection,
+a denial, a re-upload, a replay.
+
+In a debug build, the chat's top chrome also opens the outbox debug panel. It
+reads `outbox.debugSnapshot(chatId)` and the transfer engine's snapshot every
+500 ms, and offers: kill the app in 3 s, cut the network, simulate a system
+interruption, and the in-process transport's latency and failure switches. A
+row in the tail opens the journal filtered to its message. Each action writes
+a `debugAction` event before it acts, so the record survives a kill.
+
+Uploads go to an in-process transport by default. To send them over the
+network to the development upload server, run `dart run tool/upload_server.dart` in
+mpx's `packages/mpx/example` on a computer on the same network, then launch
+with its address:
+
+```sh
+flutter run --dart-define=CHAT_UPLOAD_SERVER=http://<host>:8090
+```
+
+The define is read at launch: the engine's transports are fixed when it
+opens. Without it nothing changes.

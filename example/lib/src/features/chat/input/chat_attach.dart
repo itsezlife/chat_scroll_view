@@ -74,7 +74,28 @@ abstract final class ChatAttachMessages {
         },
     ];
   }
+
+  /// The text a message of [send] shows beside its items as media: its
+  /// caption (an album's on the item the plan put it on), empty without
+  /// one.
+  static String captionOf(PlannedSend send) => switch (send) {
+    PlannedSend$Single(:final caption) => caption?.plain ?? '',
+    final PlannedSend$Group group => [
+      for (var i = 0; i < group.items.length; i++) ?group.captionOf(i)?.plain,
+    ].join('\n'),
+    PlannedSend$Text(:final caption) => caption.plain,
+  };
 }
+
+/// Sends a plan's [sends] through the chat's outbox; see
+/// [ChatAttach.sendPlanned].
+typedef AttachPlanSender =
+    void Function(
+      List<PlannedSend> sends, {
+      required List<String> bodies,
+      required Map<AttachItemId, PreparedMedia> prepared,
+      required List<List<Rect?>> origins,
+    });
 
 /// Takes a back press for the keyboard when one is up over [view]: the
 /// focused field lets go, which takes the keyboard down. False with no
@@ -98,6 +119,7 @@ final class ChatAttach extends AttachSheetHost {
     required this.composer,
     required this.bulletins,
     required this.send,
+    this.sendPlanned,
     this.chatTitle,
     this.yieldKeyboard,
     this.returnKeyboard,
@@ -123,6 +145,12 @@ final class ChatAttach extends AttachSheetHost {
 
   /// Posts one message.
   final Future<void> Function(String text) send;
+
+  /// Sends a plan's messages through the chat's outbox, one per planned
+  /// send: each with the text the demo shows for it ([bodies]), the items'
+  /// prepared files and the picker's send origins (by planned send, each
+  /// by item order). Null posts each text through [send] instead.
+  final AttachPlanSender? sendPlanned;
 
   /// The chat's name: the picker viewer's title.
   final String? chatTitle;
@@ -384,11 +412,24 @@ final class ChatAttach extends AttachSheetHost {
             outputs = await preparation.prepareAll(request);
           }
         }
-        for (final text in ChatAttachMessages.of(
-          plan as SendPlan$Ready,
+        final ready = plan as SendPlan$Ready;
+        final bodies = ChatAttachMessages.of(
+          ready,
           prepared: outputs,
           documents: services.sentDocuments,
-        )) {
+        );
+        if (sendPlanned case final sendPlan?) {
+          sendPlan(
+            ready.sends,
+            bodies: bodies,
+            prepared: outputs,
+            origins: [
+              for (final planned in ready.sends) outcome.originsOf(planned),
+            ],
+          );
+          return;
+        }
+        for (final text in bodies) {
           await send(text);
         }
       case AttachOutcome$Custom():

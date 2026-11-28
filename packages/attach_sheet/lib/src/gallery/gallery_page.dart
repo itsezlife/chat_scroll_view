@@ -17,6 +17,7 @@ import 'package:attach_sheet/src/page/attach_page.dart';
 import 'package:attach_sheet/src/panel/attach_interaction.dart';
 import 'package:attach_sheet/src/panel/attach_panel.dart';
 import 'package:attach_sheet/src/panel/attach_send_controller.dart';
+import 'package:attach_sheet/src/panel/attach_send_origins.dart';
 import 'package:attach_sheet/src/sheet/attach_sheet.dart';
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
@@ -279,6 +280,21 @@ class _GalleryViewState extends State<GalleryView> {
 
   // A selected item of a kind the chat now denies: marked over its cell, as
   // the send is refused while it is there.
+  // Every cell's mark: its send origin, under the denied mark when the
+  // chat denies the item's kind.
+  Widget _cellMark(BuildContext context, LibraryAsset asset) {
+    final item = AttachPickerSelection.itemOf(asset);
+    final policy = widget.panel.policy.libraryGrid;
+    return AttachSendOrigin(
+      id: item.id,
+      origins: widget.panel.origins,
+      // A picked cell draws its picture smaller, centred in the cell.
+      scale: policy.selectedImageScale,
+      scaled: () => widget.panel.selection.contains(item.id),
+      child: _deniedMark(context, asset) ?? const SizedBox.expand(),
+    );
+  }
+
   Widget? _deniedMark(BuildContext context, LibraryAsset asset) {
     final gate = widget.panel.capabilities;
     if (gate == null) return null;
@@ -913,7 +929,7 @@ class _GalleryViewState extends State<GalleryView> {
       // A selected item a library change took away leaves the selection;
       // the ones after it move up a number.
       onRemoved: _$picker.remove,
-      decorationBuilder: _deniedMark,
+      decorationBuilder: _cellMark,
       mediaAllowed: _mediaAllowed,
       notAllowedText: strings.mediaNotAllowed,
       cameraDenied: _cameraDenied,

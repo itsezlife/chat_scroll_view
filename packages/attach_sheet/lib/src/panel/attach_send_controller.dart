@@ -7,12 +7,14 @@ import 'package:attach_sheet/src/host/attach_caption_dock.dart';
 import 'package:attach_sheet/src/host/attach_sheet_host.dart';
 import 'package:attach_sheet/src/limits/attach_capabilities.dart';
 import 'package:attach_sheet/src/panel/attach_interaction.dart';
+import 'package:attach_sheet/src/panel/attach_send_origins.dart';
 import 'package:attach_sheet/src/policy/attach_panel_style.dart';
 import 'package:attach_sheet/src/policy/attach_sheet_policy.dart';
 import 'package:chat_composer/chat_composer.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' hide RichText;
+import 'package:meta/meta.dart';
 
 /// The state behind the **attach panel**: the caption, the send options, the
 /// menus' entries, and the send itself.
@@ -152,6 +154,14 @@ final class AttachSendController {
 
   /// The request sent, once Send was accepted; null before.
   SendRequest? sent;
+
+  /// The send origins of [sent]'s items, read as Send was accepted: the
+  /// global rect of each one's thumbnail then on screen.
+  Map<AttachItemId, Rect> sentOrigins = const {};
+
+  /// The thumbnails this open's surfaces draw, read for [sentOrigins].
+  @internal
+  final AttachSendOrigins origins = AttachSendOrigins();
 
   /// Counts refused sends; the field shakes on each.
   final ValueNotifier<int> refusals = ValueNotifier(0);
@@ -302,6 +312,9 @@ final class AttachSendController {
     }
     if (store case final store?) unawaited(store.save(sent));
     this.sent = request;
+    // Read before the sheet starts to close: the thumbnails are still
+    // where the user saw them.
+    sentOrigins = Map.unmodifiable(origins.originsOf(request.items));
     onSend(request);
     return true;
   }

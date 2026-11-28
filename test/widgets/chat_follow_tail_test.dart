@@ -1,4 +1,5 @@
 import 'package:chat_scroll_view/src/chat_scroll/chat_data_source.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_mutations.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_controller.dart';
 import 'package:chat_scroll_view/src/chat_widgets/chat_scroll_view.dart';
@@ -428,6 +429,49 @@ void main() {
 
       expect(controller.isAtTail.value, isTrue);
       expect(find.text('msg-40'), findsOneWidget);
+    });
+
+    testWidgets('a self insert with followSelf false leaves a reader '
+        'scrolled away where they are', (tester) async {
+      final ds = _GrowingDataSource(40);
+      final controller = ChatScrollController()..jumpTo(39);
+      addTearDown(controller.dispose);
+      addTearDown(ds.dispose);
+      final mutations = <ChatMutation>[];
+      ds.addMutationListener(mutations.add);
+
+      await tester.pumpWidget(
+        _scaffold(
+          dataSource: ds,
+          controller: controller,
+          isSelfMessage: (m) => m.sender == 'me',
+        ),
+      );
+      await tester.pump();
+      await tester.drag(find.byType(ChatScrollView), const Offset(0, 600));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(controller.isAtTail.value, isFalse);
+
+      // A row of the user's placed again after a restart, not just sent.
+      ds.insertMessage(
+        UserChatMessage(
+          id: 40,
+          sender: 'me',
+          createdAt: DateTime(2026),
+          updatedAt: DateTime(2026),
+          content: 'restored',
+        ),
+        followSelf: false,
+      );
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pump();
+
+      expect(controller.isAtTail.value, isFalse);
+      expect(mutations, [
+        const InsertMutation(messageId: 40, followSelf: false),
+      ]);
     });
 
     testWidgets('at-tail self insert skips animateTo (layout pin only)', (

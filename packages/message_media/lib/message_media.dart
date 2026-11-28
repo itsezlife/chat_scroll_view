@@ -59,7 +59,8 @@ export 'src/paint/link_preview_card_view.dart' show LinkPreviewCardColors;
 export 'src/paint/media_box_cell.dart';
 export 'src/paint/media_cell_builders.dart';
 export 'src/paint/media_row_cell.dart';
-export 'src/paint/message_media_body.dart' show LinkPreviewActivated;
+export 'src/paint/message_media_body.dart'
+    show LinkPreviewActivated, MediaChromeHitTest;
 export 'src/paint/message_media_view.dart';
 export 'src/paint/middle_elided_text.dart';
 export 'src/policy/desktop_mosaic_algorithm.dart';

@@ -143,6 +143,8 @@ and the two stills' phases carry `glassSource`; `chat_composer` and
 `panel_presentation` also emits `overlay` / `occupancyHold`, which the
 amendment's wording does not name.
 
+Checked against the outbox (2026-11-28): its events carry `jobId`, the publish job's id as a string, wherever a job exists, and its `chatId`, `clientMessageId`, scroll id, `MediaItemId` and `MediaKey` as the spec's table says. mpx's events for the same job carry the same `jobId`.
+
 ## Amendment (2026-11-27, accepted): the `diagnostics` category
 
 Found implementing the example's log journal (chat-capabilities ticket 17):

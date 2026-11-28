@@ -5,6 +5,7 @@ library;
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:chat_outbox/testing.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/common/capture_media.dart';
 import 'package:content_model/testing.dart';
@@ -93,6 +94,8 @@ void main() {
     addTearDown(signals.dispose);
     final services = (await tester.runAsync(
       () => AppServices.create(
+        // No transfer engine: it journals on disk, which a test has not.
+        outboxTransfers: FakeOutboxTransfers(),
         keyValueStore: FakeKeyValueStore(),
         assetLoader: rootBundle.loadString,
         clipboard: FakeRichClipboard(),

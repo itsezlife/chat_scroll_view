@@ -6,6 +6,15 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (send origins)
+
+- `AttachOutcome.send` carries `origins`: the global rect of each item's
+  grid thumbnail on screen as the user sent, the smaller picture of a
+  picked cell where the platform draws one; a cell scrolled off, even if
+  still built, has none. `originsOf(plannedSend)` lists them by the planned
+  send's item order. `AttachSendController.sentOrigins` holds them from
+  the send.
+
 ### Changed (review, breaking)
 
 - The public top-level functions are members of their types:

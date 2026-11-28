@@ -127,6 +127,39 @@ import 'features/chat/lottie_sticker_pipeline_test.dart'
     as lottie_sticker_pipeline_test;
 import 'features/chat/message_editability_test.dart'
     as message_editability_test;
+import 'features/chat/outbox/chat_outbox_screen_test.dart'
+    as outbox_chat_outbox_screen_test;
+import 'features/chat/outbox/demo_chat_server_test.dart'
+    as outbox_demo_chat_server_test;
+import 'features/chat/outbox/demo_delivery_test.dart'
+    as outbox_demo_delivery_test;
+import 'features/chat/outbox/demo_outbox_test.dart' as outbox_demo_outbox_test;
+import 'features/chat/outbox/demo_outgoing_media_test.dart'
+    as outbox_demo_outgoing_media_test;
+import 'features/chat/outbox/demo_outgoing_payload_test.dart'
+    as outbox_demo_outgoing_payload_test;
+import 'features/chat/outbox/demo_server_script_sheet_test.dart'
+    as outbox_demo_server_script_sheet_test;
+import 'features/chat/outbox/demo_status_motion_test.dart'
+    as outbox_demo_status_motion_test;
+import 'features/chat/outbox/demo_transfers_test.dart'
+    as outbox_demo_transfers_test;
+import 'features/chat/outbox/demo_upload_transport_test.dart'
+    as outbox_demo_upload_transport_test;
+import 'features/chat/outbox/outbox_debug_actions_test.dart'
+    as outbox_outbox_debug_actions_test;
+import 'features/chat/outbox/outbox_debug_panel_test.dart'
+    as outbox_outbox_debug_panel_test;
+import 'features/chat/outbox/outgoing_badge_rtl_test.dart'
+    as outbox_outgoing_badge_rtl_test;
+import 'features/chat/outbox/outgoing_media_bubble_test.dart'
+    as outbox_outgoing_media_bubble_test;
+import 'features/chat/outbox/outgoing_row_appearance_test.dart'
+    as outbox_outgoing_row_appearance_test;
+import 'features/chat/outbox/outgoing_status_screen_test.dart'
+    as outbox_outgoing_status_screen_test;
+import 'features/chat/outbox/source_lost_prompt_test.dart'
+    as outbox_source_lost_prompt_test;
 import 'features/chat/packed_path_test.dart' as packed_path_test;
 import 'features/chat/panel_playback_hold_test.dart'
     as panel_playback_hold_test;
@@ -374,6 +407,74 @@ void main() {
   group(
     'features/chat/message_editability_test.dart',
     message_editability_test.main,
+  );
+  group(
+    'features/chat/outbox/demo_delivery_test.dart',
+    outbox_demo_delivery_test.main,
+  );
+  group(
+    'features/chat/outbox/demo_outbox_test.dart',
+    outbox_demo_outbox_test.main,
+  );
+  group(
+    'features/chat/outbox/demo_outgoing_payload_test.dart',
+    outbox_demo_outgoing_payload_test.main,
+  );
+  group(
+    'features/chat/outbox/demo_transfers_test.dart',
+    outbox_demo_transfers_test.main,
+  );
+  group(
+    'features/chat/outbox/outgoing_badge_rtl_test.dart',
+    outbox_outgoing_badge_rtl_test.main,
+  );
+  group(
+    'features/chat/outbox/outgoing_status_screen_test.dart',
+    outbox_outgoing_status_screen_test.main,
+  );
+  group(
+    'features/chat/outbox/demo_outgoing_media_test.dart',
+    outbox_demo_outgoing_media_test.main,
+  );
+  group(
+    'features/chat/outbox/demo_status_motion_test.dart',
+    outbox_demo_status_motion_test.main,
+  );
+  group(
+    'features/chat/outbox/outgoing_media_bubble_test.dart',
+    outbox_outgoing_media_bubble_test.main,
+  );
+  group(
+    'features/chat/outbox/outgoing_row_appearance_test.dart',
+    outbox_outgoing_row_appearance_test.main,
+  );
+  group(
+    'features/chat/outbox/demo_upload_transport_test.dart',
+    outbox_demo_upload_transport_test.main,
+  );
+  group(
+    'features/chat/outbox/demo_chat_server_test.dart',
+    outbox_demo_chat_server_test.main,
+  );
+  group(
+    'features/chat/outbox/demo_server_script_sheet_test.dart',
+    outbox_demo_server_script_sheet_test.main,
+  );
+  group(
+    'features/chat/outbox/outbox_debug_actions_test.dart',
+    outbox_outbox_debug_actions_test.main,
+  );
+  group(
+    'features/chat/outbox/outbox_debug_panel_test.dart',
+    outbox_outbox_debug_panel_test.main,
+  );
+  group(
+    'features/chat/outbox/source_lost_prompt_test.dart',
+    outbox_source_lost_prompt_test.main,
+  );
+  group(
+    'features/chat/outbox/chat_outbox_screen_test.dart',
+    outbox_chat_outbox_screen_test.main,
   );
   group(
     'features/chat/sticker_message_body_test.dart',

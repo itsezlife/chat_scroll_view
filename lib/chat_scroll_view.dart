@@ -39,6 +39,8 @@ export 'src/chat_scroll/chat_fast_scroll_target.dart';
 export 'src/chat_scroll/chat_mutations.dart';
 export 'src/chat_scroll/chat_overscroll_sink.dart'
     show ChatOverscrollEdges, ChatOverscrollSink;
+export 'src/chat_scroll/chat_rebase_diagnostics.dart'
+    show ChatRebaseOp, ChatRebaseRejection;
 export 'src/chat_scroll/chat_row_chrome_delegate.dart';
 export 'src/chat_scroll/chat_scroll_activity.dart'
     show ChatScrollActivityTiming;

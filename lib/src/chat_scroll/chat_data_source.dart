@@ -4,8 +4,13 @@ import 'dart:ui';
 
 import 'package:chat_scroll_view/src/chat_scroll/chat_mutations.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_range_fetch.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_rebase_diagnostics.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_chunk.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_common.dart';
+import 'package:chat_scroll_view/src/util/trace_section.dart';
+import 'package:content_model/content_model.dart'
+    show ChatCorrelation, ChatDiagnostics, ChatEventCategory, ChatEventLevel;
+import 'package:flutter/foundation.dart' show Listenable;
 import 'package:meta/meta.dart';
 
 /// Data source for [ChatScrollView].
@@ -46,6 +51,11 @@ import 'package:meta/meta.dart';
 /// **Removal staging**: [removeMessages] marks slots absent and retains
 /// payloads in an internal staging map until [finalizeRemoval] (viewport /
 /// tests). [pendingRemovalIds] is read-only observability derived from staging.
+///
+/// **Provisional tail** (ADR 001 amendment, ADR 048): outgoing rows the
+/// server has not confirmed sit after the newest confirmed message, at
+/// positions rather than identities. [rebaseTail] is their only move, matched
+/// through the host's [identityOf].
 abstract class ChatDataSource {
   // --- Fetch contract (subclass implements) ---
 
@@ -262,6 +272,22 @@ abstract class ChatDataSource {
     return fetching;
   }
 
+  /// The chunks that hold the provisional tail, or `null` when there is no
+  /// provisional row ([identityOf]). Eviction keeps them: an outgoing row
+  /// the server does not know yet exists only here, and a refetch could not
+  /// bring it back.
+  @internal
+  ({int first, int last})? get provisionalChunks {
+    final identity = identityOf;
+    if (identity == null) return null;
+    final tail = _provisionalTail(identity, emptyStart: 0);
+    if (tail.positions.isEmpty) return null;
+    return (
+      first: ChatScrollChunk.chunkOf(tail.positions.first),
+      last: ChatScrollChunk.chunkOf(tail.positions.last),
+    );
+  }
+
   /// Drops the chunk at [index] from the cache (LRU eviction).
   @internal
   void evictChunk(int index) => _chunks.remove(index);
@@ -299,14 +325,21 @@ abstract class ChatDataSource {
   @protected
   void writeMessageSilent(IChatMessage message) {
     if (_disposed) return;
-    final chunkIndex = ChatScrollChunk.chunkOf(message.id);
+    _writeSlot(message.id, message);
+  }
+
+  /// Writes [message] into the slot at [id], which is [IChatMessage.id]
+  /// everywhere but a moved provisional row ([rebaseTail]): there the slot is
+  /// the row's new position and the message object is unchanged.
+  void _writeSlot(int id, IChatMessage message) {
+    final chunkIndex = ChatScrollChunk.chunkOf(id);
     final existed = _chunks.containsKey(chunkIndex);
     final chunk = _chunks.putIfAbsent(
       chunkIndex,
       () =>
           ChatScrollChunk(index: chunkIndex)..status = ChatMessageStatus.valid,
     );
-    final slot = message.id - chunk.firstId;
+    final slot = id - chunk.firstId;
     chunk.clearAbsentSlot(slot);
     chunk.messages[slot] = message;
     if (!existed) chunk.status = ChatMessageStatus.valid;
@@ -365,13 +398,24 @@ abstract class ChatDataSource {
   /// Emits [InsertMutation] (not [InsertBatchMutation]). For bulk tail bursts
   /// use [insertMessages] — integrator explicit API choice vs silent
   /// [upsertMessages].
-  void insertMessage(IChatMessage message, {Object? reason}) {
+  ///
+  /// [followSelf] false inserts a self-authored row that is not a new send
+  /// (an outgoing row placed again after a restart): the viewport does not
+  /// pull a reader scrolled into history to it
+  /// ([InsertMutation.followSelf]).
+  void insertMessage(
+    IChatMessage message, {
+    Object? reason,
+    bool followSelf = true,
+  }) {
     if (_disposed) return;
     assert(
       !_removalStaging.containsKey(message.id),
       'insertMessage: id ${message.id} is pending removal',
     );
-    _notifyMutation(ChatMutation.insert(message.id, reason: reason));
+    _notifyMutation(
+      ChatMutation.insert(message.id, reason: reason, followSelf: followSelf),
+    );
     writeMessageSilent(message);
     _extendBoundariesForInsert(message.id);
     // After eviction, writeMessageSilent recreates the chunk as `valid` with
@@ -391,7 +435,13 @@ abstract class ChatDataSource {
   /// Integrators choose this over [upsertMessages] when batch insert intent /
   /// animation eligibility is desired (e.g. app-resume tail burst). Fetch and
   /// silent cache merge MUST use [upsertMessages] instead.
-  void insertMessages(Iterable<IChatMessage> messages, {Object? reason}) {
+  ///
+  /// [followSelf] as for [insertMessage].
+  void insertMessages(
+    Iterable<IChatMessage> messages, {
+    Object? reason,
+    bool followSelf = true,
+  }) {
     if (_disposed) return;
     final normalized = _normalizeInsertMessages(messages);
     if (normalized.isEmpty) return;
@@ -403,6 +453,7 @@ abstract class ChatDataSource {
         ids: ids,
         operationId: operationId,
         reason: reason,
+        followSelf: followSelf,
       ),
     );
     for (final message in normalized) {
@@ -709,6 +760,403 @@ abstract class ChatDataSource {
   final Map<int, IChatMessage?> _removalStaging = <int, IChatMessage?>{};
   int _nextOperationId = 1;
 
+  // --- Provisional tail -----------------------------------------------------
+
+  /// The identity of a provisional row, or `null` for a confirmed message.
+  ///
+  /// A provisional row is an outgoing message the server has not confirmed
+  /// yet. It sits in the **provisional tail**, after the newest confirmed
+  /// message, and its id there is a position, not its identity (ADR 001,
+  /// amendment "provisional tail positions"). Its identity is the host's own
+  /// key for it (the client message id); this function returns that key for
+  /// a provisional row and `null` for every confirmed one. [rebaseTail]
+  /// matches its `order` to rows through it.
+  ///
+  /// The host sets it once, before the first [rebaseTail]. A settable field,
+  /// not a constructor parameter: the host subclasses the data source for
+  /// [fetchRange], and the component that owns the outgoing messages is
+  /// usually wired after the data source exists.
+  Object? Function(IChatMessage message)? identityOf;
+
+  /// Moves the provisional tail in one atomic step: its rows take the order
+  /// [order] gives, and the confirmed messages [insert] take the positions
+  /// before them.
+  ///
+  /// [order] is the new order of the provisional rows' identities
+  /// ([identityOf]). A reorder, not only a shift: a row that starts
+  /// publishing moves to the front, a failed row sinks to the end. A
+  /// provisional row whose identity [order] leaves out leaves the tail in the
+  /// same step (the rows after it shift down, its last position becomes
+  /// Absent): this is how a cancelled or deleted outgoing message goes.
+  ///
+  /// Each message in [insert] is written at its own id, which must be at or
+  /// after the tail's first position (a confirmed message that took
+  /// `tip+1`); the provisional rows then start after the last inserted one.
+  /// Positions between the tail's first position and an inserted id that
+  /// nothing fills are left unloaded, so a fetch fills them.
+  ///
+  /// The move is the only sanctioned way to move a provisional row (ADR 001
+  /// amendment, ADR 048):
+  ///
+  /// * **Atomic**: one write, one [RebaseTailMutation], one
+  ///   [notifyDataChanged], so one layout and no intermediate state.
+  /// * **Staging finalised**: no position at or after the tail's first one is
+  ///   left in removal staging, so an [insertMessage] at a freed position
+  ///   does not assert and no [finalizeRemoval] is needed.
+  /// * **Boundaries**: [newestKnownId] becomes the new last row, and the
+  ///   moved range counts as the unconfirmed tail, so a later fetch that
+  ///   omits it does not mark it absent.
+  /// * **Its own mutation**: the viewport treats the move as neither a self
+  ///   insert nor a removal. A reader scrolled into history is not pulled to
+  ///   the tail, and a navigation animation holding a moved position keeps
+  ///   running.
+  /// * **At the tail**: the tail pin keeps the bottom, so the outgoing row at
+  ///   the bottom keeps its place and history moves up by the inserted rows.
+  /// * **Row state carried**: the viewport moves each built row with its
+  ///   message, widget state included (a running change transition goes on;
+  ///   the host needs no global key), and message selection membership and
+  ///   the Message highlight with it. A text selection on a moved row is
+  ///   cleared, and a [rowPresence] watch on a moved or removed row ends, so
+  ///   an open message menu on it closes. The message that takes a slot
+  ///   starts with fresh row state.
+  /// * **Fetch inside the tail**: rows a range fetch returns at or after the
+  ///   tail's first position are applied through this move (before the tail,
+  ///   which shifts), never written into a provisional slot. The chunks of
+  ///   the tail are never evicted.
+  ///
+  /// A moved row keeps its message object: the slot it now occupies is its
+  /// position, and its [IChatMessage.id] may still name the position it was
+  /// inserted at. The host addresses a provisional row by its current
+  /// position (an [updateMessage] passes a message whose id is that
+  /// position).
+  ///
+  /// Refused, leaving the data source unchanged, when [identityOf] is unset,
+  /// an identity in [order] names no current provisional row or appears
+  /// twice, two inserted messages share an id, or an inserted message is
+  /// provisional itself or below the tail: a debug assert, and a
+  /// [ChatRebaseOp.orderRejected] event in every build.
+  void rebaseTail({
+    required List<Object> order,
+    List<IChatMessage> insert = const [],
+  }) {
+    if (_disposed) return;
+    Trace.begin(TraceSection.rebaseTail);
+    try {
+      _rebaseTail(order, insert);
+    } finally {
+      Trace.end(TraceSection.rebaseTail);
+    }
+  }
+
+  void _rebaseTail(List<Object> order, List<IChatMessage> insert) {
+    final diagnostics = ChatDiagnostics.current;
+    final stopwatch = diagnostics.isEnabled(ChatEventLevel.debug)
+        ? (Stopwatch()..start())
+        : null;
+    final identity = identityOf;
+    if (identity == null) {
+      return _rejectRebase(ChatRebaseRejection.identityOfNull);
+    }
+
+    final inserts = List<IChatMessage>.of(insert)
+      ..sort((a, b) => a.id.compareTo(b.id));
+    final tail = _provisionalTail(
+      identity,
+      emptyStart: inserts.isEmpty ? 0 : inserts.first.id,
+    );
+
+    final rowByIdentity = <Object, int>{};
+    for (var i = 0; i < tail.rows.length; i++) {
+      final key = identity(tail.rows[i])!;
+      if (rowByIdentity.containsKey(key)) {
+        return _rejectRebase(
+          ChatRebaseRejection.duplicateIdentity,
+          scrollId: tail.positions[i],
+        );
+      }
+      rowByIdentity[key] = i;
+    }
+    final kept = <int>[];
+    final seen = <Object>{};
+    for (final key in order) {
+      if (!seen.add(key)) {
+        return _rejectRebase(ChatRebaseRejection.duplicateIdentity);
+      }
+      final index = rowByIdentity[key];
+      if (index == null) {
+        return _rejectRebase(ChatRebaseRejection.notProvisional);
+      }
+      kept.add(index);
+    }
+    for (var i = 0; i < inserts.length; i++) {
+      final message = inserts[i];
+      if (i > 0 && inserts[i - 1].id == message.id) {
+        return _rejectRebase(
+          ChatRebaseRejection.duplicateIdentity,
+          scrollId: message.id,
+        );
+      }
+      if (identity(message) != null) {
+        return _rejectRebase(
+          ChatRebaseRejection.insertInsideTail,
+          scrollId: message.id,
+        );
+      }
+      if (message.id < tail.start) {
+        return _rejectRebase(
+          ChatRebaseRejection.insertBelowTail,
+          scrollId: message.id,
+        );
+      }
+    }
+
+    final start = tail.start;
+    final newStart = inserts.isEmpty
+        ? start
+        : math.max(start, inserts.last.id + 1);
+    final moved = <int, int>{};
+    for (var i = 0; i < kept.length; i++) {
+      final from = tail.positions[kept[i]];
+      if (from != newStart + i) moved[from] = newStart + i;
+    }
+    final removedIds = <int>[
+      for (var i = 0; i < tail.rows.length; i++)
+        if (!seen.contains(identity(tail.rows[i]))) tail.positions[i],
+    ];
+    if (inserts.isEmpty && moved.isEmpty && removedIds.isEmpty) return;
+
+    final oldTop = tail.positions.isEmpty ? start - 1 : tail.positions.last;
+    final highestWritten = kept.isNotEmpty
+        ? newStart + kept.length - 1
+        : inserts.isEmpty
+        ? null
+        : inserts.last.id;
+    final rows = [for (final index in kept) tail.rows[index]];
+    final written = <int>{
+      for (final message in inserts) message.id,
+      for (var i = 0; i < rows.length; i++) newStart + i,
+    };
+
+    // Staging: every staged position the move takes over or frees.
+    final staged = [
+      for (final id in _removalStaging.keys)
+        if (id >= start) id,
+    ];
+    staged.forEach(_removalStaging.remove);
+
+    // Clear the old tail: freed positions past the new last row become
+    // Absent; positions before an inserted id that nothing fills stay
+    // unloaded so a fetch fills them.
+    final freedFrom = (highestWritten ?? start - 1) + 1;
+    for (var id = start; id <= oldTop; id++) {
+      final chunk = _chunks[ChatScrollChunk.chunkOf(id)];
+      if (chunk == null) continue;
+      final slot = id - chunk.firstId;
+      chunk.messages[slot] = null;
+      if (id >= freedFrom) {
+        if (!chunk.isAbsentSlot(slot)) chunk.markAbsentSlot(slot);
+      } else {
+        chunk.clearAbsentSlot(slot);
+      }
+    }
+    for (final message in inserts) {
+      _writeSlot(message.id, message);
+    }
+    for (var i = 0; i < rows.length; i++) {
+      _writeSlot(newStart + i, rows[i]);
+    }
+
+    _seedBoundariesAfterRebase(start: start, highestWritten: highestWritten);
+    if (highestWritten != null) _noteUnconfirmedTail(highestWritten);
+    final lastTouched = math.max(oldTop, highestWritten ?? oldTop);
+    if (lastTouched >= start) {
+      final lastChunk = ChatScrollChunk.chunkOf(lastTouched);
+      for (var ci = ChatScrollChunk.chunkOf(start); ci <= lastChunk; ci++) {
+        _markDirtyIfKnownSpanHoles(ci);
+      }
+    }
+
+    if (staged.isNotEmpty) {
+      diagnostics.emit(
+        ChatEventLevel.trace,
+        ChatEventCategory.rebase,
+        ChatRebaseOp.stagingFinalised,
+        fields: () => {
+          'freed': staged.where((id) => !written.contains(id)).length,
+          'reused': staged.where(written.contains).length,
+        },
+      );
+    }
+    // Every slot whose row changed: a watch opened on one of them no longer
+    // sees the row it was opened on.
+    for (final id in {...written, ...moved.keys, ...removedIds}) {
+      _rowEpochs[id] = (_rowEpochs[id] ?? 0) + 1;
+    }
+    _notifyMutation(
+      ChatMutation.rebaseTail(
+        insertedIds: [for (final message in inserts) message.id],
+        moved: moved,
+        removedIds: removedIds,
+        operationId: _nextOperationId++,
+      ),
+    );
+    notifyDataChanged();
+    diagnostics.emit(
+      ChatEventLevel.debug,
+      ChatEventCategory.rebase,
+      ChatRebaseOp.rebaseTail,
+      correlation: rows.isEmpty
+          ? ChatCorrelation.none
+          : ChatCorrelation(scrollId: newStart.toString()),
+      fields: () => {
+        'provisionalBefore': tail.rows.length,
+        'provisionalAfter': rows.length,
+        'inserted': inserts.length,
+        'moved': moved.length,
+        'reorderOnly': inserts.isEmpty && removedIds.isEmpty,
+        'removed': removedIds.length,
+        'durationUs': stopwatch?.elapsedMicroseconds ?? 0,
+      },
+    );
+  }
+
+  /// The provisional rows, ascending, with their positions: the run of rows
+  /// down from [newestKnownId] that [identity] answers for, skipping
+  /// confirmed-absent positions between them.
+  ///
+  /// `start` is the first provisional position, or the position after the
+  /// newest row when there is no provisional row ([emptyStart] in an empty
+  /// conversation).
+  ({int start, List<int> positions, List<IChatMessage> rows}) _provisionalTail(
+    Object? Function(IChatMessage message) identity, {
+    required int emptyStart,
+  }) {
+    final newest = _newestKnownId;
+    if (newest == null) {
+      return (start: emptyStart, positions: const [], rows: const []);
+    }
+    final positions = <int>[];
+    final rows = <IChatMessage>[];
+    final floor = _oldestKnownId;
+    // Terminates: a position whose chunk is not held is not confirmed absent
+    // and has no message, so the walk stops at the first chunk not held.
+    for (var id = newest; floor == null || id >= floor; id--) {
+      if (_isConfirmedAbsent(id)) continue;
+      final message = getMessage(id);
+      if (message == null || identity(message) == null) break;
+      positions.add(id);
+      rows.add(message);
+    }
+    return (
+      start: positions.isEmpty ? newest + 1 : positions.last,
+      positions: positions.reversed.toList(growable: false),
+      rows: rows.reversed.toList(growable: false),
+    );
+  }
+
+  /// Routes the rows a range fetch returned at or after the provisional
+  /// tail's first position through [rebaseTail] (they go before the tail, the
+  /// tail shifts past them) and returns the rest for the fetch to write. A
+  /// returned row the host's [identityOf] answers for is a provisional row
+  /// the engine already holds, and is dropped. Never refused: the tail keeps
+  /// its order.
+  List<IChatMessage> _applyFetchedInsideTail(List<IChatMessage> messages) {
+    final identity = identityOf;
+    if (identity == null || messages.isEmpty) return messages;
+    final tail = _provisionalTail(identity, emptyStart: 0);
+    if (tail.rows.isEmpty) return messages;
+    final rest = <IChatMessage>[];
+    final inside = <int, IChatMessage>{};
+    for (final message in messages) {
+      if (message.id < tail.start) {
+        rest.add(message);
+      } else if (identity(message) == null) {
+        inside[message.id] = message;
+      }
+    }
+    if (inside.isEmpty) return rest;
+    rebaseTail(
+      order: [for (final row in tail.rows) identity(row)!],
+      insert: inside.values.toList(growable: false),
+    );
+    final first = inside.keys.reduce(math.min);
+    ChatDiagnostics.current.emit(
+      ChatEventLevel.info,
+      ChatEventCategory.rebase,
+      ChatRebaseOp.fetchInsideTail,
+      correlation: ChatCorrelation(scrollId: first.toString()),
+      fields: () => {'rows': inside.length},
+    );
+    return rest;
+  }
+
+  /// One atomic boundary update after a [rebaseTail] write: the newest row is
+  /// the last written one, or, when the move wrote nothing, the last present
+  /// row before [start].
+  void _seedBoundariesAfterRebase({
+    required int start,
+    required int? highestWritten,
+  }) {
+    if (highestWritten == null) {
+      final newest = _previousPresentId(start);
+      if (newest == null) {
+        seedBoundaries(
+          oldestKnownId: null,
+          newestKnownId: null,
+          reachedOldest: true,
+          reachedNewest: true,
+        );
+      } else {
+        seedBoundaries(newestKnownId: newest);
+      }
+      return;
+    }
+    final oldest = _oldestKnownId;
+    final previousNewest = _newestKnownId;
+    final advanced = previousNewest == null || highestWritten > previousNewest;
+    seedBoundaries(
+      oldestKnownId: oldest == null && previousNewest == null ? start : oldest,
+      newestKnownId: highestWritten,
+      reachedNewest: advanced ? true : null,
+    );
+  }
+
+  /// Watches the row at [id]: present while the message there now stays
+  /// there. A [rebaseTail] that moves that row away, removes it or puts
+  /// another row in the slot ends it, as does a removal; an edit in place
+  /// ([updateMessage]) does not. A session opened on one message (a message
+  /// menu's `presence` / `isPresent`) watches through it, so it closes when
+  /// the message moves and never retargets to the message that takes the
+  /// slot.
+  ChatRowPresence rowPresence(int id) =>
+      ChatRowPresence._(this, id, _rowEpochs[id] ?? 0);
+
+  /// How many slots of [ids] a [ChatRowPresence] is listening on.
+  @internal
+  int watchedRowCount(Iterable<int> ids) =>
+      ids.toSet().where((id) => (_rowWatchers[id] ?? 0) > 0).length;
+
+  /// Bumped for every slot whose row a [rebaseTail] changed; a
+  /// [ChatRowPresence] compares the value it was opened with.
+  final Map<int, int> _rowEpochs = <int, int>{};
+
+  /// Listener count of the [ChatRowPresence]s per slot, for diagnostics.
+  final Map<int, int> _rowWatchers = <int, int>{};
+
+  void _rejectRebase(ChatRebaseRejection rule, {int? scrollId}) {
+    ChatDiagnostics.current.emit(
+      ChatEventLevel.error,
+      ChatEventCategory.rebase,
+      ChatRebaseOp.orderRejected,
+      correlation: switch (scrollId) {
+        final id? => ChatCorrelation(scrollId: id.toString()),
+        null => ChatCorrelation.none,
+      },
+      fields: () => {'rule': rule},
+    );
+    assert(false, 'rebaseTail refused (${rule.name}); nothing was written');
+  }
+
   // --- Typed listener: mutation intent --------------------------------------
 
   /// Plain `List` — see [_boundaryListeners]. Same dedup-on-add invariant.
@@ -743,6 +1191,7 @@ abstract class ChatDataSource {
     unconfirmedTailThroughId: () => _unconfirmedTailThroughId,
     onFetchSuccess: _onRangeFetchSuccess,
     skipFetchUpsert: _isConfirmedAbsent,
+    applyInsideTail: _applyFetchedInsideTail,
   );
 
   /// Check visible chunk range and fetch missing/dirty data.
@@ -1043,5 +1492,56 @@ abstract class ChatDataSource {
     _removalStaging.clear();
     _chunks.clear();
     _disposed = true;
+  }
+}
+
+/// A watch on one row of a [ChatDataSource]: [isPresent] while the message
+/// that was at [id] when the watch was taken is still there
+/// ([ChatDataSource.rowPresence]). Notifies with the data source's data
+/// changes while it has listeners.
+final class ChatRowPresence implements Listenable {
+  ChatRowPresence._(this._dataSource, this.id, this._epoch);
+
+  final ChatDataSource _dataSource;
+  final int _epoch;
+  final List<VoidCallback> _listeners = <VoidCallback>[];
+
+  /// The position watched.
+  final int id;
+
+  /// Whether the row watched is still at [id]: a message is there and no
+  /// tail move changed the slot's row since the watch was taken.
+  bool get isPresent =>
+      !_dataSource._disposed &&
+      _dataSource.getMessage(id) != null &&
+      (_dataSource._rowEpochs[id] ?? 0) == _epoch;
+
+  @override
+  void addListener(VoidCallback listener) {
+    if (_listeners.contains(listener)) return;
+    _listeners.add(listener);
+    if (_listeners.length > 1) return;
+    _dataSource.addDataListener(_onData);
+    final watchers = _dataSource._rowWatchers;
+    watchers[id] = (watchers[id] ?? 0) + 1;
+  }
+
+  @override
+  void removeListener(VoidCallback listener) {
+    if (!_listeners.remove(listener) || _listeners.isNotEmpty) return;
+    _dataSource.removeDataListener(_onData);
+    final watchers = _dataSource._rowWatchers;
+    switch (watchers[id]) {
+      case final count? when count > 1:
+        watchers[id] = count - 1;
+      case _:
+        watchers.remove(id);
+    }
+  }
+
+  void _onData() {
+    for (final listener in List.of(_listeners, growable: false)) {
+      listener();
+    }
   }
 }

@@ -19,6 +19,7 @@ import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:listen/listen.dart' as listen;
 
 final _now = DateTime(2026, 11, 27, 12);
 const _strings = ChatDenialStrings.english;
@@ -300,6 +301,44 @@ void main() {
       var sent = false;
       await chat.send(() async => sent = true);
       expect(sent, isTrue);
+      expect(chat.value, same(before));
+    });
+
+    test("a send through the outbox starts the wait, and the outbox's send "
+        'in flight is the pending send', () {
+      final chat = host(DemoChatRights.slowMode);
+      final inFlight = listen.ValueNotifier(false);
+      addTearDown(inFlight.dispose);
+      chat.followSendInFlight(inFlight);
+
+      chat.startInterval();
+      inFlight.value = true;
+
+      expect(
+        chat.value.slowMode,
+        SlowMode.active(
+          interval: const Duration(seconds: 30),
+          nextSendAt: _now.add(const Duration(seconds: 30)),
+          pending: true,
+        ),
+      );
+      inFlight.value = false;
+      expect(
+        chat.value.slowMode,
+        isA<SlowMode$Active>().having((s) => s.pending, 'pending', isFalse),
+      );
+    });
+
+    test('outside slow mode the send in flight changes nothing', () {
+      final chat = host(DemoChatRights.member);
+      final before = chat.value;
+      final inFlight = listen.ValueNotifier(false);
+      addTearDown(inFlight.dispose);
+      chat
+        ..followSendInFlight(inFlight)
+        ..startInterval();
+      inFlight.value = true;
+
       expect(chat.value, same(before));
     });
   });

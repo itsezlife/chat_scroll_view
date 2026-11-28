@@ -10,6 +10,14 @@
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32"/>
+    <!-- The transfer envelope that keeps the chat's uploads going in the
+         background (mpx_transfer): the user-initiated data transfer job on
+         Android 14 and later, the dataSync foreground service before, and
+         its notification. -->
+    <uses-permission android:name="android.permission.RUN_USER_INITIATED_JOBS"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
         android:largeHeap="true"
         android:label="chat_scroll_view_example"

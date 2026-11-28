@@ -78,8 +78,11 @@ class _AttachPagesSheetState extends State<AttachPagesSheet> {
     initialCaption: widget.initialCaption,
     store: widget.optionStore,
     capabilities: widget.capabilities,
-    onSend: (request) =>
-        unawaited(_$model.sheet.close(AttachOutcome.send(request))),
+    onSend: (request) => unawaited(
+      _$model.sheet.close(
+        AttachOutcome.send(request, origins: _$send.sentOrigins),
+      ),
+    ),
   );
 
   late final AttachPagesModel _$model = AttachPagesModel(

@@ -140,6 +140,13 @@ abstract final class MessageMenuActionId {
   /// Open the Logs screen on the message's events (debug builds; see
   /// [MessageMenuActions.onMessageLogs]).
   static const messageLogs = 'message_logs';
+
+  /// Send a failed message again ([MessageMenuActions.onRetry]).
+  static const retry = 'retry';
+
+  /// Delete a failed message: its send is cancelled and its row goes
+  /// ([MessageMenuActions.onDeleteUnsent]).
+  static const deleteUnsent = 'delete_unsent';
 }
 
 /// Policy- and hit-aware row / reaction catalogs driven by a
@@ -248,6 +255,29 @@ abstract final class MessageMenuCatalog {
     label: 'Clear Selection',
     icon: Icons.deselect_outlined,
   );
+
+  static const ChatMessageMenuItem _retry = ChatMessageMenuItem(
+    id: MessageMenuActionId.retry,
+    label: 'Retry',
+    icon: Icons.refresh,
+  );
+  static const ChatMessageMenuItem _deleteUnsent = ChatMessageMenuItem(
+    id: MessageMenuActionId.deleteUnsent,
+    label: 'Delete',
+    icon: Icons.delete_outline,
+  );
+
+  /// The rows of a failed message's menu under [policy]: Retry and Delete;
+  /// Delete alone on desktop, which offers no Retry of a failed message.
+  /// Nothing else applies to a message the server does not have.
+  static List<ChatMessageMenuItem> failedItemsFor(ChatSelectionPolicy policy) =>
+      switch (policy) {
+        ChatSelectionPolicy$Mobile() || ChatSelectionPolicy$TextOnly() =>
+          const <ChatMessageMenuItem>[_retry, _deleteUnsent],
+        ChatSelectionPolicy$Desktop() => const <ChatMessageMenuItem>[
+          _deleteUnsent,
+        ],
+      };
 
   /// Reaction strip for [policy] — empty omits the strip on the presenter.
   ///
@@ -529,7 +559,17 @@ final class MessageMenuActions {
     this.onMessageLogs,
     this.onDenied,
     this.onMediaAction,
+    this.onRetry,
+    this.onDeleteUnsent,
   });
+
+  /// Sends the failed message with the given id again
+  /// ([MessageMenuActionId.retry]).
+  final ValueChanged<int>? onRetry;
+
+  /// Deletes the failed message with the given id
+  /// ([MessageMenuActionId.deleteUnsent]).
+  final ValueChanged<int>? onDeleteUnsent;
 
   /// A per-item row chosen on a media item of the message with the given
   /// id: the item and its action (save, copy, share).
@@ -630,6 +670,7 @@ final class MessageMenu {
     this.mediaOf,
     this.itemActionsOf,
     this.linkPreviewUrlOf,
+    this.isFailed,
   }) : itemsFor = itemsFor ?? MessageMenuCatalog.itemsFor,
        _reactionsOverride = reactions;
 
@@ -686,6 +727,11 @@ final class MessageMenu {
   /// id, which Copy link on the card writes; null leaves the row inert.
   final Uri? Function(int messageId)? linkPreviewUrlOf;
 
+  /// Whether the message with the given id is the user's own that failed
+  /// to send; its menu is then [MessageMenuCatalog.failedItemsFor], with
+  /// no reactions. Null fails none.
+  final bool Function(int messageId)? isFailed;
+
   final List<String>? _reactionsOverride;
 
   var _sessionOpen = false;
@@ -708,6 +754,11 @@ final class MessageMenu {
     if (_sessionOpen) return;
     _sessionOpen = true;
     try {
+      if (request.membership == ChatMessageMenuMembership.idle &&
+          (isFailed?.call(request.messageId) ?? false)) {
+        await _presentFailed(context, request);
+        return;
+      }
       final policy = selectionPolicy;
       final selectedSnapshot = request.overSelection
           ? (selection?.selectedIds.toList(growable: false) ?? const <int>[])
@@ -745,6 +796,9 @@ final class MessageMenu {
       final packsInCard = packsLook != MessageContainsEmojiLook.card;
       final packsSource = emojiPacks?.source;
 
+      // Closes when the row's message leaves or moves (a provisional
+      // outgoing row the tail move shifts).
+      final row = dataSource.rowPresence(request.messageId);
       final result = await ChatMessageMenu.show(
         context: context,
         presentation: presentation,
@@ -813,8 +867,8 @@ final class MessageMenu {
         itemBuilder: MessageMenuChrome.itemBuilderFor(presentation),
         surfaceBuilder: surfaceBuilder,
         transitionBuilder: MessageMenuChrome.transition,
-        presence: _ChatDataSourceListenable(dataSource),
-        isPresent: () => dataSource.getMessage(request.messageId) != null,
+        presence: row,
+        isPresent: () => row.isPresent,
       );
       if (!context.mounted || result == null) return;
       await _dispatch(
@@ -999,6 +1053,7 @@ final class MessageMenu {
       final policy = selectionPolicy;
       final presentation = AppPlatformPolicy.current()
           .messageMenuPresentationFor(policy);
+      final row = dataSource.rowPresence(messageId);
       final result = await ChatMessageMenu.show(
         context: context,
         presentation: presentation,
@@ -1008,8 +1063,8 @@ final class MessageMenu {
         itemBuilder: MessageMenuChrome.itemBuilderFor(presentation),
         surfaceBuilder: MessageMenuChrome.surfaceBuilderFor(presentation),
         transitionBuilder: MessageMenuChrome.transition,
-        presence: _ChatDataSourceListenable(dataSource),
-        isPresent: () => dataSource.getMessage(messageId) != null,
+        presence: row,
+        isPresent: () => row.isPresent,
       );
       if (result case ChatMessageMenuItemResult(:final itemId)) {
         if (MessageMenuMediaRows.actionOf(itemId) case final action?) {
@@ -1021,6 +1076,55 @@ final class MessageMenu {
       }
     } finally {
       _sessionOpen = false;
+    }
+  }
+
+  // A failed message's menu: Retry and Delete (desktop: Delete alone), the
+  // debug logs row, no reactions. The session is [present]'s.
+  Future<void> _presentFailed(
+    BuildContext context,
+    ChatMessageMenuRequest request,
+  ) async {
+    final policy = selectionPolicy;
+    final presentation = AppPlatformPolicy.current().messageMenuPresentationFor(
+      policy,
+    );
+    final row = dataSource.rowPresence(request.messageId);
+    final result = await ChatMessageMenu.show(
+      context: context,
+      presentation: presentation,
+      messageRect: request.slotGlobal,
+      tapGlobal: request.tapGlobal,
+      surfaceRect: request.surfaceGlobal,
+      surfaceShape: request.surfaceShape,
+      visibleRect: request.bandGlobal,
+      items: [
+        ...MessageMenuCatalog.failedItemsFor(policy),
+        if (actions.onMessageLogs != null)
+          const ChatMessageMenuItem(
+            id: MessageMenuActionId.messageLogs,
+            label: 'Logs of this message',
+            icon: Icons.receipt_long_outlined,
+          ),
+      ],
+      reactions: const <String>[],
+      selectionPolicy: policy,
+      itemBuilder: MessageMenuChrome.itemBuilderFor(presentation),
+      surfaceBuilder: MessageMenuChrome.surfaceBuilderFor(presentation),
+      transitionBuilder: MessageMenuChrome.transition,
+      presence: row,
+      isPresent: () => row.isPresent,
+    );
+    if (!context.mounted) return;
+    if (result case ChatMessageMenuItemResult(:final itemId)) {
+      switch (itemId) {
+        case MessageMenuActionId.retry:
+          actions.onRetry?.call(request.messageId);
+        case MessageMenuActionId.deleteUnsent:
+          actions.onDeleteUnsent?.call(request.messageId);
+        case MessageMenuActionId.messageLogs:
+          actions.onMessageLogs?.call(request.messageId);
+      }
     }
   }
 
@@ -1047,21 +1151,6 @@ final class MessageMenu {
       _ => emojiPacks.of(request.messageId),
     };
   }
-}
-
-/// Forwards [ChatDataSource] data notifications as a [Listenable].
-final class _ChatDataSourceListenable implements Listenable {
-  const _ChatDataSourceListenable(this.dataSource);
-
-  final ChatDataSource dataSource;
-
-  @override
-  void addListener(VoidCallback listener) =>
-      dataSource.addDataListener(listener);
-
-  @override
-  void removeListener(VoidCallback listener) =>
-      dataSource.removeDataListener(listener);
 }
 
 /// The default menu column with the contains-emoji entry under the action

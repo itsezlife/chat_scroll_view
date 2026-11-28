@@ -13,6 +13,7 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_day_header_delegate.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_floating_header_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_mutations.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_overscroll_sink.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_rebase_diagnostics.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_row_chrome_delegate.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_row_chrome_transition.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_activity.dart';
@@ -40,6 +41,8 @@ import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu
 import 'package:chat_scroll_view/src/util/constants.dart';
 import 'package:chat_scroll_view/src/util/logger.dart';
 import 'package:chat_scroll_view/src/util/trace_section.dart';
+import 'package:content_model/content_model.dart'
+    show ChatCorrelation, ChatDiagnostics, ChatEventCategory, ChatEventLevel;
 import 'package:flutter/foundation.dart'
     show Listenable, ValueListenable, precisionErrorTolerance;
 import 'package:flutter/gestures.dart';
@@ -166,6 +169,18 @@ abstract interface class ChatChildManager {
   /// Must only be called from within [invokeLayoutCallback]. Calling
   /// from any other context will assert in debug mode.
   RenderBox? buildOverlay(ChatOverlayKind kind);
+
+  /// Carries the built rows of a provisional tail move
+  /// ([RebaseTailMutation]) with their messages: the child built at each key
+  /// of [moved] takes the value's position, with its widget state, and the
+  /// children at [removed] are dropped. Returns how many children moved.
+  ///
+  /// Without it a child stays on its slot, so the message that takes the
+  /// slot inherits the outgoing row's state (a change transition would morph
+  /// one bubble into the other). Called when the mutation arrives, outside
+  /// [invokeLayoutCallback]; it only re-slots and drops children, it builds
+  /// none.
+  int carryChildren(Map<int, int> moved, Iterable<int> removed);
 }
 
 /// Widget-based endless chat viewport render object.
@@ -1675,6 +1690,19 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
     _parentData(child).id = id;
   }
 
+  /// Re-keys [child] from [from] to [to]. Called via `moveRenderObjectChild`
+  /// when a provisional tail move carries a built row.
+  ///
+  /// A move is one of a permutation applied in any order, so [from] is only
+  /// vacated while it still holds [child]: an earlier move of the same batch
+  /// may already have put another row there.
+  void moveChild(RenderBox child, int from, int to) {
+    if (identical(_children[from], child)) _children.remove(from);
+    _children[to] = child;
+    _parentData(child).id = to;
+    markNeedsLayout();
+  }
+
   /// Drop the child for message [id]. Called via `removeRenderObjectChild`.
   void removeChild(int id) {
     final child = _children.remove(id);
@@ -1961,15 +1989,105 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
         // Relayout is already requested via [notifyDataChanged]; this branch
         // is the reserved seam for future viewport-owned extent springs.
         markNeedsLayout();
-      case InsertMutation(:final messageId):
+      case InsertMutation(:final messageId, :final followSelf):
         // [insertMessage] notifies mutations *before* writeMessageSilent —
         // defer so [getMessage] can resolve for [isSelfMessage].
-        _scheduleSelfInsertFollow([messageId]);
-      case InsertBatchMutation(:final ids):
-        _scheduleSelfInsertFollow(ids);
+        if (followSelf) _scheduleSelfInsertFollow([messageId]);
+      case InsertBatchMutation(:final ids, :final followSelf):
+        if (followSelf) _scheduleSelfInsertFollow(ids);
       case RemoveBatchMutation(:final ids):
         _cancelAnimateIfPresencePinnedRemoved(ids);
+      case final RebaseTailMutation rebase:
+        _onTailRebased(rebase);
     }
+  }
+
+  /// A move of the provisional tail is neither a self insert nor a removal:
+  /// no follow for a reader in history, no cancel of a running animation
+  /// (ADR 048). At the tail the existing pins keep the bottom: an advanced
+  /// newest id repins (`tailAdvanced`), a shorter tail is clamped, and a
+  /// reorder keeps the tail's total height.
+  void _onTailRebased(RebaseTailMutation rebase) {
+    final diagnostics = ChatDiagnostics.current;
+    _carryRowState(rebase);
+    if (_animator.isAnimating) {
+      final pinned = _stitchPresencePinnedIds();
+      final touched = [
+        ...rebase.insertedIds,
+        ...rebase.moved.keys,
+        ...rebase.removedIds,
+      ];
+      final firstTouched = touched.isEmpty ? null : touched.reduce(math.min);
+      diagnostics.emit(
+        ChatEventLevel.debug,
+        ChatEventCategory.rebase,
+        ChatRebaseOp.animationKept,
+        fields: () => {
+          'target':
+              firstTouched != null && _animator.animateTargetId >= firstTouched
+              ? 'tail'
+              : 'history',
+          'pinned': touched.any(pinned.contains),
+        },
+      );
+    }
+    if (!_wasAtTailLastLayout && !_controller.isAtTail.value) {
+      diagnostics.emit(
+        ChatEventLevel.debug,
+        ChatEventCategory.rebase,
+        ChatRebaseOp.followSuppressed,
+        fields: () {
+          final newest = _dataSource.newestKnownId;
+          final box = newest == null ? null : _children[newest];
+          return {
+            if (box != null)
+              'distanceFromTailPx':
+                  _parentData(box).offset +
+                  box.size.height -
+                  (size.height - _bottomPad),
+          };
+        },
+      );
+    }
+    markNeedsLayout();
+  }
+
+  /// Everything keyed by a row id follows the moved message, not the slot
+  /// (ADR 048): the built row with its widget state (a running change
+  /// transition among it), message selection membership and the Message
+  /// highlight go to the new position; a text selection on a moved row
+  /// clears. Rows left out of the move drop all of it. Runs inside the
+  /// mutation, before the data notification, so a watcher of the row
+  /// ([ChatDataSource.rowPresence], an open message menu) reads the carried
+  /// state.
+  void _carryRowState(RebaseTailMutation rebase) {
+    final moved = rebase.moved;
+    final removed = rebase.removedIds;
+    if (moved.isEmpty && removed.isEmpty) return;
+    final rows = childManager?.carryChildren(moved, removed) ?? 0;
+    final selection =
+        _selectionController?.carryRows(moved, removed) ??
+        (selectionCarried: 0, textCleared: false);
+    final highlight = _animator.carryHighlight(moved, removed);
+    final first = moved.isEmpty ? null : moved.keys.reduce(math.min);
+    final menus = _dataSource.watchedRowCount([...moved.keys, ...removed]);
+    ChatDiagnostics.current.emit(
+      ChatEventLevel.debug,
+      ChatEventCategory.rebase,
+      ChatRebaseOp.rowStateCarried,
+      correlation: switch (first) {
+        final id? => ChatCorrelation(scrollId: id.toString()),
+        null => ChatCorrelation.none,
+      },
+      fields: () => {
+        'toScrollId': ?moved[first]?.toString(),
+        'selectionCarried': selection.selectionCarried,
+        'highlightCarried': highlight,
+        'transitionsCarried': rows,
+        'textSelectionsCleared': selection.textCleared ? 1 : 0,
+        'menusClosed': menus,
+      },
+    );
   }
 
   /// Explicit host delete of the animate target or stitch outgoing strip

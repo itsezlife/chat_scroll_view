@@ -1,0 +1,327 @@
+import 'dart:async';
+import 'dart:typed_data';
+import 'dart:ui' show AppLifecycleState;
+
+import 'package:chat_outbox/chat_outbox.dart';
+import 'package:chat_outbox/testing.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_core/testing.dart';
+import 'package:mpx_transfer/mpx_transfer.dart';
+import 'package:mpx_transfer/testing.dart';
+
+/// What the outbox relies on of [OutboxTransfers], run over the fake and
+/// over the real engine through [OutboxTransfers.of], so the fake cannot
+/// drift from the engine on these points.
+void main() {
+  final implementations = <String, Future<OutboxTransfers> Function()>{
+    'FakeOutboxTransfers': () async => FakeOutboxTransfers(),
+    'OutboxTransfers.of(Transfers)': () async {
+      final harness = await UploadsHarness.open(
+        lifecycle: ManualPlaybackLifecycleSource(
+          initial: AppLifecycleState.resumed,
+        ),
+        transports: [FakeUploadTransport()],
+      );
+      addTearDown(harness.transfers.dispose);
+      return OutboxTransfers.of(harness.transfers);
+    },
+  };
+
+  PublishRequest textOf(String tag) => PublishRequest(
+    tag: tag,
+    items: const [],
+    payload: Uint8List.fromList([1, 2, 3]),
+    publisher: ChatOutbox.publisherId,
+    idempotencyKey: tag,
+    orderingGroup: 'c1',
+  );
+
+  for (final MapEntry(key: name, value: open) in implementations.entries) {
+    group(name, () {
+      test('publish answers a distinct id per job', () async {
+        final transfers = await open();
+
+        final a = transfers.publish(textOf('chat:c1:a'));
+        final b = transfers.publish(textOf('chat:c1:b'));
+
+        expect(a, isNot(b));
+      });
+
+      test('watchJobs lists the jobs under a tag prefix, oldest first, '
+          'with their ids, tags and publisher', () async {
+        final transfers = await open();
+        final a = transfers.publish(textOf('chat:c1:a'));
+        transfers.publish(textOf('chat:c12:x'));
+        final b = transfers.publish(textOf('chat:c1:b'));
+        await pumpEventQueue();
+
+        final jobs = await transfers
+            .watchJobs(
+              const PublishJobFilter(
+                tagPrefix: 'chat:c1:',
+                publisher: ChatOutbox.publisherId,
+              ),
+            )
+            .first;
+
+        expect(
+          [for (final job in jobs) (job.id, job.tag, job.publisher)],
+          [
+            (a, 'chat:c1:a', ChatOutbox.publisherId),
+            (b, 'chat:c1:b', ChatOutbox.publisherId),
+          ],
+        );
+      });
+
+      test("payloadOf answers a job's payload as made", () async {
+        final transfers = await open();
+        final id = transfers.publish(textOf('chat:c1:a'));
+
+        expect(transfers.payloadOf(id), [1, 2, 3]);
+      });
+
+      test('watchJobs gives the current list on listen, then the list '
+          'again after a change', () async {
+        final transfers = await open();
+        transfers.publish(textOf('chat:c1:a'));
+        await pumpEventQueue();
+        final lists = <List<String?>>[];
+        final subscription = transfers
+            .watchJobs(const PublishJobFilter(tagPrefix: 'chat:c1:'))
+            .listen((jobs) => lists.add([for (final job in jobs) job.tag]));
+        addTearDown(subscription.cancel);
+        await pumpEventQueue();
+
+        transfers.publish(textOf('chat:c1:b'));
+        await pumpEventQueue();
+
+        expect(lists.first, ['chat:c1:a']);
+        expect(lists.last, ['chat:c1:a', 'chat:c1:b']);
+      });
+
+      Future<PublishJobSnapshot> settled(
+        OutboxTransfers transfers,
+        PublishJobId id,
+      ) async {
+        await pumpEventQueue();
+        final jobs = await transfers
+            .watchJobs(const PublishJobFilter(tagPrefix: 'chat:c1:'))
+            .first;
+        return jobs.singleWhere((job) => job.id == id);
+      }
+
+      test('a job waits for its publisher, and registering it publishes '
+          'the payload once with the idempotency key', () async {
+        final transfers = await open();
+        final id = transfers.publish(textOf('chat:c1:a'));
+        await pumpEventQueue();
+        final publisher = FakePublisher();
+
+        transfers.registerPublisher(ChatOutbox.publisherId, publisher);
+        final job = await settled(transfers, id);
+
+        final call = publisher.calls.single;
+        expect(call.payload, [1, 2, 3]);
+        expect(call.idempotencyKey, 'chat:c1:a');
+        expect(call.items, isEmpty);
+        expect(job.state, isA<PublishJobState$Completed>());
+      });
+
+      test('a published answer completes the job with its result', () async {
+        final transfers = await open();
+        final publisher = FakePublisher()
+          ..answerWith(
+            PublishOutcome.published(result: Uint8List.fromList([9])),
+          );
+        transfers.registerPublisher(ChatOutbox.publisherId, publisher);
+
+        final job = await settled(
+          transfers,
+          transfers.publish(textOf('chat:c1:a')),
+        );
+
+        expect(job.state, PublishJobState.completed(Uint8List.fromList([9])));
+      });
+
+      test(
+        'a rejection fails the job at the publish stage with its code',
+        () async {
+          final transfers = await open();
+          final publisher = FakePublisher()
+            ..answerWith(
+              const PublishOutcome.rejected(reason: 'spam', retryable: true),
+            );
+          transfers.registerPublisher(ChatOutbox.publisherId, publisher);
+
+          final job = await settled(
+            transfers,
+            transfers.publish(textOf('chat:c1:a')),
+          );
+
+          expect(
+            job.state,
+            const PublishJobState.failed(
+              stage: PublishStage.publish,
+              reason: PublishFailureReason('spam'),
+              retryable: true,
+            ),
+          );
+        },
+      );
+
+      test(
+        'a publisher that throws fails the job as a publisher error',
+        () async {
+          final transfers = await open();
+          final publisher = FakePublisher()..throwOnNext(StateError('down'));
+          transfers.registerPublisher(ChatOutbox.publisherId, publisher);
+
+          final job = await settled(
+            transfers,
+            transfers.publish(textOf('chat:c1:a')),
+          );
+
+          expect(
+            job.state,
+            const PublishJobState.failed(
+              stage: PublishStage.publish,
+              reason: PublishFailureReason.publisherError,
+              retryable: true,
+            ),
+          );
+        },
+      );
+
+      test('cancel removes the job from watchJobs, and answers false for '
+          'a job it no longer has', () async {
+        final transfers = await open();
+        final id = transfers.publish(textOf('chat:c1:a'));
+        await pumpEventQueue();
+
+        expect(transfers.cancel(id), isTrue);
+        await pumpEventQueue();
+        final jobs = await transfers
+            .watchJobs(const PublishJobFilter(tagPrefix: 'chat:c1:'))
+            .first;
+
+        expect(jobs, isEmpty);
+        expect(transfers.cancel(id), isFalse);
+      });
+
+      test('removeItem drops the item from the job, and the last one leaves '
+          'the job awaiting its owner', () async {
+        final transfers = await open();
+        final id = transfers.publish(albumOf('chat:c1:a', ['a:0', 'a:1']));
+        await pumpEventQueue();
+
+        expect(transfers.removeItem(id, 'a:0'), isTrue);
+        final one = await settled(transfers, id);
+        expect([for (final item in one.items) item.itemId], ['a:1']);
+        expect(one.state, isNot(isA<PublishJobState$AwaitingOwner>()));
+
+        expect(transfers.removeItem(id, 'a:1'), isTrue);
+        final none = await settled(transfers, id);
+        expect(none.items, isEmpty);
+        expect(none.state, const PublishJobState.awaitingOwner());
+        expect(transfers.removeItem(id, 'a:1'), isFalse);
+      });
+
+      test('commit publishes a job awaiting its owner with what it has '
+          'left', () async {
+        final transfers = await open();
+        final publisher = FakePublisher();
+        final id = transfers.publish(albumOf('chat:c1:a', ['a:0']));
+        await pumpEventQueue();
+        expect(transfers.removeItem(id, 'a:0'), isTrue);
+        transfers.registerPublisher(ChatOutbox.publisherId, publisher);
+        await pumpEventQueue();
+        expect(publisher.calls, isEmpty);
+
+        expect(transfers.commit(id), isTrue);
+        final job = await settled(transfers, id);
+
+        expect(publisher.calls.single.items, isEmpty);
+        expect(job.state, isA<PublishJobState$Completed>());
+        expect(transfers.commit(id), isFalse);
+      });
+
+      test('retry of a job failed at publish publishes again with the same '
+          'idempotency key, and answers false for a job not failed', () async {
+        final transfers = await open();
+        final publisher = FakePublisher()
+          ..answerWith(
+            const PublishOutcome.rejected(reason: 'busy', retryable: true),
+          );
+        transfers.registerPublisher(ChatOutbox.publisherId, publisher);
+        final id = transfers.publish(albumOf('chat:c1:a', ['a:0']));
+        expect(
+          (await settled(transfers, id)).state,
+          isA<PublishJobState$Failed>(),
+        );
+
+        expect(transfers.retry(id), isTrue);
+        final job = await settled(transfers, id);
+
+        expect(publisher.calls, hasLength(2));
+        expect(publisher.calls.last.idempotencyKey, 'chat:c1:a');
+        expect(job.state, isA<PublishJobState$Completed>());
+        expect(transfers.retry(id), isFalse);
+        expect(transfers.retry(const PublishJobId.parse('none')), isFalse);
+      });
+
+      test('retryItem answers false for an item that has not failed', () async {
+        final transfers = await open();
+        final id = transfers.publish(albumOf('chat:c1:a', ['a:0']));
+        await pumpEventQueue();
+
+        expect(
+          transfers.retryItem(
+            id,
+            'a:0',
+            source: SourceBytes.memory(Uint8List(1)),
+          ),
+          isFalse,
+        );
+      });
+    });
+  }
+
+  // A widget test runs the host on a fake clock: the first list must not
+  // wait for the real event loop (a `pendingFor` reads it with `first`).
+  testWidgets('FakeOutboxTransfers: the first list of watchJobs arrives on a '
+      'fake clock', (tester) async {
+    final transfers = FakeOutboxTransfers();
+    List<PublishJobSnapshot>? first;
+    unawaited(
+      transfers
+          .watchJobs(const PublishJobFilter(tagPrefix: 'chat:c1:'))
+          .first
+          .then((jobs) => first = jobs),
+    );
+
+    await tester.pump();
+
+    expect(first, isEmpty);
+    expect(transfers.watcherCount, 0);
+  });
+}
+
+/// A job of items [itemIds] the server already has (nothing to upload).
+PublishRequest albumOf(String tag, List<String> itemIds) => PublishRequest(
+  tag: tag,
+  items: [
+    for (final (index, itemId) in itemIds.indexed)
+      PublishItem(
+        itemId: itemId,
+        key: MediaKey.local(
+          '00000000-0000-4000-8000-${'$index'.padLeft(12, '0')}',
+        ),
+        source: const PublishSource.remote(),
+      ),
+  ],
+  payload: Uint8List.fromList([1, 2, 3]),
+  publisher: ChatOutbox.publisherId,
+  idempotencyKey: tag,
+  orderingGroup: 'c1',
+);
