@@ -1,0 +1,31 @@
+name: chat_outbox
+description: >
+  The chat outbox: outgoing messages over publish jobs, their status, and the
+  lookups a host matches echoes and fresh rows by.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+  flutter: '>=3.32.0'
+
+dependencies:
+  # CapabilityAction, the action a server denial names in a failed message's
+  # reason (ADR 049; ADR 020 amendment, the chat_outbox row).
+  chat_capabilities:
+    path: ../chat_capabilities
+  # MediaItemId and ContentKey, an outgoing item's identity and local key, and
+  # the diagnostics contract (ChatDiagnostics, DiagnosticOp; ADR 050).
+  content_model:
+    path: ../content_model
+  # A Flutter package from the start: the facade grows listenables and the
+  # send origin's rect, and the edges to the root package and mpx_transfer
+  # are Flutter packages (ADR 048).
+  flutter:
+    sdk: flutter
+  meta: ^1.17.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
