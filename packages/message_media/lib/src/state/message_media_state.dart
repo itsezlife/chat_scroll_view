@@ -130,18 +130,19 @@ final class MessageMediaState {
   /// overlays fade in.
   ///
   /// The host's viewer bridge calls it by item id, so the hidden cell
-  /// follows the item the viewer shows.
+  /// follows the item the viewer shows. A viewer may outlive the chat: on a
+  /// disposed state it does nothing.
   void setViewerHidden(MediaItemId id, {required bool hidden}) {
-    _assertAlive();
+    if (_disposed) return;
     final notifier = _notifier(id);
     notifier.value = notifier.value.copyWith(viewerHidden: hidden);
   }
 
   /// Marks [id] as the item the media viewer shows ([covered]) or no longer
   /// shows: the cell's overlays are gone while it is covered and fade back
-  /// in after.
+  /// in after. On a disposed state it does nothing, as [setViewerHidden].
   void setViewerCovered(MediaItemId id, {required bool covered}) {
-    _assertAlive();
+    if (_disposed) return;
     final notifier = _notifier(id);
     notifier.value = notifier.value.copyWith(viewerCovered: covered);
   }
