@@ -8,6 +8,19 @@ is pre-1.0.
 
 ### Added (draft options overlay)
 
+- The iOS presentation: `DraftOptionsPolicy$IOS.surface`
+  (`DraftOptionsSpringSurface.phone` / `.iPad`) lays the live preview in a
+  30-radius content rect (W − 24 wide, the preview + 3 tall within 200 and
+  460, lowered to fit the actions; an iPad's at most 400 wide and centred
+  on the strip) with the link page's rows as a context list right-aligned
+  10 under it. `DraftOptionsSpringView` springs it out of the strip and back
+  (`DraftOptionsSpringMotion`), plays a haptic impact on open and reports
+  each motion as an `overlay` / `motion` event
+  (`DraftOptionsSession.reportMotion`). Under reduce motion every phase
+  lands at once. `DraftLinkRowMetrics.iconAtEnd`: the iOS rows are
+  context-menu rows, 44 tall with the icon at the end.
+  `DraftOptionsPreviewView` is the preview with its link mark, which every
+  presentation frames.
 - `DraftOptionsController` opens the draft options overlay from the link
   preview strip: `DraftOptionsOverlay` over a `ChromeScrim` in the root
   overlay, the link page with its title from

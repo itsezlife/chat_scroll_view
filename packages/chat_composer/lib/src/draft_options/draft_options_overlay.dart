@@ -7,6 +7,7 @@ import 'package:chat_composer/src/draft_options/draft_link_rows.dart';
 import 'package:chat_composer/src/draft_options/draft_options_host.dart';
 import 'package:chat_composer/src/draft_options/draft_options_policy.dart';
 import 'package:chat_composer/src/draft_options/draft_options_session.dart';
+import 'package:chat_composer/src/draft_options/draft_options_spring_view.dart';
 import 'package:chat_composer/src/draft_options/overlay_op.dart';
 import 'package:chat_composer/src/input/composer_controller.dart';
 import 'package:chat_composer/src/input/composer_keyboard_intent.dart';
@@ -223,6 +224,11 @@ final class DraftOptionsController {
     );
     open = _open = _OpenOverlay(session, scrim, entry, held: held);
     Overlay.of(context, rootOverlay: true).insert(entry);
+    if (policy case DraftOptionsPolicy$IOS(
+      :final surface,
+    ) when surface.hapticOnOpen) {
+      unawaited(HapticFeedback.mediumImpact());
+    }
     return true;
   }
 
@@ -480,14 +486,30 @@ class DraftOptionsOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     Widget overlay = ChromeScrim(
       controller: scrim,
-      child: Center(
-        child: _DraftOptionsPage(
+      child: switch (session.policy) {
+        DraftOptionsPolicy$IOS(:final surface) => DraftOptionsSpringView(
+          surface: surface,
           session: session,
-          bubbleBuilder: bubbleBuilder,
-          text: text,
-          linkPage: linkPage,
+          scrim: scrim,
+          preview: DraftOptionsPreviewView(
+            session: session,
+            bubbleBuilder: bubbleBuilder,
+            text: text,
+          ),
+          actions: switch (linkPage) {
+            final page? => DraftLinkRows(page: page),
+            null => null,
+          },
         ),
-      ),
+        _ => Center(
+          child: _DraftOptionsPage(
+            session: session,
+            bubbleBuilder: bubbleBuilder,
+            text: text,
+            linkPage: linkPage,
+          ),
+        ),
+      },
     );
     if (session.policy.apply == DraftOptionsApply.commitOnSave) {
       // The box takes focus, so Enter and Escape reach it: a scope of its
@@ -565,27 +587,10 @@ class _DraftOptionsPage extends StatelessWidget {
             final subtitle? => Text(subtitle, style: style),
             null => null,
           },
-          Stack(
-            children: [
-              ValueListenableBuilder(
-                valueListenable: session.page,
-                builder: (context, page, _) => ValueListenableBuilder(
-                  valueListenable: session.value,
-                  builder: (context, part, _) => bubbleBuilder(
-                    context,
-                    DraftOptionsPreview(
-                      text: text,
-                      part: part,
-                      page: page,
-                      onLinkTap: session.tapLink,
-                    ),
-                  ),
-                ),
-              ),
-              Positioned.fill(
-                child: _DraftLinkHighlightLayer(highlight: session.highlight),
-              ),
-            ],
+          DraftOptionsPreviewView(
+            session: session,
+            bubbleBuilder: bubbleBuilder,
+            text: text,
           ),
           ?switch (linkPage) {
             final page? => DraftLinkRows(page: page),
@@ -595,6 +600,54 @@ class _DraftOptionsPage extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The live preview of a [session]: the host's bubble for the draft as it
+/// stands, rebuilt on every edit and page change, with the chosen link's
+/// mark in a layer above it.
+///
+/// Every presentation puts it in its own frame.
+class DraftOptionsPreviewView extends StatelessWidget {
+  /// The preview of [session], drawn by [bubbleBuilder].
+  const DraftOptionsPreviewView({
+    required this.session,
+    required this.bubbleBuilder,
+    this.text = model.RichText.empty,
+    super.key,
+  });
+
+  /// The open's value, page and link choice.
+  final DraftOptionsSession session;
+
+  /// Builds the bubble.
+  final DraftOptionsBubbleBuilder bubbleBuilder;
+
+  /// The draft's text.
+  final model.RichText text;
+
+  @override
+  Widget build(BuildContext context) => Stack(
+    children: [
+      ValueListenableBuilder(
+        valueListenable: session.page,
+        builder: (context, page, _) => ValueListenableBuilder(
+          valueListenable: session.value,
+          builder: (context, part, _) => bubbleBuilder(
+            context,
+            DraftOptionsPreview(
+              text: text,
+              part: part,
+              page: page,
+              onLinkTap: session.tapLink,
+            ),
+          ),
+        ),
+      ),
+      Positioned.fill(
+        child: _DraftLinkHighlightLayer(highlight: session.highlight),
+      ),
+    ],
+  );
 }
 
 /// The chosen link's mark above the live preview: its contour filled in the

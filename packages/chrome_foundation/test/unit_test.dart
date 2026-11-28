@@ -46,6 +46,8 @@ import 'motion/chrome_ink_yield_test.dart' as chrome_ink_yield_test;
 import 'motion/chrome_motion_scope_test.dart' as chrome_motion_scope_test;
 import 'motion/chrome_motion_speed_test.dart' as chrome_motion_speed_test;
 import 'motion/chrome_motion_test.dart' as chrome_motion_test;
+import 'motion/chrome_source_spring_timing_test.dart'
+    as chrome_source_spring_timing_test;
 import 'motion/no_literal_durations_test.dart' as no_literal_durations_test;
 import 'motion/overshoot_curve_test.dart' as overshoot_curve_test;
 import 'motion/pointer_menu_motion_test.dart' as pointer_menu_motion_test;
@@ -125,6 +127,10 @@ void main() {
   group('motion/chrome_motion_scope_test.dart', chrome_motion_scope_test.main);
   group('motion/chrome_motion_speed_test.dart', chrome_motion_speed_test.main);
   group('motion/chrome_motion_test.dart', chrome_motion_test.main);
+  group(
+    'motion/chrome_source_spring_timing_test.dart',
+    chrome_source_spring_timing_test.main,
+  );
   group(
     'motion/no_literal_durations_test.dart',
     no_literal_durations_test.main,

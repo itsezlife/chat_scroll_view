@@ -45,6 +45,18 @@ final class DraftLinkHighlight {
       'DraftLinkHighlight($index${pending ? ', pending' : ''})';
 }
 
+/// A motion of the overlay's presentation, as its `motion` event names it.
+enum DraftOptionsMotionPhase {
+  /// The overlay coming up.
+  open,
+
+  /// The overlay going away.
+  close,
+
+  /// The preview changing under an edit.
+  change,
+}
+
 /// What closed the draft options overlay, as its `closed` event names it.
 enum DraftOptionsCloseTrigger {
   /// A press outside the overlay's surface.
@@ -310,6 +322,24 @@ final class DraftOptionsSession {
     );
     _onClose(trigger);
   }
+
+  /// The skin started the [phase] motion of the overlay's presentation,
+  /// lasting [duration] at the chrome motion speed; [reduceMotion] when the
+  /// speed collapsed it to its end state.
+  void reportMotion(
+    DraftOptionsMotionPhase phase,
+    Duration duration, {
+    required bool reduceMotion,
+  }) => _emit(
+    ChatEventLevel.trace,
+    OverlayOp.motion,
+    () => {
+      'presentation': policy.presentation.name,
+      'phase': phase.name,
+      'durationMs': duration.inMilliseconds,
+      'reduceMotion': reduceMotion,
+    },
+  );
 
   /// Reports the host's value with the preview removed: link previews were
   /// denied while the overlay was up, and it has closed.

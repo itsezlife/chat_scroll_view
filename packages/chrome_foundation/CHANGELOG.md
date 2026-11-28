@@ -6,6 +6,13 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (source spring timing)
+
+- `ChromeSourceSpringTiming`: a surface growing out of its source on the
+  context menu's spring (cut at 0.42 s, from scale 0.01), its content fading
+  in over 0.15 s and its actions over 0.05 s, closing over 0.2 s ease
+  in-out with the content gone after 0.16 s, and resizing over 0.5 s.
+
 ### Added (keyboard timing)
 
 - `ChromeKeyboardTiming` (`heldReopen` 50 ms, `holdRelease` 15 ms): when a

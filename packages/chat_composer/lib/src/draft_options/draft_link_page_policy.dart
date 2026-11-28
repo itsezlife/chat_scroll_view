@@ -40,6 +40,7 @@ final class DraftLinkRowMetrics {
     required this.labelStart,
     required this.fontSize,
     required this.minWidthBeyondLabel,
+    this.iconAtEnd = false,
   });
 
   /// The row's height.
@@ -48,7 +49,8 @@ final class DraftLinkRowMetrics {
   /// The icon's size.
   final double iconSize;
 
-  /// From the row's start edge to the icon's.
+  /// From the row's edge the icon stands at (the start, or the end with
+  /// [iconAtEnd]) to the icon's.
   final double iconStart;
 
   /// From the row's start edge to the label's.
@@ -57,8 +59,14 @@ final class DraftLinkRowMetrics {
   /// The label's font size.
   final double fontSize;
 
-  /// The rows are at least this much wider than the widest label.
+  /// The rows are at least this much wider than the widest label. With
+  /// [iconAtEnd], what of it is not [labelStart] stands between the label
+  /// and the row's end.
   final double minWidthBeyondLabel;
+
+  /// Whether the icon stands at the row's end, after the label, as in a
+  /// context menu; otherwise at its start.
+  final bool iconAtEnd;
 
   @override
   bool operator ==(Object other) =>
@@ -68,7 +76,8 @@ final class DraftLinkRowMetrics {
       other.iconStart == iconStart &&
       other.labelStart == labelStart &&
       other.fontSize == fontSize &&
-      other.minWidthBeyondLabel == minWidthBeyondLabel;
+      other.minWidthBeyondLabel == minWidthBeyondLabel &&
+      other.iconAtEnd == iconAtEnd;
 
   @override
   int get hashCode => Object.hash(
@@ -78,6 +87,7 @@ final class DraftLinkRowMetrics {
     labelStart,
     fontSize,
     minWidthBeyondLabel,
+    iconAtEnd,
   );
 }
 
@@ -128,8 +138,10 @@ final class DraftLinkPagePolicy {
     ink: ChromeInkKind.ripple,
   );
 
-  /// The iOS rows: position, size (only with shrinkable media), a
-  /// separator, apply, remove; highlights; the label changes at once.
+  /// The iOS rows: position, size (only with shrinkable media), an 8
+  /// section gap, apply, remove; context-menu rows (44 tall, the label 16
+  /// from the start in 17, the icon at the end); highlights; the label
+  /// changes at once.
   static const DraftLinkPagePolicy ios = DraftLinkPagePolicy(
     sizeRow: DraftLinkSizeRow.whenShrinkable,
     inertOpacity: 0.5,
@@ -142,7 +154,7 @@ final class DraftLinkPagePolicy {
     removePressOpacity: 0.12,
     linkHint: false,
     removeFallsBackToNextLink: false,
-    rowMetrics: _rowMetrics,
+    rowMetrics: _contextRowMetrics,
     labelChange: ChromeMenuRowTiming.labelInstant,
     ink: ChromeInkKind.highlight,
   );
@@ -196,6 +208,19 @@ final class DraftLinkPagePolicy {
     labelStart: 59,
     fontSize: 16,
     minWidthBeyondLabel: 77,
+  );
+
+  // A context menu's action: 12 above and below a 17 label, the label 16
+  // from the start, the icon centred in a 32 box 12 from the end (so 16
+  // from it), the label kept 60 from the end.
+  static const _contextRowMetrics = DraftLinkRowMetrics(
+    height: 44,
+    iconSize: 24,
+    iconStart: 16,
+    labelStart: 16,
+    fontSize: 17,
+    minWidthBeyondLabel: 76,
+    iconAtEnd: true,
   );
 
   /// When the size row shows.
