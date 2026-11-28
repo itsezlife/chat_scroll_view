@@ -364,7 +364,7 @@ final class DemoOutboxChat {
     String body,
     Map<String, Object?> extras, {
     List<DemoOutgoingItem> items = const [],
-  }) => DemoOutgoingPayload(
+  }) => DemoOutgoingPayload.fromWire(
     sender: _owner.sender,
     body: body,
     extras: extras,
@@ -752,7 +752,7 @@ final class _ServerSender
       DemoServerAccepted(:final message, :final missing) =>
         OutgoingSendAnswer.sent(
           serverMessageId: message.id,
-          payloadAsStored: DemoOutgoingPayload(
+          payloadAsStored: DemoOutgoingPayload.fromWire(
             sender: message.sender,
             body: message.body,
             extras: message.extras,

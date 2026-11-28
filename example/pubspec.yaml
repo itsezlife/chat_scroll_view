@@ -33,6 +33,7 @@ dependencies:
     path: ../packages/chat_composer
   chat_wallpaper:
     path: ../packages/chat_wallpaper
+  collection: ^1.19.1
   chrome_foundation:
     path: ../packages/chrome_foundation
   content_assets:

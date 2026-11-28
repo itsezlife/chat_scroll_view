@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:collection/collection.dart' show DeepCollectionEquality;
+
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 
@@ -79,7 +81,7 @@ final class DemoServerMessage {
       other.body == body &&
       other.clientMessageId == clientMessageId &&
       other.sentAt == sentAt &&
-      jsonEncode(other.extras) == jsonEncode(extras);
+      _$extrasEquality.equals(other.extras, extras);
 
   @override
   int get hashCode => Object.hash(
@@ -88,8 +90,13 @@ final class DemoServerMessage {
     body,
     clientMessageId,
     sentAt,
-    jsonEncode(extras),
+    _$extrasEquality.hash(extras),
   );
+
+  // The extras are JSON values: nested maps and lists compare by value,
+  // whatever order their keys were written in.
+  static const DeepCollectionEquality _$extrasEquality =
+      DeepCollectionEquality();
 
   // The body is user content: it stays out of logs.
   @override

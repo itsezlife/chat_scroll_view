@@ -231,6 +231,28 @@ void main() {
     });
   });
 
+  test('two messages whose extras differ only in key order are equal', () {
+    DemoServerMessage at(Map<String, Object?> extras) => DemoServerMessage(
+      id: 4,
+      sender: 'me',
+      body: 'hi',
+      sentAt: DateTime.utc(2026),
+      extras: extras,
+    );
+    final a = at({
+      'invertMedia': true,
+      'linkPreview': {'url': 'https://example.com', 'media': 'auto'},
+    });
+    final b = at({
+      'linkPreview': {'media': 'auto', 'url': 'https://example.com'},
+      'invertMedia': true,
+    });
+
+    expect(a, b);
+    expect(a.hashCode, b.hashCode);
+    expect(a, isNot(at({'invertMedia': false})));
+  });
+
   group('stored form', () {
     const codec = DemoServerMessageCodec();
 
