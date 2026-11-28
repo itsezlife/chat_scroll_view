@@ -16,6 +16,7 @@ import 'package:chat_scroll_view_example/src/features/chat/utils/chat_media_host
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_media_bubble.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message_meta.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
@@ -170,6 +171,42 @@ void main() {
     ]);
     expect(request.index, 1);
     expect(request.originRect, tester.getRect(cellOf('0.1')));
+  });
+
+  testWidgets('the time over the media fades with the cell the viewer '
+      'hides, and comes back when it lets go', (tester) async {
+    await pump(tester, [
+      DemoMediaMessage(
+        parts: [
+          (
+            descriptor: DemoPhotos.harbour.descriptor,
+            kind: null,
+            spoiler: false,
+          ),
+        ],
+      ),
+    ]);
+    double pillOpacity() => tester
+        .widget<FadeTransition>(
+          find
+              .ancestor(
+                of: find.byType(DemoMessageMeta),
+                matching: find.byType(FadeTransition),
+              )
+              .first,
+        )
+        .opacity
+        .value;
+    expect(pillOpacity(), 1);
+
+    state.setViewerHidden(const MediaItemId('0.0'), hidden: true);
+    await tester.pump();
+    expect(pillOpacity(), 0);
+
+    state.setViewerHidden(const MediaItemId('0.0'), hidden: false);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(pillOpacity(), 1);
   });
 
   testWidgets('a card the sender attached renders, and a tap on it reaches '

@@ -36,6 +36,7 @@ export 'src/chrome/media_options_affordance.dart';
 export 'src/chrome/media_spoiler_cover.dart';
 export 'src/chrome/media_spoiler_reveal.dart';
 export 'src/chrome/media_time_pill.dart';
+export 'src/chrome/media_viewer_fade.dart';
 export 'src/diagnostics/link_preview_card_op.dart';
 export 'src/diagnostics/media_op.dart';
 export 'src/gesture/media_gesture_policy.dart';
@@ -58,6 +59,7 @@ export 'src/outgoing/media_sent_check.dart';
 export 'src/paint/link_preview_card_view.dart' show LinkPreviewCardColors;
 export 'src/paint/media_box_cell.dart';
 export 'src/paint/media_cell_builders.dart';
+export 'src/paint/media_file_disc.dart';
 export 'src/paint/media_row_cell.dart';
 export 'src/paint/message_media_body.dart'
     show LinkPreviewActivated, MediaChromeHitTest;

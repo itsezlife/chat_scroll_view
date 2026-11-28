@@ -21,18 +21,52 @@ typedef MediaItemRect = Rect? Function(MediaItemId id);
 /// What the chat remembers about one media item.
 @immutable
 final class MediaItemState {
-  /// An item's state; the default is a fresh item, spoiler hidden.
-  const MediaItemState({this.spoilerRevealed = false});
+  /// An item's state; the default is a fresh item, spoiler hidden, not under
+  /// the viewer.
+  const MediaItemState({
+    this.spoilerRevealed = false,
+    this.viewerHidden = false,
+    this.viewerCovered = false,
+  });
 
   /// Whether the viewer revealed the item's spoiler.
   final bool spoilerRevealed;
 
-  @override
-  bool operator ==(Object other) =>
-      other is MediaItemState && other.spoilerRevealed == spoilerRevealed;
+  /// Whether the media viewer's copy of the item stands over its cell: the
+  /// cell draws neither its picture nor its overlays, so the two are never
+  /// seen at once.
+  final bool viewerHidden;
+
+  /// Whether the media viewer shows the item: the cell's overlays (status
+  /// control, badge, options, the host's time) are gone while the picture
+  /// may stay.
+  final bool viewerCovered;
+
+  /// Whether the cell's overlays show: the item is neither hidden nor
+  /// covered by the viewer.
+  bool get overlaysShown => !viewerHidden && !viewerCovered;
+
+  /// A copy with the given values replaced.
+  MediaItemState copyWith({
+    bool? spoilerRevealed,
+    bool? viewerHidden,
+    bool? viewerCovered,
+  }) => MediaItemState(
+    spoilerRevealed: spoilerRevealed ?? this.spoilerRevealed,
+    viewerHidden: viewerHidden ?? this.viewerHidden,
+    viewerCovered: viewerCovered ?? this.viewerCovered,
+  );
 
   @override
-  int get hashCode => Object.hash(MediaItemState, spoilerRevealed);
+  bool operator ==(Object other) =>
+      other is MediaItemState &&
+      other.spoilerRevealed == spoilerRevealed &&
+      other.viewerHidden == viewerHidden &&
+      other.viewerCovered == viewerCovered;
+
+  @override
+  int get hashCode =>
+      Object.hash(MediaItemState, spoilerRevealed, viewerHidden, viewerCovered);
 }
 
 /// What a chat's media items remember while it is open: `MediaItemId` to
@@ -80,7 +114,37 @@ final class MessageMediaState {
     final notifier = _notifier(id);
     if (notifier.value.spoilerRevealed) return;
     if (at case final origin?) _revealOrigins[id] = origin;
-    notifier.value = const MediaItemState(spoilerRevealed: true);
+    notifier.value = notifier.value.copyWith(spoilerRevealed: true);
+  }
+
+  /// Whether the media viewer's copy of [id] stands over its cell.
+  bool isViewerHidden(MediaItemId id) {
+    _assertAlive();
+    return _items[id]?.value.viewerHidden ?? false;
+  }
+
+  /// Hides or shows [id]'s cell under the media viewer: hidden while the
+  /// viewer's copy stands over it (from the open's first frame, on the item
+  /// the viewer pages to, until the close lands). The cell's picture and
+  /// overlays go at once; on show the picture is back at once and the
+  /// overlays fade in.
+  ///
+  /// The host's viewer bridge calls it by item id, so the hidden cell
+  /// follows the item the viewer shows. A viewer may outlive the chat: on a
+  /// disposed state it does nothing.
+  void setViewerHidden(MediaItemId id, {required bool hidden}) {
+    if (_disposed) return;
+    final notifier = _notifier(id);
+    notifier.value = notifier.value.copyWith(viewerHidden: hidden);
+  }
+
+  /// Marks [id] as the item the media viewer shows ([covered]) or no longer
+  /// shows: the cell's overlays are gone while it is covered and fade back
+  /// in after. On a disposed state it does nothing, as [setViewerHidden].
+  void setViewerCovered(MediaItemId id, {required bool covered}) {
+    if (_disposed) return;
+    final notifier = _notifier(id);
+    notifier.value = notifier.value.copyWith(viewerCovered: covered);
   }
 
   /// Hands out the origin [revealSpoiler] was given for [id] once, or null.

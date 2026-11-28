@@ -9,12 +9,13 @@ import 'package:message_media/src/layout/media_layout_input.dart';
 import 'package:message_media/src/layout/media_layout_text.dart';
 import 'package:message_media/src/paint/media_box_cell.dart';
 import 'package:message_media/src/paint/media_cell_builders.dart';
+import 'package:message_media/src/paint/media_file_disc.dart';
 import 'package:message_media/src/paint/middle_elided_text.dart';
 import 'package:message_media/src/policy/media_file_stack_policy.dart';
 import 'package:mpx_core/mpx_core.dart';
 
-/// The default file row cell: the status control or the thumbnail with the
-/// control centred on it, the name, the info line and, where the platform
+/// The default file row cell: the file disc ([MediaFileDisc]) under the
+/// status control, or the thumbnail with the control centred on it, the name, the info line and, where the platform
 /// draws one, the link line, each where the file stack laid it out
 /// ([MediaFileRow]).
 ///
@@ -48,6 +49,7 @@ class MediaRowCell extends StatelessWidget {
     this.nameColor,
     this.infoColor,
     this.linkColor,
+    this.discColor,
     this.skin,
     super.key,
   });
@@ -121,6 +123,10 @@ class MediaRowCell extends StatelessWidget {
   /// The link line's colour; null is the name's.
   final Color? linkColor;
 
+  /// The fill of the file disc a row without a picture draws
+  /// ([MediaFileDisc]); null is the chrome palette's accent.
+  final Color? discColor;
+
   /// The look of the row's status control (the policy's chrome slots, the
   /// sent check, none on a failed send); null keeps the loading style's.
   final AssetViewSkin? skin;
@@ -178,16 +184,30 @@ class MediaRowCell extends StatelessWidget {
                         mirrored: mirrored,
                       )
                     : BorderRadius.circular(row.leading.shortestSide / 2),
-                // The control takes no pointer: its taps are the view's body
-                // part hits (`MediaPart.status`), arbitrated by the viewport.
-                child: IgnorePointer(
-                  child: ContentAssetView(
-                    content: item.descriptor.key,
-                    preset: preset,
-                    status: const MediaStatusMode.control(),
-                    downloadContext: downloadContext,
-                    skin: skin,
-                  ),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // A file without a picture shows the file disc, the
+                    // control over it while the bytes are not here.
+                    if (!row.hasThumbnail)
+                      MediaFileDisc(
+                        color:
+                            discColor ??
+                            ChromeThemeScope.paletteOf(context).accent,
+                      ),
+                    // The control takes no pointer: its taps are the view's
+                    // body part hits (`MediaPart.status`), arbitrated by the
+                    // viewport.
+                    IgnorePointer(
+                      child: ContentAssetView(
+                        content: item.descriptor.key,
+                        preset: preset,
+                        status: const MediaStatusMode.control(),
+                        downloadContext: downloadContext,
+                        skin: skin,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

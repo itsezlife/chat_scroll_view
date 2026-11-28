@@ -87,12 +87,17 @@ final class MediaBubbleGeometry {
   /// A caption between present and absent, or between above and below,
   /// blends the geometries of its ends, so its rows grow, shrink and move
   /// continuously.
+  ///
+  /// [mediaHoldsTextGap] is for media that keeps its own gap from the text
+  /// above it (a link preview card, whose top inset is that gap): the text
+  /// then gives up its bottom padding there.
   factory MediaBubbleGeometry.compute({
     required Size media,
     required double mediaInset,
     required EdgeInsets textPadding,
     required MediaBubbleText text,
     Size? header,
+    bool mediaHoldsTextGap = false,
   }) {
     MediaBubbleGeometry arrange({required bool present, required bool above}) =>
         MediaBubbleGeometry._arrange(
@@ -103,6 +108,7 @@ final class MediaBubbleGeometry {
           caption: text.caption,
           present: present,
           above: above,
+          holdsTextGap: mediaHoldsTextGap,
         );
     final below = MediaBubbleGeometry.lerp(
       arrange(present: false, above: false),
@@ -145,6 +151,7 @@ final class MediaBubbleGeometry {
     required Size caption,
     required bool present,
     required bool above,
+    required bool holdsTextGap,
   }) {
     final hasMedia = !media.isEmpty;
     var y = 0.0;
@@ -175,7 +182,8 @@ final class MediaBubbleGeometry {
     if (hasMedia) {
       y += switch (previousIsText) {
         null => inset,
-        true => padding.bottom,
+        // A card sets its own gap from the text above it.
+        true => holdsTextGap ? 0 : padding.bottom,
         false => 0,
       };
       mediaRect = Offset(inset, y) & media;

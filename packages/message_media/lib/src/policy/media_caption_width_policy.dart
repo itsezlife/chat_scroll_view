@@ -14,7 +14,9 @@ import 'package:meta/meta.dart';
 /// | iOS | `wrapAtMedia` | the media's max width (the block width) |
 /// | Desktop | `widenMedia` | the bubble's max content width, up to [widenLimit] 430 |
 ///
-/// Never narrower than the media itself. Under either rule the media widens
+/// Never narrower than the media itself, and never wider than a caption the
+/// host measured (`MediaLayoutInput.captionWidth`): the bubble is as wide as
+/// its media unless the caption is wider. Under either rule the media widens
 /// to a caption wider than it, when the host passes the caption's measured
 /// width (`MediaLayoutInput.captionWidth`) to the layout: the box sizing
 /// widens the box, up to its own limit.
@@ -58,9 +60,13 @@ final class MediaCaptionWidthPolicy {
       ),
       MediaCaptionWidthRule.wrapAtMedia => blockWidth,
     };
+    // A caption the host measured needs no more than its width: one
+    // narrower than the media wraps at the media, so the bubble wraps the
+    // media (under widenMedia the media widens to a wider one).
+    final needed = math.min(limit, input.captionWidth ?? double.infinity);
     return MediaWidthMetrics(
       rule: rule,
-      captionMaxWidth: math.max(mediaWidth, limit),
+      captionMaxWidth: math.max(mediaWidth, needed),
     );
   }
 

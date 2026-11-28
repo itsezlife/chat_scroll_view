@@ -317,6 +317,11 @@ class _MessageMediaBubbleLayoutState extends State<MessageMediaBubbleLayout> {
       captionMaxWidth: layout.widthMetrics?.captionMaxWidth,
       mediaInset: widget.policy.corners.bubbleInset,
       textPadding: widget.textPadding,
+      // A card under the text keeps its own gap from it.
+      mediaHoldsTextGap: switch (layout.blocks) {
+        [MediaBlock$LinkPreview(), ...] => true,
+        _ => false,
+      },
       hasCaption: widget.caption != null,
       above: widget.composition.textFirst(hasItems: widget.items.isNotEmpty),
       leg: _leg,
@@ -343,6 +348,7 @@ class _MediaBubble
     required this.captionMaxWidth,
     required this.mediaInset,
     required this.textPadding,
+    required this.mediaHoldsTextGap,
     required this.hasCaption,
     required this.above,
     required this.leg,
@@ -359,6 +365,7 @@ class _MediaBubble
   final double? captionMaxWidth;
   final double mediaInset;
   final EdgeInsets textPadding;
+  final bool mediaHoldsTextGap;
   final bool hasCaption;
   final bool above;
   final int leg;
@@ -394,6 +401,7 @@ class _RenderMediaBubble extends RenderBox
   double? _captionMaxWidth;
   double _mediaInset = 0;
   EdgeInsets _textPadding = EdgeInsets.zero;
+  bool _mediaHoldsTextGap = false;
   bool _hasCaption = false;
   bool _above = false;
   int _leg = 0;
@@ -417,6 +425,7 @@ class _RenderMediaBubble extends RenderBox
     _captionMaxWidth = widget.captionMaxWidth;
     _mediaInset = widget.mediaInset;
     _textPadding = widget.textPadding;
+    _mediaHoldsTextGap = widget.mediaHoldsTextGap;
     _hasCaption = widget.hasCaption;
     _above = widget.above;
     _leg = widget.leg;
@@ -483,6 +492,7 @@ class _RenderMediaBubble extends RenderBox
       textPadding: padding,
       text: shown,
       header: header?.size,
+      mediaHoldsTextGap: _mediaHoldsTextGap,
     );
     _place(media, geometry.media.topLeft);
     _place(caption, geometry.caption.topLeft);

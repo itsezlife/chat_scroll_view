@@ -338,6 +338,31 @@ void main() {
       expect(metrics?.captionMaxWidth, 320);
     });
 
+    test('a measured caption narrower than the media wraps at the media: '
+        'the bubble wraps the media, with no strip beside it', () {
+      for (final policy in const [
+        MessageMediaPolicy.android(),
+        MessageMediaPolicy.ios(),
+        MessageMediaPolicy.desktop(),
+      ]) {
+        final layout = policy.layout(
+          const MediaBubbleComposition(hasCaption: true).inputFor(
+            _base(
+              [_photo('a', size: const ContentSize(720, 1080))],
+              maxContentWidth: 320,
+              captionWidth: 150,
+            ),
+          ),
+        );
+        expect(layout.size.width, lessThan(320), reason: policy.family.name);
+        expect(
+          layout.widthMetrics?.captionMaxWidth,
+          layout.size.width,
+          reason: policy.family.name,
+        );
+      }
+    });
+
     test('iOS wrapAtMedia: the caption wraps at the media max width (300 '
         'compact, 440 regular)', () {
       final compact = metricsOf(

@@ -431,6 +431,23 @@ void main() {
           header: header,
         );
 
+    test('a card under the text keeps its own gap from it: the text gives '
+        'up its bottom padding above the card', () {
+      const caption = Size(120, 40);
+      final card = MediaBubbleGeometry.compute(
+        media: const Size(200, 100),
+        mediaInset: 0,
+        textPadding: _padding,
+        text: const MediaBubbleText(caption: caption, presence: 1, above: 1),
+        mediaHoldsTextGap: true,
+      );
+      expect(card.media.top, _padding.top + caption.height);
+      final boxes = geometry(
+        const MediaBubbleText(caption: caption, presence: 1, above: 1),
+      );
+      expect(boxes.media.top, _padding.top + caption.height + _padding.bottom);
+    });
+
     test('above and below are the same height; between blends them', () {
       const caption = Size(120, 40);
       final below = geometry(

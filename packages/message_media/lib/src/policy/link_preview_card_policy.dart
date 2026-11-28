@@ -259,9 +259,9 @@ final class LinkPreviewCardMetrics {
     this.maxWidth,
   }) : outerLeftIncomingText = outerLeftIncomingText ?? outerLeft;
 
-  /// Android: the card at bubble left + 12 (+ 18 in an incoming text
-  /// bubble) − 1.33 and bubble right − 10 (− 6 more in an outgoing text
-  /// bubble with a tail), 6 above its first line; text at x + 10, large
+  /// Android: the card at the bubble body's left + 12 − 1.33, where the
+  /// text starts, and its right − 10, in every bubble (the tail is outside
+  /// the body), 4 under the text and 6 above its first line; text at x + 10, large
   /// media at x + 10 and card − 17 wide; site → title 4, → author and
   /// description 2, → media 2; bottom 6 (+ 2.66 with media and text); a
   /// 48 thumbnail 6 from the right with a 10 margin (the description 20),
@@ -270,9 +270,7 @@ final class LinkPreviewCardMetrics {
   /// 4; the button under a 0.66 hairline at 18 %, 42 more height.
   static const android = LinkPreviewCardMetrics(
     outerLeft: 12 - 1.33,
-    outerLeftIncomingText: 18 - 1.33,
     outerRight: 10,
-    outerRightOutgoingText: 6,
     outerTop: 4,
     outerTopFirst: 4,
     textInset: EdgeInsets.fromLTRB(10, 6, 7, 0),

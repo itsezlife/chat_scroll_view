@@ -62,6 +62,13 @@ void main() {
       expect(() => state.isSpoilerRevealed(a), throwsAssertionError);
       expect(() => state.takeSendOrigin(a), throwsAssertionError);
     });
+
+    test('a viewer that outlives the chat sets nothing on its disposed '
+        'state', () {
+      final state = MessageMediaState()..dispose();
+      expect(() => state.setViewerHidden(a, hidden: false), returnsNormally);
+      expect(() => state.setViewerCovered(a, covered: false), returnsNormally);
+    });
   });
 
   group('MessageMediaStateScope', () {

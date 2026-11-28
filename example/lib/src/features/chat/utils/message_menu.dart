@@ -771,14 +771,18 @@ final class MessageMenu {
           : null;
       final targets = [request.messageId, ...selectedSnapshot];
       final denied = deniedActionsOf?.call(targets) ?? const <String>{};
-      final mediaItem = request.membership == ChatMessageMenuMembership.idle
-          ? _mediaItemOf(request)
-          : null;
-      final mediaRows = switch ((mediaItem, itemActionsOf)) {
-        (final item?, final actionsOf?) => MessageMenuMediaRows.rowsFor(
-          actionsOf(request.messageId, item),
+      // The media the menu reaches: the pressed item, or beside the media
+      // what the platform's reach says (the whole album, the first item or
+      // none).
+      final mediaTargets = request.membership == ChatMessageMenuMembership.idle
+          ? _mediaTargetsOf(request)
+          : const <MediaItem>[];
+      final mediaRows = switch (itemActionsOf) {
+        final actionsOf? => MessageMenuMediaRows.rowsForTargets(
+          mediaTargets,
+          (item) => actionsOf(request.messageId, item),
         ),
-        _ => const <ChatMessageMenuItem>[],
+        null => const <ChatMessageMenuItem>[],
       };
       final presentation = AppPlatformPolicy.current()
           .messageMenuPresentationFor(policy);
@@ -878,7 +882,7 @@ final class MessageMenu {
         selectedSnapshot: selectedSnapshot,
         emojiPacks: packs,
         content: content,
-        mediaItem: mediaItem,
+        mediaTargets: mediaTargets,
       );
     } finally {
       _sessionOpen = false;
@@ -892,7 +896,7 @@ final class MessageMenu {
     required List<int> selectedSnapshot,
     required List<PackId> emojiPacks,
     required MessageMenuContent? content,
-    required MediaItem? mediaItem,
+    required List<MediaItem> mediaTargets,
   }) async {
     switch (result) {
       case ChatMessageMenuReactionResult(:final reaction):
@@ -1019,11 +1023,16 @@ final class MessageMenu {
                   : MessageMenuActionId.forward,
             );
           default:
-            if ((MessageMenuMediaRows.actionOf(itemId), mediaItem) case (
-              final action?,
-              final item?,
-            )) {
-              actions.onMediaAction?.call(request.messageId, item, action);
+            if (MessageMenuMediaRows.actionOf(itemId) case final action?) {
+              for (final item in mediaTargets) {
+                // Protection may have changed while the menu was up.
+                if (itemActionsOf
+                        ?.call(request.messageId, item)
+                        .contains(action) ??
+                    false) {
+                  actions.onMediaAction?.call(request.messageId, item, action);
+                }
+              }
             }
         }
     }
@@ -1128,10 +1137,15 @@ final class MessageMenu {
     }
   }
 
-  MediaItem? _mediaItemOf(ChatMessageMenuRequest request) => switch (mediaOf) {
-    final of? => MessageMenuMediaRows.itemOf(request, of(request.messageId)),
-    null => null,
-  };
+  List<MediaItem> _mediaTargetsOf(ChatMessageMenuRequest request) =>
+      switch (mediaOf) {
+        final of? => MessageMenuMediaRows.targetsOf(
+          request,
+          of(request.messageId),
+          reach: AppPlatformPolicy.current().mediaMenuReach,
+        ),
+        null => const [],
+      };
 
   // Offered on the message alone: the button is built only for the menu of
   // one message, not over a selection, and not beside the
