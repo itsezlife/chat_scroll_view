@@ -8,23 +8,35 @@ import 'package:chat_scroll_view/chat_scroll_view.dart';
 /// unless given a target, and records every call in [calls].
 final class FakeOutgoingIdStrategy implements OutgoingIdStrategy {
   /// A strategy for chat [chatId] writing [tail], or a fresh
-  /// [FakeOutgoingTail] whose newest confirmed message is 100.
+  /// [FakeOutgoingTail] whose newest confirmed message is 100; it proposes
+  /// `tip+1` unless [proposesIds] is false.
   factory FakeOutgoingIdStrategy({
     String chatId = 'c1',
     OutgoingTailTarget? tail,
-  }) => FakeOutgoingIdStrategy._(chatId, tail ?? FakeOutgoingTail());
+    bool proposesIds = true,
+  }) => FakeOutgoingIdStrategy._(
+    chatId,
+    tail ?? FakeOutgoingTail(),
+    proposesIds: proposesIds,
+  );
 
-  FakeOutgoingIdStrategy._(String chatId, this.target)
-    : _order = ProvisionalTailOrder(
-        chatId: chatId,
-        strategy: 'fake',
-        target: target,
-      );
+  FakeOutgoingIdStrategy._(
+    String chatId,
+    this.target, {
+    required this.proposesIds,
+  }) : _order = ProvisionalTailOrder(
+         chatId: chatId,
+         strategy: 'fake',
+         target: target,
+       );
 
   final ProvisionalTailOrder _order;
 
   /// The rows the strategy writes.
   final OutgoingTailTarget target;
+
+  /// Whether [proposedId] answers `tip+1` rather than null.
+  final bool proposesIds;
 
   /// Every call so far, oldest first: the method's name and the client
   /// message id (`incoming` lists the message ids), then `failed` /
@@ -36,6 +48,9 @@ final class FakeOutgoingIdStrategy implements OutgoingIdStrategy {
 
   @override
   int get tip => _order.tip;
+
+  @override
+  int? get proposedId => proposesIds ? _order.start : null;
 
   @override
   List<String> get tail => _order.tail;

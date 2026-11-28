@@ -27,6 +27,10 @@ enum TailRebaseReason {
 
   /// A row left the tail.
   removed,
+
+  /// The data source put rows before the tail without the strategy (a range
+  /// fetch returning rows inside it), and the tail had moved past them.
+  fetch,
 }
 
 /// The order of one chat's provisional tail and every move of it: the
@@ -73,10 +77,43 @@ final class ProvisionalTailOrder {
   final Map<TailRebaseReason, int> rebases = {};
 
   /// The id of the newest confirmed message the tail sits after.
-  int get tip => (_$start ?? target.nextInsertId) - 1;
+  int get tip {
+    sync();
+    return _tip;
+  }
 
   /// The tail's first position, `tip+1`.
-  int get start => tip + 1;
+  int get start {
+    sync();
+    return _start;
+  }
+
+  int get _tip => (_$start ?? target.nextInsertId) - 1;
+
+  int get _start => _tip + 1;
+
+  /// Reads the tail's first position back from the rows: the data source
+  /// may have put confirmed messages before the tail on its own (rows a
+  /// range fetch returned inside it go there, the tail shifting past them),
+  /// and without this the order's positions, the tip and the next proposal
+  /// would stay where they were. Reports the move as `fetch`.
+  ///
+  /// Every public member calls it first. The rows hold the tail where the
+  /// order left it after each of its own moves, so it changes nothing then.
+  void sync() {
+    final first = switch (_$rows) {
+      [final row, ...] => row.id,
+      [] => null,
+    };
+    final current = _$start;
+    if (first == null || current == null) return;
+    final at = target.positionOf(first);
+    if (at == null || at == current) return;
+    final before = _positions();
+    _$start = at;
+    _counted(TailRebaseReason.fetch);
+    _report(TailRebaseReason.fetch, before);
+  }
 
   /// Whether the tail holds no row.
   bool get isEmpty => _$rows.isEmpty;
@@ -91,8 +128,13 @@ final class ProvisionalTailOrder {
 
   /// The row's position; see [OutgoingIdStrategy.positionOf].
   int? positionOf(String clientMessageId) {
+    sync();
+    return _positionOf(clientMessageId);
+  }
+
+  int? _positionOf(String clientMessageId) {
     final index = _indexOf(clientMessageId);
-    if (index >= 0) return start + index;
+    if (index >= 0) return _start + index;
     return _$settled[clientMessageId];
   }
 
@@ -103,11 +145,12 @@ final class ProvisionalTailOrder {
     required bool failed,
     required bool restored,
   }) {
+    sync();
     assert(
-      positionOf(clientMessageId) == null,
+      _positionOf(clientMessageId) == null,
       'allocate: $clientMessageId already has a position',
     );
-    final first = start;
+    final first = _start;
     final row = _Row(clientMessageId, created: _$created++, failed: failed);
     final sending = _sendingCount;
     target.insertMessage(build(first + _$rows.length));
@@ -124,7 +167,7 @@ final class ProvisionalTailOrder {
         clientMessageId: clientMessageId,
       );
     }
-    final position = positionOf(clientMessageId)!;
+    final position = _positionOf(clientMessageId)!;
     ChatDiagnostics.current.emit(
       ChatEventLevel.debug,
       ChatEventCategory.outbox,
@@ -135,7 +178,7 @@ final class ProvisionalTailOrder {
         scrollId: '$position',
       ),
       fields: () => {
-        'offsetFromTip': position - tip,
+        'offsetFromTip': position - _tip,
         'strategy': strategy,
         'allocation': restored ? 'restart' : 'new',
       },
@@ -145,8 +188,9 @@ final class ProvisionalTailOrder {
 
   /// Places [messages] before the tail; see [OutgoingIdStrategy.incoming].
   bool insertBefore(List<IChatMessage> messages) {
+    sync();
     if (_$rows.isEmpty || messages.isEmpty) return false;
-    final first = start;
+    final first = _start;
     final below = [
       for (final message in messages)
         if (message.id < first) message.id,
@@ -165,7 +209,8 @@ final class ProvisionalTailOrder {
   /// Ends the moving tail before an appended message: every row keeps its
   /// position as settled, and the tail starts over after the message.
   void settleBeforeAppend(List<IChatMessage> messages) {
-    final first = start;
+    sync();
+    final first = _start;
     for (final (index, row) in _$rows.indexed) {
       _$settled[row.id] = first + index;
     }
@@ -193,6 +238,7 @@ final class ProvisionalTailOrder {
 
   /// See [OutgoingIdStrategy.publishStart].
   void publishStart(String clientMessageId) {
+    sync();
     final index = _indexOf(clientMessageId);
     if (index < 0) return;
     final row = _$rows[index];
@@ -211,6 +257,7 @@ final class ProvisionalTailOrder {
 
   /// See [OutgoingIdStrategy.fail].
   void fail(String clientMessageId) {
+    sync();
     final index = _indexOf(clientMessageId);
     if (index < 0) return;
     final before = _positions();
@@ -234,6 +281,7 @@ final class ProvisionalTailOrder {
 
   /// See [OutgoingIdStrategy.retry].
   void retry(String clientMessageId) {
+    sync();
     final index = _indexOf(clientMessageId);
     if (index < 0) return;
     final before = _positions();
@@ -247,6 +295,7 @@ final class ProvisionalTailOrder {
 
   /// See [OutgoingIdStrategy.remove].
   bool remove(String clientMessageId) {
+    sync();
     final index = _indexOf(clientMessageId);
     if (index < 0) {
       _$settled.remove(clientMessageId);
@@ -261,13 +310,14 @@ final class ProvisionalTailOrder {
 
   /// See [OutgoingIdStrategy.confirm].
   int? confirm(String clientMessageId) {
+    sync();
     if (_$settled.remove(clientMessageId) case final position?) {
       return position;
     }
     final index = _indexOf(clientMessageId);
     if (index < 0) return null;
     if (index > 0) publishStart(clientMessageId);
-    final position = start;
+    final position = _start;
     _$rows.removeAt(0);
     _$start = _$rows.isEmpty ? null : position + 1;
     return position;
@@ -288,7 +338,7 @@ final class ProvisionalTailOrder {
   /// The positions of the rows now, by identity: what a move compares
   /// against to report the rows it moved.
   Map<String, int> _positions() => {
-    for (final (index, row) in _$rows.indexed) row.id: start + index,
+    for (final (index, row) in _$rows.indexed) row.id: _start + index,
   };
 
   /// Writes the current order to the rows in one `rebaseTail` and reports
@@ -300,12 +350,26 @@ final class ProvisionalTailOrder {
     List<IChatMessage> insert = const [],
   }) {
     target.rebaseTail(order: tail, insert: insert);
-    rebases.update(reason, (count) => count + 1, ifAbsent: () => 1);
+    _counted(reason);
+    _report(reason, before, clientMessageId: clientMessageId, insert: insert);
+  }
+
+  void _counted(TailRebaseReason reason) =>
+      rebases.update(reason, (count) => count + 1, ifAbsent: () => 1);
+
+  /// Reports the move [reason] made from [before]: one event per row whose
+  /// position changed, then one for [clientMessageId] when it did not move.
+  void _report(
+    TailRebaseReason reason,
+    Map<String, int> before, {
+    String? clientMessageId,
+    List<IChatMessage> insert = const [],
+  }) {
     final diagnostics = ChatDiagnostics.current;
     if (!diagnostics.isEnabled(ChatEventLevel.debug)) return;
     var triggerMoved = false;
     for (final (index, row) in _$rows.indexed) {
-      final to = start + index;
+      final to = _start + index;
       final from = before[row.id];
       if (from == null || from == to) continue;
       if (row.id == clientMessageId) triggerMoved = true;
@@ -334,7 +398,7 @@ final class ProvisionalTailOrder {
       correlation: ChatCorrelation(
         chatId: chatId,
         clientMessageId: clientMessageId,
-        scrollId: switch (positionOf(clientMessageId ?? '')) {
+        scrollId: switch (_positionOf(clientMessageId ?? '')) {
           final position? => '$position',
           null => null,
         },

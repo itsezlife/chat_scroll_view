@@ -1,4 +1,4 @@
-import 'dart:developer' show Timeline;
+import 'dart:developer' show Timeline, TimelineTask;
 
 import 'package:meta/meta.dart';
 
@@ -8,7 +8,10 @@ import 'package:meta/meta.dart';
 @internal
 enum OutboxTrace {
   /// One `watchJobs` update projected onto a chat's outgoing messages.
-  project('outbox.project');
+  project('outbox.project'),
+
+  /// One call of the chat publisher, its conflict loop included.
+  publish('outbox.publish');
 
   const OutboxTrace(String name) : label = 'chat_scroll_view.$name';
 
@@ -31,6 +34,18 @@ enum OutboxTrace {
       return body();
     } finally {
       Timeline.finishSync();
+    }
+  }
+
+  /// Runs [body], which spans frames, inside this section as an async task
+  /// when tracing is on.
+  Future<T> runAsync<T>(Future<T> Function() body) async {
+    if (!enabled) return body();
+    final task = TimelineTask()..start(label);
+    try {
+      return await body();
+    } finally {
+      task.finish();
     }
   }
 }

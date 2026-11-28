@@ -90,6 +90,99 @@ void main() {
         expect(lists.first, ['chat:c1:a']);
         expect(lists.last, ['chat:c1:a', 'chat:c1:b']);
       });
+
+      Future<PublishJobSnapshot> settled(
+        OutboxTransfers transfers,
+        PublishJobId id,
+      ) async {
+        await pumpEventQueue();
+        final jobs = await transfers
+            .watchJobs(const PublishJobFilter(tagPrefix: 'chat:c1:'))
+            .first;
+        return jobs.singleWhere((job) => job.id == id);
+      }
+
+      test('a job waits for its publisher, and registering it publishes '
+          'the payload once with the idempotency key', () async {
+        final transfers = await open();
+        final id = transfers.publish(textOf('chat:c1:a'));
+        await pumpEventQueue();
+        final publisher = FakePublisher();
+
+        transfers.registerPublisher(ChatOutbox.publisherId, publisher);
+        final job = await settled(transfers, id);
+
+        final call = publisher.calls.single;
+        expect(call.payload, [1, 2, 3]);
+        expect(call.idempotencyKey, 'chat:c1:a');
+        expect(call.items, isEmpty);
+        expect(job.state, isA<PublishJobState$Completed>());
+      });
+
+      test('a published answer completes the job with its result', () async {
+        final transfers = await open();
+        final publisher = FakePublisher()
+          ..answerWith(
+            PublishOutcome.published(result: Uint8List.fromList([9])),
+          );
+        transfers.registerPublisher(ChatOutbox.publisherId, publisher);
+
+        final job = await settled(
+          transfers,
+          transfers.publish(textOf('chat:c1:a')),
+        );
+
+        expect(job.state, PublishJobState.completed(Uint8List.fromList([9])));
+      });
+
+      test(
+        'a rejection fails the job at the publish stage with its code',
+        () async {
+          final transfers = await open();
+          final publisher = FakePublisher()
+            ..answerWith(
+              const PublishOutcome.rejected(reason: 'spam', retryable: true),
+            );
+          transfers.registerPublisher(ChatOutbox.publisherId, publisher);
+
+          final job = await settled(
+            transfers,
+            transfers.publish(textOf('chat:c1:a')),
+          );
+
+          expect(
+            job.state,
+            const PublishJobState.failed(
+              stage: PublishStage.publish,
+              reason: PublishFailureReason('spam'),
+              retryable: true,
+            ),
+          );
+        },
+      );
+
+      test(
+        'a publisher that throws fails the job as a publisher error',
+        () async {
+          final transfers = await open();
+          final publisher = FakePublisher()..throwOnNext(StateError('down'));
+          transfers.registerPublisher(ChatOutbox.publisherId, publisher);
+
+          final job = await settled(
+            transfers,
+            transfers.publish(textOf('chat:c1:a')),
+          );
+
+          expect(
+            job.state,
+            const PublishJobState.failed(
+              stage: PublishStage.publish,
+              reason: PublishFailureReason.publisherError,
+              retryable: true,
+            ),
+          );
+        },
+      );
     });
   }
 }

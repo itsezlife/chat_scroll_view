@@ -11,8 +11,10 @@ import 'package:chat_outbox/src/ids/outgoing_id_strategy.dart';
 import 'package:chat_outbox/src/message/outgoing_message.dart';
 import 'package:chat_outbox/src/message/outgoing_payload_codec.dart';
 import 'package:chat_outbox/src/message/outgoing_status.dart';
+import 'package:chat_outbox/src/outbox/chat_send_publisher.dart';
 import 'package:chat_outbox/src/outbox/job_projection.dart';
 import 'package:chat_outbox/src/outbox/outbox_projection.dart';
+import 'package:chat_outbox/src/send/outgoing_message_sender.dart';
 import 'package:chat_outbox/src/send/outgoing_send_item.dart';
 import 'package:chat_outbox/src/send/send_check.dart';
 import 'package:chat_outbox/src/transfers/outbox_transfers.dart';
@@ -56,6 +58,11 @@ final class ChatOutbox<M> {
   /// (128 random bits in hex unless given); an id never contains `:`, which
   /// separates the parts of a job's tag. [now] is the clock slow mode is
   /// read at.
+  ///
+  /// [onSent] hears of each message the server published, inside the
+  /// publish call: the host's duty there is to replace the outbox's row with
+  /// the confirmed message (see [OutgoingSent]), before the chat's next
+  /// outgoing row publishes.
   ChatOutbox({
     required OutboxTransfers transfers,
     required OutgoingPayloadCodec<M> codec,
@@ -66,6 +73,7 @@ final class ChatOutbox<M> {
     CapabilityFeedback feedback = CapabilityFeedback.none,
     String Function()? clientMessageIds,
     DateTime Function() now = DateTime.now,
+    void Function(OutgoingSent<M> sent)? onSent,
   }) : this.over(
          OutboxProjection(),
          transfers: transfers,
@@ -77,6 +85,7 @@ final class ChatOutbox<M> {
          feedback: feedback,
          clientMessageIds: clientMessageIds,
          now: now,
+         onSent: onSent,
        );
 
   /// An outbox reading [projection], for tests that set rows up directly.
@@ -92,6 +101,7 @@ final class ChatOutbox<M> {
     CapabilityFeedback feedback = CapabilityFeedback.none,
     String Function()? clientMessageIds,
     DateTime Function() now = DateTime.now,
+    void Function(OutgoingSent<M> sent)? onSent,
   }) : _transfers = transfers,
        _codec = codec,
        _itemOf = itemOf,
@@ -100,7 +110,8 @@ final class ChatOutbox<M> {
        _capabilitiesOf = capabilitiesOf,
        _feedback = feedback,
        _issueClientMessageId = clientMessageIds ?? _$randomClientMessageId,
-       _now = now;
+       _now = now,
+       _onSent = onSent;
 
   /// The publisher id the outbox's jobs name: the host's sender, registered
   /// by the outbox.
@@ -136,6 +147,12 @@ final class ChatOutbox<M> {
   final CapabilityFeedback _feedback;
   final String Function() _issueClientMessageId;
   final DateTime Function() _now;
+  final void Function(OutgoingSent<M> sent)? _onSent;
+
+  /// What the chat publisher counted, across registrations.
+  final PublishCounters _$publishCounters = PublishCounters();
+
+  bool _$senderRegistered = false;
 
   /// The chats whose jobs the outbox watches, with their subscription.
   final Map<String, StreamSubscription<List<PublishJobSnapshot>>> _$watches =
@@ -471,6 +488,55 @@ final class ChatOutbox<M> {
         : const OutgoingStatus.publishing();
   }
 
+  // --- Publishing ------------------------------------------------------------
+
+  /// Registers the host's [sender] as the publisher of every chat's
+  /// outgoing messages, replacing any registered before.
+  ///
+  /// The host's duty: register it once at start. Until then every publish
+  /// job waits at its publish stage (its message reads as publishing), after
+  /// a restart too; registering sends the waiting ones. Reports
+  /// `publisherRegistered`.
+  void registerSender(OutgoingMessageSender<M> sender) {
+    _checkNotDisposed();
+    _transfers.registerPublisher(
+      publisherId,
+      ChatSendPublisher(
+        projection: _projection,
+        strategyOf: idStrategy,
+        codec: _codec,
+        sender: sender,
+        feedback: _feedback,
+        onSent: _onSent,
+        counters: _$publishCounters,
+        now: _now,
+      ),
+    );
+    _$senderRegistered = true;
+    final chats = [..._projection.chats];
+    if (chats.isEmpty) _reportRegistered(ChatCorrelation.none, 0);
+    for (final chatId in chats) {
+      final waiting = _projection
+          .tailOf(chatId)
+          .where(
+            (message) =>
+                _projection.jobOf(chatId, message.clientMessageId)?.state ==
+                'awaitingPublisher',
+          )
+          .length;
+      _reportRegistered(ChatCorrelation(chatId: chatId), waiting);
+    }
+  }
+
+  static void _reportRegistered(ChatCorrelation correlation, int waiting) =>
+      ChatDiagnostics.current.emit(
+        ChatEventLevel.info,
+        ChatEventCategory.outbox,
+        OutboxOp.publisherRegistered,
+        correlation: correlation,
+        fields: () => {'waiting': waiting},
+      );
+
   // --- Status projection -----------------------------------------------------
 
   void _watch(String chatId) {
@@ -639,12 +705,18 @@ final class ChatOutbox<M> {
             fresh: _projection.isFresh(chatId, message.clientMessageId),
             job: _projection.jobOf(chatId, message.clientMessageId),
             sendOriginHeld: _projection.origins.holds,
+            attempts: _$publishCounters.attemptsOf(
+              chatId,
+              message.clientMessageId,
+            ),
           ),
       ],
+      publisherRegistered: _$senderRegistered,
       sendInFlight: _projection.hasInFlight(chatId),
       counters: OutboxDebugCounters(
         accepted: _$accepted,
         rebases: strategy?.rebases ?? const {},
+        conflicts: _$publishCounters.conflicts,
       ),
     );
   }

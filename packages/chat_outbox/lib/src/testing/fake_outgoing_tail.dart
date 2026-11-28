@@ -84,6 +84,14 @@ final class FakeOutgoingTail implements OutgoingTailTarget {
     _ => _$newest + 1,
   };
 
+  @override
+  int? positionOf(Object identity) {
+    for (final id in _tailPositions()) {
+      if (identityAt(id) == identity) return id;
+    }
+    return null;
+  }
+
   /// Replaces the row at its id, as a host's `updateMessage` does when it
   /// confirms an outgoing row.
   void update(IChatMessage message) {

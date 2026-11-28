@@ -1,4 +1,5 @@
 import 'package:chat_outbox/src/message/outgoing_status.dart';
+import 'package:chat_outbox/src/outbox/publish_rejection_codec.dart';
 import 'package:meta/meta.dart';
 import 'package:mpx_transfer/mpx_transfer.dart';
 
@@ -56,7 +57,8 @@ abstract final class JobProjection {
   /// The engine's reasons are an open set of codes: the network and a lost
   /// source are their own failures, `tooLarge` (a preparer's or a
   /// publisher's code) is too large, and any other reason the publish stage
-  /// gives is the publisher's rejection, kept as its code. The engine's own
+  /// gives is the chat publisher's: a denial or a rejection kept as its
+  /// code (`PublishRejectionCodec`). The engine's own
   /// codes for its faults, and any other code at an earlier stage, are
   /// unknown.
   static OutgoingFailure failureOf(
@@ -68,11 +70,19 @@ abstract final class JobProjection {
     _tooLarge => const OutgoingFailure.tooLarge(),
     final code when _engineCodes.contains(code) =>
       const OutgoingFailure.unknown(),
-    final code when stage == PublishStage.publish => OutgoingFailure.rejected(
-      code,
-    ),
+    final code when stage == PublishStage.publish => _publisherFailureOf(code),
     _ => const OutgoingFailure.unknown(),
   };
+
+  // The chat publisher's own codes: a rejection, a denial, or a code this
+  // build cannot read (a denial of an action it no longer knows).
+  static OutgoingFailure _publisherFailureOf(String code) {
+    try {
+      return const PublishRejectionCodec().decode(code);
+    } on FormatException {
+      return const OutgoingFailure.unknown();
+    }
+  }
 
   // The upload failure kinds' names (`TransferFailureKind`) and the code a
   // preparer or publisher gives for content over the server's size.

@@ -76,6 +76,20 @@ final class OutboxProjection {
   OutgoingMessage? lookup(String chatId, String clientMessageId) =>
       _$chats[chatId]?[clientMessageId];
 
+  /// The chats holding messages.
+  Iterable<String> get chats => _$chats.keys;
+
+  /// The message [clientMessageId] of whichever chat holds it, or null when
+  /// none does: a client message id is unique across chats, and the
+  /// publisher, which hears only the job's idempotency key, finds its
+  /// message by it.
+  OutgoingMessage? find(String clientMessageId) {
+    for (final chat in _$chats.values) {
+      if (chat[clientMessageId] case final message?) return message;
+    }
+    return null;
+  }
+
   /// The publish job of the message [clientMessageId] of [chatId], or null
   /// when it has none or is Absent.
   OutboxJobView? jobOf(String chatId, String clientMessageId) =>

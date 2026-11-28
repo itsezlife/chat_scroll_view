@@ -88,6 +88,7 @@ final class OutboxDebugRow {
     required bool fresh,
     OutboxJobView? job,
     bool Function(MediaItemId id)? sendOriginHeld,
+    int? attempts,
   }) => OutboxDebugRow(
     position: message.position,
     clientMessageId: message.clientMessageId,
@@ -105,6 +106,7 @@ final class OutboxDebugRow {
     jobId: job?.id,
     jobState: job?.state,
     stage: job?.stage?.name,
+    attempts: attempts,
   );
 
   /// The row's id in the tail; null while no id strategy has placed it.

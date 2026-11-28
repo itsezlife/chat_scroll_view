@@ -34,7 +34,7 @@ void main() {
       'strategy': null,
       'tip': null,
       'tail': <Object?>[],
-      'publisherRegistered': null,
+      'publisherRegistered': false,
       'sendInFlight': false,
       'counters': emptyCounters,
     });
@@ -79,7 +79,7 @@ void main() {
           ],
         },
       ],
-      'publisherRegistered': null,
+      'publisherRegistered': false,
       'sendInFlight': true,
       'counters': emptyCounters,
     });

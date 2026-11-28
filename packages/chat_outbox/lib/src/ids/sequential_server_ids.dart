@@ -35,6 +35,7 @@ final class SequentialServerIds implements OutgoingIdStrategy {
 
   /// The id to propose to the server for the message publishing now: the
   /// next server id, `tip+1`, not the row's position at creation.
+  @override
   int get proposedId => _order.start;
 
   @override

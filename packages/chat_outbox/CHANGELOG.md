@@ -60,6 +60,25 @@ this package is pre-1.0.
   `FakeOutgoingIdStrategy`.
 - The package now depends on the root `chat_scroll_view`, and on
   `flutter_test` for `testing.dart`.
+- The publisher: `OutgoingMessageSender<M>`, `OutgoingSendRequest`,
+  `OutgoingSendAnswer` (`sent` as `OutgoingSendResult`, `reuploadItems`,
+  `conflict`, `rejected`, `denied`) and `OutgoingSent`.
+  `ChatOutbox.registerSender` registers the host's sender as `chat.send`;
+  each attempt moves the row to `tip+1` and proposes it; a conflict sends
+  again within the call, at most three conflicts; a replay at another id
+  moves the row there; a denial fails the message as `denied` with one
+  `onDenied`; the host settles a published row in `onSent`.
+- `OutgoingIdStrategy.proposedId` (null under `LocalIds`) and
+  `OutgoingTailTarget.positionOf`: a strategy reads its tail's first
+  position back from the rows, so rows a range fetch put before the tail
+  move it (`tailRebased` reason `fetch`).
+- `OutboxTransfers.registerPublisher`; `FakeOutboxTransfers` runs a
+  registered publisher; `RecordingOutgoingSender` in `testing.dart`.
+- The snapshot's publisher registration, attempts per row and conflicts.
+- `OutboxOp`: `publisherRegistered`, `publishAttempt`, `publishConflict`,
+  `publishConflictExhausted`, `published`, `replayRebased`,
+  `reuploadRequested`, `rejected`, `denied`, `senderFailed`,
+  `payloadDecodeFailed`.
 
 ### Changed
 

@@ -47,7 +47,7 @@ enum OutboxOp implements DiagnosticOp {
 
   /// The provisional tail moved in one `rebaseTail` (debug), with `reason`
   /// (`incoming`, `publishStart`, `failedSink`, `retry`, `restart`,
-  /// `removed`), `rows` in the tail after it and `inserted` confirmed
+  /// `removed`, `fetch`), `rows` in the tail after it and `inserted` confirmed
   /// messages on every event of the move.
   ///
   /// One event per row whose position changed, with its client message id,
@@ -76,4 +76,58 @@ enum OutboxOp implements DiagnosticOp {
   /// The outbox let go of a send origin nobody took (debug): why (`sent`,
   /// `cancelled`, `expired`).
   sendOriginDropped,
+
+  /// The host registered its sender as the chat publisher (info): `waiting`,
+  /// the chat's jobs that were waiting for it. One event per chat the
+  /// outbox holds messages of, or one with no chat when it holds none.
+  publisherRegistered,
+
+  /// The chat publisher called the host's sender (info): `attempt` within
+  /// the publish call (from 1), `proposedId` when the strategy proposes one,
+  /// and `remoteRefs`, the items it passed; the row's position as the
+  /// scroll id.
+  publishAttempt,
+
+  /// The server's next id was not the proposed one (warning): `attempt`, the
+  /// conflict's number in the call (1 to 3), and `distance` from the
+  /// proposal to the server's next id.
+  publishConflict,
+
+  /// The third conflict of one publish call ended it (error): `attempts`,
+  /// the sends it made. The message fails, retryable.
+  publishConflictExhausted,
+
+  /// The server published the message (info): `attempts`, `durationMs` of
+  /// the publish call, `serverKeys` (their count) and
+  /// `payloadAsStoredDiffers`; the message's id from now on as the scroll
+  /// id.
+  published,
+
+  /// The server answered an idempotent replay with an id other than the
+  /// proposal, and the row moved to it (warning): `distance` from the
+  /// proposal; the server's id as the scroll id.
+  replayRebased,
+
+  /// The server asked for an item's upload again (warning): one event per
+  /// item, its media item id in the ids, with `items`, their count.
+  reuploadRequested,
+
+  /// The server rejected the message (warning): `reason`'s form
+  /// (`rejected`; never the server's code) and `retryable`.
+  rejected,
+
+  /// The server denied the message's action in the chat (info): `action`
+  /// and the reason's form. The host's `onDenied` hears of it once, as
+  /// `capabilities` / `denied` with consumer `outbox`.
+  denied,
+
+  /// The host's sender threw (error): `errorType`, never the error's text;
+  /// `in: onSent` when the host's settling of a published row threw
+  /// instead, which leaves the message sent. `errorType: unknownMessage`
+  /// for a job whose message this run does not hold.
+  senderFailed,
+
+  /// A job's payload did not decode through the host's codec (error):
+  /// `errorType` and `payloadBytes`, its length.
+  payloadDecodeFailed,
 }

@@ -14,11 +14,28 @@ import 'package:mpx_transfer/mpx_transfer.dart';
 /// items); [remove] takes it away, as the engine does with a cancelled job.
 /// Watchers get the current list on listen and the list again after each
 /// change, asynchronously, as the engine's do.
+///
+/// A job of a registered publisher publishes as the engine's does: when it
+/// reaches `publishing` (made so, moved there by [setState], or waiting
+/// there when [registerPublisher] names its publisher) the publisher is
+/// called with the job's payload, an item reference per item (none for a
+/// `remote` one) and the job's idempotency key, and its answer ends the
+/// job: `published` completes it, `rejected` fails it at the publish stage,
+/// a throw fails it as `publisherError`. A `reuploadItems` answer is
+/// recorded in [reuploadsOf] and the job publishes again at once, as if the
+/// items had uploaded; a second one fails it as `reuploadRefused`. With no
+/// publisher registered a job at `publishing` stays there until the test
+/// moves it (`awaitingPublisher` is the test's to script).
 final class FakeOutboxTransfers implements OutboxTransfers {
   /// A fake with no jobs.
   FakeOutboxTransfers();
 
   final List<PublishRequest> _requests = [];
+  final Map<PublishJobId, PublishRequest> _$requestOf = {};
+  final Map<String, Publisher> _$publishers = {};
+  final Set<PublishJobId> _$attempting = {};
+  final Map<PublishJobId, List<Set<String>>> _$reuploads = {};
+  final Map<PublishJobId, int> _$attempts = {};
   final List<PublishJobSnapshot> _jobs = [];
   final Set<_Watcher> _$watchers = {};
   DateTime _$clock = DateTime.utc(2026);
@@ -31,6 +48,29 @@ final class FakeOutboxTransfers implements OutboxTransfers {
 
   /// How many watchers are listening now.
   int get watcherCount => _$watchers.length;
+
+  /// The publisher registered under [id], or null.
+  Publisher? publisherOf(String id) => _$publishers[id];
+
+  /// How many times job [id]'s publisher was called.
+  int attemptsOf(PublishJobId id) => _$attempts[id] ?? 0;
+
+  /// The item ids of each `reuploadItems` answer for job [id], in order.
+  List<Set<String>> reuploadsOf(PublishJobId id) =>
+      List.unmodifiable(_$reuploads[id] ?? const <Set<String>>[]);
+
+  @override
+  void registerPublisher(String id, Publisher publisher) {
+    _$publishers[id] = publisher;
+    for (final job in [..._jobs]) {
+      if (job.publisher != id) continue;
+      if (job.state
+          case PublishJobState$Publishing() ||
+              PublishJobState$AwaitingPublisher()) {
+        _attempt(job.id);
+      }
+    }
+  }
 
   @override
   PublishJobId publish(PublishRequest request) {
@@ -53,7 +93,9 @@ final class FakeOutboxTransfers implements OutboxTransfers {
         ],
       ),
     );
+    _$requestOf[id] = request;
     _changed();
+    if (_jobs.last.state is PublishJobState$Publishing) _attempt(id);
     return id;
   }
 
@@ -84,6 +126,7 @@ final class FakeOutboxTransfers implements OutboxTransfers {
       ],
     );
     _changed();
+    if (state is PublishJobState$Publishing) _attempt(id);
   }
 
   /// Takes job [id] away, as the engine does with a cancelled job.
@@ -107,6 +150,87 @@ final class FakeOutboxTransfers implements OutboxTransfers {
     );
     watcher = _Watcher(filter, controller);
     return controller.stream;
+  }
+
+  void _attempt(PublishJobId id) {
+    final request = _$requestOf[id];
+    final publisher = switch (request?.publisher) {
+      final name? => _$publishers[name],
+      null => null,
+    };
+    if (request == null || publisher == null || !_$attempting.add(id)) return;
+    _$attempts[id] = attemptsOf(id) + 1;
+    final refs = {
+      for (final item in request.items)
+        item.itemId: switch (item.source) {
+          PublishSource$Remote() => PublishItemRefs(key: item.key),
+          _ => PublishItemRefs(
+            key: item.key,
+            file: RemoteRef('remote-${item.itemId}'),
+          ),
+        },
+    };
+    // Later, as the engine's attempt runs after its journal write: the
+    // caller that made the job sees it before its publisher does.
+    unawaited(
+      Future(
+        () => publisher.publish(
+          request.payload,
+          refs,
+          request.idempotencyKey ?? request.tag ?? '$id',
+        ),
+      ).then(
+        (outcome) => _answered(id, outcome),
+        onError: (Object _) => _end(
+          id,
+          const PublishJobState.failed(
+            stage: PublishStage.publish,
+            reason: PublishFailureReason.publisherError,
+            retryable: true,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _answered(PublishJobId id, PublishOutcome outcome) {
+    switch (outcome) {
+      case PublishOutcome$Published(:final result):
+        _end(id, PublishJobState.completed(result));
+      case PublishOutcome$Rejected(:final reason, :final retryable):
+        _end(
+          id,
+          PublishJobState.failed(
+            stage: PublishStage.publish,
+            reason: PublishFailureReason(reason),
+            retryable: retryable,
+          ),
+        );
+      case PublishOutcome$ReuploadItems(:final itemIds):
+        final reuploads = _$reuploads[id] ??= [];
+        final refused = reuploads.isNotEmpty;
+        reuploads.add(itemIds);
+        if (refused) {
+          _end(
+            id,
+            const PublishJobState.failed(
+              stage: PublishStage.publish,
+              reason: PublishFailureReason.reuploadRefused,
+              retryable: false,
+            ),
+          );
+        } else {
+          _$attempting.remove(id);
+          _attempt(id);
+        }
+    }
+  }
+
+  void _end(PublishJobId id, PublishJobState state) {
+    _$attempting.remove(id);
+    // A job removed (cancelled) while its publisher ran has no state left.
+    if (!_jobs.any((job) => job.id == id)) return;
+    setState(id, state);
   }
 
   static PublishJobState _firstStateOf(PublishRequest request) {

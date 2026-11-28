@@ -24,12 +24,19 @@ abstract interface class OutgoingIdStrategy {
   /// The id of the newest confirmed message the tail sits after.
   int get tip;
 
+  /// The id the sender proposes to the server for the row publishing now,
+  /// read at publish time and never stored: the next server id, `tip+1`.
+  /// Null for a strategy that proposes none (the server's id is the host's,
+  /// in its model), whose sender gets no proposal and no conflict.
+  int? get proposedId;
+
   /// The client message ids of the provisional tail in order, lowest
   /// position first.
   List<String> get tail;
 
   /// The moves of the tail so far by reason (`incoming`, `publishStart`,
-  /// `failedSink`, `retry`, `restart`, `removed`), for the debug snapshot.
+  /// `failedSink`, `retry`, `restart`, `removed`, `fetch`), for the debug
+  /// snapshot.
   Map<String, int> get rebases;
 
   /// The current position of the row [clientMessageId], or null when the
@@ -113,6 +120,12 @@ abstract interface class OutgoingTailTarget {
   /// removal (`ChatDataSource.nextInsertId`).
   int get nextInsertId;
 
+  /// The position of the provisional row whose identity is [identity] (its
+  /// client message id), or null when the tail holds none: where the data
+  /// source holds it now, which a move the strategy did not make (rows a
+  /// range fetch put before the tail) may have changed.
+  int? positionOf(Object identity);
+
   /// Inserts a new row (`ChatDataSource.insertMessage`).
   void insertMessage(IChatMessage message);
 
@@ -131,6 +144,22 @@ final class _DataSourceTail implements OutgoingTailTarget {
 
   @override
   int get nextInsertId => _source.nextInsertId;
+
+  @override
+  int? positionOf(Object identity) {
+    final identityOf = _source.identityOf;
+    if (identityOf == null) return null;
+    // The tail is the run of provisional rows down from the newest one, a
+    // handful of rows: walk it.
+    for (var id = _source.nextInsertId - 1; ; id--) {
+      final key = switch (_source.getMessage(id)) {
+        final message? => identityOf(message),
+        null => null,
+      };
+      if (key == null) return null;
+      if (key == identity) return id;
+    }
+  }
 
   @override
   void insertMessage(IChatMessage message) => _source.insertMessage(message);

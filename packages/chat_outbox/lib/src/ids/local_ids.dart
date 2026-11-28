@@ -42,6 +42,10 @@ final class LocalIds implements OutgoingIdStrategy {
   @override
   int get tip => _order.tip;
 
+  /// None: the server's id lives in the host's model.
+  @override
+  int? get proposedId => null;
+
   /// The local id the host gives the next incoming message: `tip+1` while
   /// outgoing rows wait (they move up past it), otherwise, or with
   /// [appendIncoming], the id after the newest row.

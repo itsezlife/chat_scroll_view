@@ -109,6 +109,22 @@ void main() {
 
       void allocate(String id) => strategy.allocate(id, (p) => _Row(p, id));
 
+      test('rows a range fetch routes before the tail move the strategy '
+          'with them', () {
+        allocate('a');
+        allocate('b');
+
+        // What the data source does with rows a fetch returns inside the
+        // tail.
+        chat.rebaseTail(order: ['a', 'b'], insert: [_Row(20)]);
+
+        expect(chat.labels(20, 22), ['server-20', 'a', 'b']);
+        expect(strategy.tip, 20);
+        expect(strategy.positionOf('a'), 21);
+        allocate('c');
+        expect(chat.labels(21, 23), ['a', 'b', 'c']);
+      });
+
       test('rows take tip+1 … tip+k and every move lands in the rows', () {
         allocate('a');
         allocate('b');

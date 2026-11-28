@@ -270,6 +270,22 @@ abstract final class OutgoingIdStrategyContract {
         });
       });
 
+      group('rows placed without the strategy', () {
+        test('rows the data source put before the tail (a range fetch) move '
+            'the strategy\'s positions and tip with it', () {
+          allocate('a');
+          allocate('b');
+
+          // The data source applies a fetch inside the tail as this move.
+          tail.rebaseTail(order: ['a', 'b'], insert: [FakeTailMessage(101)]);
+
+          expect(strategy.tip, 101);
+          expectTail(['a', 'b']);
+          expect(allocate('c'), 104);
+          expectTail(['a', 'b', 'c']);
+        });
+      });
+
       group('incoming', () {
         test('with no tail it takes nothing', () {
           expect(strategy.incoming([FakeTailMessage(101)]), isFalse);

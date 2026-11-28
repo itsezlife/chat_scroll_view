@@ -1,7 +1,7 @@
 import 'package:mpx_transfer/mpx_transfer.dart';
 
-/// What the outbox uses of the transfer engine: making a publish job and
-/// watching a chat's jobs. The host passes [OutboxTransfers.of] its one
+/// What the outbox uses of the transfer engine: making a publish job,
+/// watching a chat's jobs and registering the chat's publisher. The host passes [OutboxTransfers.of] its one
 /// `Transfers` facade.
 ///
 /// The outbox reaches the engine through this seam rather than through
@@ -24,6 +24,10 @@ abstract interface class OutboxTransfers {
   /// current list on listen, then the list again whenever one of its jobs
   /// changes, as `Transfers.watchJobs` gives them.
   Stream<List<PublishJobSnapshot>> watchJobs(PublishJobFilter filter);
+
+  /// Registers [publisher] under [id], replacing any registered before; the
+  /// jobs waiting for it publish, as `Transfers.registerPublisher` does.
+  void registerPublisher(String id, Publisher publisher);
 }
 
 final class _OutboxTransfers$Engine implements OutboxTransfers {
@@ -38,4 +42,8 @@ final class _OutboxTransfers$Engine implements OutboxTransfers {
   @override
   Stream<List<PublishJobSnapshot>> watchJobs(PublishJobFilter filter) =>
       _transfers.watchJobs(filter);
+
+  @override
+  void registerPublisher(String id, Publisher publisher) =>
+      _transfers.registerPublisher(id, publisher);
 }
