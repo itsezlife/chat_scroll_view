@@ -200,3 +200,18 @@ confirmed against the landed code. Nothing above is reversed.
 | Failed rows sink | Kept as decided. No reference client moves a failed message to the bottom; the sink keeps `tip+1` free of failed rows, which the rejected alternative cannot. |
 | Cancel waits | A cancel while the sender call is in flight waits for the answer (`pending`): an accept leaves the message sent, any other answer cancels it. |
 | Diagnostics | `tailRebased` reasons are `incoming`, `publishStart`, `failedSink`, `retry`, `restart`, `removed` and `fetch`. A conflict's or a replay's `missing` messages move the tail through `incoming`, right after `publishConflict` or `replayRebased` for the same message. The engine's own events are `rebase` operations (`rebaseTail`, `orderRejected`, `stagingFinalised`, `followSuppressed`, `animationKept`, `rowStateCarried`, `fetchInsideTail`). |
+
+## Amendment (2026-11-28, review): what the code review settled
+
+Found by the chat-outbox code review and fixed with tests; replaces the rows it names in the amendment above.
+
+| Area | Decision |
+| ---- | -------- |
+| Confirm at the server's id | An accept confirms the row only where it sits at the server's id. A peer's message delivered, or a range fetch's rows, while the sender call is out may move the tail past it; the row then leaves in the same way as for a replay it cannot reach, and `onSent` (`rowAt` null) has the host place the confirmed message at the server's id. `onSent` is required, and replaces the row inside the call. |
+| Restored rows | A row placed again after a restart is inserted with `followSelf: false` (`ChatDataSource.insertMessage`, `InsertMutation.followSelf`): a reader scrolled up is not pulled to it. |
+| History after a restart | `settleFromHistory(chatId, clientMessageId, serverId:)`: a message the server stored before the app went, met in fetched history, is sent at that id; its restored row leaves and the replay's answer moves nothing. The host hands such history rows to it once `pendingFor` answered. |
+| Retry and slow mode | A retry is one more send unit: slow mode (countdown, a send in flight) refuses it as it refuses a send, `refused`, with `onDenied(sendNow)`. |
+| Rejection codes | Replaces the row above: every code the chat publisher journals carries `chat.` (`chat.rejected:<code>`, `chat.denied:<action>`, `chat.conflict`); a server's code is kept whatever it spells and the sender may give any code. Bare codes are the engine's: `network` and `sourceLost` as theirs, the rest unknown. |
+| Appearance on the web | Replaces "a web preset is open": `OutgoingAppearancePolicy.web(compactTouch:)` (a compact window used by touch moves as Android, never a flight; any other is still); `platform()` gives it on the web whatever the system; the host passes the live one to `appearanceOf(policy:)`, read from the width class and the input class. A policy's own row motions are `OutgoingRowMotion`s, so a flight comes from a send origin only. |
+| Identifiers and feedback | Chats and messages are `ChatId` and `ClientMessageId` (nominal strings). Denial feedback is per chat (`feedbackOf(chatId)`). A send may carry its own `itemOf`. |
+| Strategy reads | `OutgoingIdStrategy` gains `sync()`: its getters only read, and the outbox brings each strategy up to its rows at its entry points; every move syncs first. |
