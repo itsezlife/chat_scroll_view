@@ -61,59 +61,59 @@ dependencies:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/http_bytes_cache
-      ref: 4e16cb38a7ff58cec67162640098df302f8efdb5
+      ref: d1304096c4087e2a41404c49c08101ebd6a9b08a
   mpx:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx
-      ref: 4e16cb38a7ff58cec67162640098df302f8efdb5
+      ref: d1304096c4087e2a41404c49c08101ebd6a9b08a
   mpx_core:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_core
-      ref: 4e16cb38a7ff58cec67162640098df302f8efdb5
+      ref: d1304096c4087e2a41404c49c08101ebd6a9b08a
   mpx_capture:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_capture
-      ref: 4e16cb38a7ff58cec67162640098df302f8efdb5
+      ref: d1304096c4087e2a41404c49c08101ebd6a9b08a
   mpx_library:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_library
-      ref: 4e16cb38a7ff58cec67162640098df302f8efdb5
+      ref: d1304096c4087e2a41404c49c08101ebd6a9b08a
   mpx_lottie:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_lottie
-      ref: 4e16cb38a7ff58cec67162640098df302f8efdb5
+      ref: d1304096c4087e2a41404c49c08101ebd6a9b08a
   # SVG as a media kind (vector images, and SVG handed as a plain image).
   mpx_svg:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_svg
-      ref: 4e16cb38a7ff58cec67162640098df302f8efdb5
+      ref: d1304096c4087e2a41404c49c08101ebd6a9b08a
   mpx_player:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_player
-      ref: 4e16cb38a7ff58cec67162640098df302f8efdb5
+      ref: d1304096c4087e2a41404c49c08101ebd6a9b08a
   # The transfer engine the outbox's publish jobs run in.
   mpx_transfer:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_transfer
-      ref: 4e16cb38a7ff58cec67162640098df302f8efdb5
+      ref: d1304096c4087e2a41404c49c08101ebd6a9b08a
   mpx_ui:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_ui
-      ref: 4e16cb38a7ff58cec67162640098df302f8efdb5
+      ref: d1304096c4087e2a41404c49c08101ebd6a9b08a
   mpx_video_decoder:
     git:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_video_decoder
-      ref: 4e16cb38a7ff58cec67162640098df302f8efdb5
+      ref: d1304096c4087e2a41404c49c08101ebd6a9b08a
   panel_catalog:
     path: ../packages/panel_catalog
   panel_pages:
