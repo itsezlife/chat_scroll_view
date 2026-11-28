@@ -6,6 +6,7 @@ import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/common/scroll_lab.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_delivery.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outbox.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_status_motion.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_media_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/document_embed.dart';
@@ -575,7 +576,7 @@ class _Bubble extends StatelessWidget {
     // neither a toggle of the row nor a message tap.
     metaBuilder: (context, editedOpacity) {
       final time = ChatMessageTapBarrier(
-        child: DemoMessageMeta(
+        child: DemoDeliveryMeta(
           createdAt: createdAt,
           color: metaColor,
           delivery: delivery,
