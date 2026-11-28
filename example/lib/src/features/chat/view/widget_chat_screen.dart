@@ -39,8 +39,10 @@ import 'package:chat_scroll_view_example/src/features/chat/input/chat_confirm_bo
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_input_set.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_outgoing_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_pack_sheets.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_delivery.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outbox.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/fake_server_script_sheet.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/source_lost_prompt.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_bulletins.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart';
@@ -80,6 +82,10 @@ import 'package:content_model/content_model.dart' as model show RichText;
 import 'package:content_model/content_model.dart'
     show
         AppliedEdit,
+        ChatCorrelation,
+        ChatDiagnostics,
+        ChatEventCategory,
+        ChatEventLevel,
         ContentDescriptor,
         ContentKey,
         LibraryPackEdit,
@@ -87,6 +93,7 @@ import 'package:content_model/content_model.dart'
         LinkPreviewResolver,
         LinkPreviewWire,
         MediaItem,
+        MediaItemId,
         PackId,
         PackKind,
         PackInstallState,
@@ -96,6 +103,7 @@ import 'package:content_model/content_model.dart'
 import 'package:control/control.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show SemanticsService;
 import 'package:flutter/services.dart';
 import 'package:flutter_md/flutter_md.dart'
     show
@@ -107,6 +115,8 @@ import 'package:listen/listen.dart' as listen;
 import 'package:message_media/message_media.dart';
 import 'package:mpx_core/mpx_core.dart'
     show MediaLoadingStyleScope, MediaStageStyle, PreparedMedia;
+import 'package:mpx_library/mpx_library.dart' show PlatformIntake;
+import 'package:mpx_transfer/mpx_transfer.dart' show SourceBytes;
 import 'package:panel_presentation/panel_presentation.dart';
 import 'package:viewport_scroll/viewport_scroll.dart' show ViewportScrollRouter;
 
@@ -845,6 +855,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
           capabilities: _rights.capabilities,
           denialText: _rights.denialText,
           onDenied: _rights.showDenied,
+          announce: _announceOutgoing,
+          askForSource: _askForLostSource,
         );
         if (!mounted) return;
       }
@@ -897,6 +909,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
           onNotice: _showNotice,
           onMessageLogs: kDebugMode ? _openMessageLogs : null,
           onMediaAction: _onMediaAction,
+          onRetry: (messageId) => unawaited(_outboxChat?.retryAt(messageId)),
+          onDeleteUnsent: (messageId) => _outboxChat?.deleteAt(messageId),
           onDenied: (actionId, messageId) =>
               _protection.reportDenied(switch (actionId) {
                 MessageMenuActionId.forward => CapabilityAction.forward,
@@ -905,6 +919,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
               }, messageId),
         ),
         deniedActionsOf: _protection.deniedMenuActions,
+        isFailed: (id) => _outboxChat?.isFailedAt(id) ?? false,
         mediaOf: (id) => backend.getMessage(id)?.media ?? const [],
         itemActionsOf: _itemActionsOf,
         linkPreviewUrlOf: (id) => _linkPreviewUrlOf(backend.getMessage(id)),
@@ -1237,8 +1252,42 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   /// (desktop right-click) — [ChatScrollView] routes each per selection policy.
   Future<void> _presentMessageMenu(ChatMessageMenuRequest request) async {
     final menu = _messageMenu;
-    if (menu == null || !mounted) return;
+    // One menu at a time: a burst of taps on the error badge opens it once.
+    if (menu == null || !mounted || menu.isPresenting) return;
+    if (request.partId case DemoErrorBadgePart(:final pointerKind)) {
+      ChatDiagnostics.current.emit(
+        ChatEventLevel.debug,
+        ChatEventCategory.outbox,
+        DemoOutgoingOp.badgeMenuOpened,
+        correlation: ChatCorrelation(
+          chatId: widget.chatId,
+          clientMessageId: _outboxChat?.clientMessageIdAt(request.messageId),
+          scrollId: '${request.messageId}',
+        ),
+        fields: () => {'pointer': pointerKind.name},
+      );
+    }
     await menu.present(context, request);
+  }
+
+  // A send's start and end, spoken by assistive technology.
+  void _announceOutgoing(String announcement) {
+    if (!mounted) return;
+    unawaited(
+      SemanticsService.sendAnnouncement(
+        View.of(context),
+        announcement,
+        Directionality.of(context),
+      ),
+    );
+  }
+
+  // The file of an item whose upload source was lost, asked of the user
+  // again for a retry.
+  Future<SourceBytes?> _askForLostSource(MediaItemId item) async {
+    final intake = await PlatformIntake.fileIntake();
+    if (!mounted) return null;
+    return SourceLostPrompt.ask(context, intake: intake);
   }
 
   /// The notes field: the one composer of the demo with lists on.
@@ -1275,6 +1324,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     runLayout,
     selection: _selection,
     host: _bodies,
+    outbox: _outboxChat,
     onAvatarTap: _onAvatarTap,
     onSenderTap: _onAvatarTap,
   );

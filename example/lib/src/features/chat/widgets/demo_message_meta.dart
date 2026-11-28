@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:chat_scroll_view_example/src/common/widgets/cached_label.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_delivery.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
@@ -16,7 +17,7 @@ class DemoMessageMeta extends LeafRenderObjectWidget {
   const DemoMessageMeta({
     required this.createdAt,
     required this.color,
-    required this.showStatus,
+    required this.delivery,
     required this.edited,
     this.editedOpacity = 1,
     super.key,
@@ -28,8 +29,11 @@ class DemoMessageMeta extends LeafRenderObjectWidget {
   /// Meta color.
   final Color color;
 
-  /// When true, show outgoing delivery ticks.
-  final bool showStatus;
+  /// The status of the user's own message, null for another's: a clock
+  /// while it is on its way, one check once sent, two once read. A failed
+  /// message shows no glyph here: the error badge beside the time is its.
+  /// The status is also spoken after the time.
+  final DemoDelivery? delivery;
 
   /// When true, show the edited label (subject to [editedOpacity]).
   final bool edited;
@@ -61,26 +65,35 @@ class DemoMessageMeta extends LeafRenderObjectWidget {
       scaler: scaler,
       direction: direction,
     );
+    final glyph = switch (delivery) {
+      DemoDelivery.sending => Icons.schedule,
+      DemoDelivery.sent => Icons.done,
+      DemoDelivery.read => Icons.done_all,
+      DemoDelivery.notSent || null => null,
+    };
     return _MetaLabels(
       direction: direction,
       time: label(formatTime(createdAt)),
       edited: edited ? label('edited') : null,
-      ticks: showStatus
-          ? CachedLabel.painterFor(
-              String.fromCharCode(Icons.done_all.codePoint),
-              TextStyle(
-                inherit: false,
-                color: color,
-                fontSize: _ticksSize,
-                fontFamily: Icons.done_all.fontFamily,
-                package: Icons.done_all.fontPackage,
-                height: 1,
-                leadingDistribution: TextLeadingDistribution.even,
-              ),
-              scaler: scaler,
-              direction: direction,
-            )
-          : null,
+      status: delivery?.label,
+      ticks: switch (glyph) {
+        final icon? => CachedLabel.painterFor(
+          String.fromCharCode(icon.codePoint),
+          TextStyle(
+            inherit: false,
+            color: color,
+            // The clock's face fills its box; the checks' strokes do not.
+            fontSize: icon == Icons.schedule ? _ticksSize - 2 : _ticksSize,
+            fontFamily: icon.fontFamily,
+            package: icon.fontPackage,
+            height: 1,
+            leadingDistribution: TextLeadingDistribution.even,
+          ),
+          scaler: scaler,
+          direction: direction,
+        ),
+        null => null,
+      },
     );
   }
 
@@ -110,18 +123,23 @@ class _MetaLabels {
     required this.direction,
     required this.time,
     this.edited,
+    this.status,
     this.ticks,
   });
 
   final TextDirection direction;
   final TextPainter time;
   final TextPainter? edited;
+
+  /// The spoken status after the time, or null.
+  final String? status;
   final TextPainter? ticks;
 
   bool sameAs(_MetaLabels other) =>
       direction == other.direction &&
       identical(time, other.time) &&
       identical(edited, other.edited) &&
+      status == other.status &&
       identical(ticks, other.ticks);
 }
 
@@ -262,10 +280,14 @@ class _RenderDemoMessageMeta extends RenderBox {
   void describeSemanticsConfiguration(SemanticsConfiguration config) {
     super.describeSemanticsConfiguration(config);
     final time = _labels.time.plainText;
+    final shown = _labels.edited != null && _editedOpacity > 0
+        ? 'edited $time'
+        : time;
     config
-      ..label = _labels.edited != null && _editedOpacity > 0
-          ? 'edited $time'
-          : time
+      ..label = switch (_labels.status) {
+        final status? => '$shown, $status',
+        null => shown,
+      }
       ..textDirection = _labels.direction;
   }
 }

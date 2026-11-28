@@ -388,3 +388,24 @@ abstract final class DemoTransferStrings {
   /// The prompt's cancel.
   static const String cancel = 'Отмена';
 }
+
+/// The demo's strings for the status of the user's own messages: what the
+/// time pill and the error badge say to assistive technology, and the
+/// announcements of a send's start and end.
+abstract final class DemoOutgoingStrings {
+  /// A message on its way: preparing, uploading or publishing.
+  static const String sending = 'Отправляется';
+
+  /// A message the server has.
+  static const String sent = 'Отправлено';
+
+  /// A message that failed.
+  static const String notSent = 'Не отправлено';
+
+  /// The failed message's action that sends it again.
+  static const String retry = 'Повторить';
+
+  /// The failed message's hint.
+  static const String retryHint =
+      'Сообщение не отправлено. Повторите отправку или удалите его.';
+}

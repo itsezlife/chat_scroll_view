@@ -9,7 +9,7 @@ Widget _meta({required bool edited, required double editedOpacity}) =>
           child: DemoMessageMeta(
             createdAt: DateTime.utc(2024, 1, 1, 12),
             color: Colors.white70,
-            showStatus: true,
+            delivery: null,
             edited: edited,
             editedOpacity: editedOpacity,
           ),

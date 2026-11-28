@@ -1,6 +1,7 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/constant/demo_config.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_received_link_preview.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_delivery.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_media_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message_meta.dart';
 import 'package:content_model/content_model.dart';
@@ -235,7 +236,7 @@ class _DemoMediaBubbleState extends State<DemoMediaBubble> {
       final meta = DemoMessageMeta(
         createdAt: widget.createdAt,
         color: widget.metaColor,
-        showStatus: widget.isOutgoing,
+        delivery: widget.isOutgoing ? DemoDelivery.read : null,
         edited: widget.edited,
       );
       final placement = MediaBubbleTime.of(layout, input);
@@ -361,7 +362,7 @@ class _TimePill extends StatelessWidget {
         child: DemoMessageMeta(
           createdAt: createdAt,
           color: const Color(0xFFFFFFFF),
-          showStatus: outgoing,
+          delivery: outgoing ? DemoDelivery.read : null,
           edited: edited,
         ),
       ),

@@ -6,10 +6,13 @@ import 'package:attach_model/attach_model.dart';
 import 'package:chat_capabilities/chat_capabilities.dart';
 import 'package:chat_outbox/chat_outbox.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:chat_scroll_view_example/src/app/demo_chrome_strings.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_delivery.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outgoing_payload.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/fake_chat_server.dart';
 import 'package:content_model/content_model.dart';
+import 'package:flutter/foundation.dart' show Listenable, ValueNotifier;
 import 'package:listen/listen.dart' as listen;
 import 'package:mpx_core/mpx_core.dart';
 import 'package:mpx_transfer/mpx_transfer.dart';
@@ -50,6 +53,8 @@ final class DemoOutbox {
       onSent: (sent) => chat(sent.chatId)._onSent(sent),
       onCancelled: (cancelled) =>
           chat(cancelled.message.chatId)._onCancelled(cancelled),
+      onStatusChanged: (message) =>
+          chat(message.chatId)._onStatusChanged(message),
       localKeyOf: localKeyOf,
       undecodableRowOf: (message) =>
           chat(message.chatId)._undecodableRow(message),
@@ -169,6 +174,21 @@ final class DemoOutboxChat {
   listen.ValueListenable<ChatCapabilities>? _capabilities;
   CapabilityDenialText? _denialText;
   CapabilityDeniedHandler? _onDenied;
+  void Function(String announcement)? _announce;
+  Future<SourceBytes?> Function(MediaItemId item)? _askForSource;
+
+  /// The status of each outgoing message, as the outbox last reported it:
+  /// the bubbles read it on every build, and the outbox's own lookup
+  /// reports an echo match each time.
+  final Map<String, OutgoingStatus> _$statuses = {};
+
+  /// Ticks on each status change, for [deliveryChanges].
+  final ValueNotifier<int> _$statusRevision = ValueNotifier(0);
+  Listenable? _$deliveryChanges;
+
+  /// The messages a retry is under way for: it may wait on the user for a
+  /// lost source's file, and a second retry of one meanwhile is dropped.
+  final Set<String> _$retrying = {};
 
   /// Which client message id each sent row had, by its server id: "logs of
   /// this message" follows a sent message by it.
@@ -193,14 +213,20 @@ final class DemoOutboxChat {
   /// Binds the chat to [source] on its first open (a later open passes the
   /// same one, from [source]), reads back the messages an earlier run left
   /// sending ([ChatOutbox.pendingFor]) and takes the screen's
-  /// [capabilities], [denialText] and [onDenied].
+  /// [capabilities], [denialText] and [onDenied]. [announce] speaks a
+  /// send's start and end to assistive technology; [askForSource] asks the
+  /// user for the file of an item whose upload source was lost, for a
+  /// retry.
   ///
-  /// The server's counter starts after the history the source holds.
+  /// The server's counter starts after the history the source holds, and
+  /// that history counts as read by the chat's peers.
   Future<void> attach(
     ChatDataSource source, {
     listen.ValueListenable<ChatCapabilities>? capabilities,
     CapabilityDenialText? denialText,
     CapabilityDeniedHandler? onDenied,
+    void Function(String announcement)? announce,
+    Future<SourceBytes?> Function(MediaItemId item)? askForSource,
   }) async {
     if (_$source case final held? when !identical(held, source)) {
       throw StateError('Chat $chatId is bound to another message source.');
@@ -208,14 +234,25 @@ final class DemoOutboxChat {
     _capabilities = capabilities;
     _denialText = denialText;
     _onDenied = onDenied;
+    _announce = announce;
+    _askForSource = askForSource;
     _owner._$focused = this;
     if (_$source == null) {
       _$source = source;
       source.identityOf = (message) => _$identities[message];
-      _owner.server.open(chatId, nextId: source.nextInsertId);
-      _$deliveries = _owner.server.deliveries(chatId).listen(_onDelivery);
+      final server = _owner.server..open(chatId, nextId: source.nextInsertId);
+      if (source.nextInsertId > 0) {
+        server.markRead(chatId, source.nextInsertId - 1);
+      }
+      _$deliveries = server.deliveries(chatId).listen(_onDelivery);
+      _$deliveryChanges = Listenable.merge([
+        _$statusRevision,
+        server.readUpTo(chatId),
+      ]);
     }
-    await _outbox.pendingFor(chatId);
+    for (final message in await _outbox.pendingFor(chatId)) {
+      _$statuses.putIfAbsent(message.clientMessageId, () => message.status);
+    }
   }
 
   /// The screen went: the outbox no longer reads its capabilities or shows
@@ -224,6 +261,8 @@ final class DemoOutboxChat {
     _capabilities = null;
     _denialText = null;
     _onDenied = null;
+    _announce = null;
+    _askForSource = null;
     if (identical(_owner._$focused, this)) _owner._$focused = null;
   }
 
@@ -235,10 +274,12 @@ final class DemoOutboxChat {
   OutgoingMessage? sendText(
     String body, {
     Map<String, Object?> extras = const {},
-  }) => _outbox.sendText(
-    chatId,
-    RichText.plain(body),
-    payload: _payloadOf(body, extras),
+  }) => _accepted(
+    _outbox.sendText(
+      chatId,
+      RichText.plain(body),
+      payload: _payloadOf(body, extras),
+    ),
   );
 
   /// Sends each of [sends], a send plan's, with the body the demo shows for
@@ -276,10 +317,20 @@ final class DemoOutboxChat {
       payload: _payloadOf(body, const {}),
       origins: origins,
     );
+    _accepted(message);
     // The server shows the chat's peers that media is on its way.
     if (message != null && message.items.isNotEmpty) {
       _owner.server.sendStarted(chatId, message.clientMessageId);
     }
+    return message;
+  }
+
+  // A send the outbox accepted starts: it reads sending, and says so.
+  OutgoingMessage? _accepted(OutgoingMessage? message) {
+    if (message == null) return null;
+    _$statuses[message.clientMessageId] = message.status;
+    _$statusRevision.value++;
+    _announce?.call(DemoOutgoingStrings.sending);
     return message;
   }
 
@@ -288,26 +339,101 @@ final class DemoOutboxChat {
 
   /// Retries the failed message [clientMessageId]. A message whose source
   /// was lost (a web reload over the copy limit) asks the user for each
-  /// item's file again through [askForSource] first; null when the user
-  /// gave none, and nothing is retried.
+  /// item's file again through [askForSource] (the one [attach] took
+  /// unless given) first; null when the user gave none, and nothing is
+  /// retried.
+  ///
+  /// Guarded against a burst: while a retry of the message is under way
+  /// (asking for a file, say), another one is dropped
+  /// ([OutgoingRetryOutcome.dropped]); the outbox drops a repeat of an
+  /// accepted retry as well. A retry the outbox accepts announces the
+  /// send's start again.
   Future<OutgoingRetryOutcome?> retry(
     String clientMessageId, {
     Future<SourceBytes?> Function(MediaItemId item)? askForSource,
   }) async {
-    final message = _outbox.byClientMessageId(chatId, clientMessageId);
-    final sources = <MediaItemId, SourceBytes>{};
-    if ((message?.status, askForSource) case (
-      OutgoingStatus$Failed(failure: OutgoingFailure$SourceLost()),
-      final ask?,
-    )) {
-      for (final item in message!.items) {
-        final bytes = await ask(item.id);
-        if (bytes == null) return null;
-        sources[item.id] = bytes;
+    if (!_$retrying.add(clientMessageId)) return OutgoingRetryOutcome.dropped;
+    try {
+      final message = _outbox.byClientMessageId(chatId, clientMessageId);
+      final sources = <MediaItemId, SourceBytes>{};
+      if ((message?.status, askForSource ?? _askForSource) case (
+        OutgoingStatus$Failed(failure: OutgoingFailure$SourceLost()),
+        final ask?,
+      )) {
+        for (final item in message!.items) {
+          final bytes = await ask(item.id);
+          if (bytes == null) return null;
+          sources[item.id] = bytes;
+        }
       }
+      final outcome = _outbox.retry(chatId, clientMessageId, sources: sources);
+      if (outcome == OutgoingRetryOutcome.retried) {
+        _announce?.call(DemoOutgoingStrings.sending);
+      }
+      return outcome;
+    } finally {
+      _$retrying.remove(clientMessageId);
     }
-    return _outbox.retry(chatId, clientMessageId, sources: sources);
   }
+
+  /// [retry] of the outgoing message whose row is at [id]; null for a row
+  /// that is not one.
+  Future<OutgoingRetryOutcome?> retryAt(int id) async =>
+      switch (_outgoingAt(id)) {
+        final clientMessageId? => retry(clientMessageId),
+        null => null,
+      };
+
+  /// Deletes the outgoing message whose row is at [id] (its menu's
+  /// Delete): its job is cancelled and its row leaves the chat. Null for a
+  /// row that is not one; the outbox drops a repeat
+  /// ([OutgoingCancelOutcome.dropped]).
+  OutgoingCancelOutcome? deleteAt(int id) => switch (_outgoingAt(id)) {
+    final clientMessageId? => _outbox.delete(chatId, clientMessageId),
+    null => null,
+  };
+
+  /// Whether the row at [id] is an outgoing message that failed: its menu
+  /// is Retry and Delete.
+  bool isFailedAt(int id) => deliveryOf(id) == DemoDelivery.notSent;
+
+  /// What the time pill of the user's own message at [id] shows; null for
+  /// a row the chat does not hold.
+  ///
+  /// A message on its way or failed reads the outbox's status. A sent one
+  /// reads the server's: read once a peer read up to it, else one check.
+  DemoDelivery? deliveryOf(int id) {
+    final row = _$source?.getMessage(id);
+    if (row == null) return null;
+    if (_$identities[row] case final clientMessageId?) {
+      return switch (_$statuses[clientMessageId]) {
+        OutgoingStatus$Failed() => DemoDelivery.notSent,
+        OutgoingStatus$Sent() => _readOrSent(id),
+        OutgoingStatus$Preparing() ||
+        OutgoingStatus$Uploading() ||
+        OutgoingStatus$Publishing() ||
+        OutgoingStatus$Cancelled() ||
+        null => DemoDelivery.sending,
+      };
+    }
+    return _readOrSent(id);
+  }
+
+  DemoDelivery _readOrSent(int id) =>
+      (_owner.server.readUpTo(chatId).value ?? -1) >= id
+      ? DemoDelivery.read
+      : DemoDelivery.sent;
+
+  /// Notifies when what [deliveryOf] answers may have changed: an outgoing
+  /// message's status, or how far the chat's peers have read. A status
+  /// change need not move the row, so the pill cannot wait for one.
+  Listenable get deliveryChanges => _$deliveryChanges ?? _$statusRevision;
+
+  /// The client message id of the outgoing row at [id], or null.
+  String? _outgoingAt(int id) => switch (_$source?.getMessage(id)) {
+    final row? => _$identities[row],
+    null => null,
+  };
 
   /// The client message id of the row at [id]: an outgoing row's, or a
   /// sent one's; null for any other message.
@@ -375,7 +501,26 @@ final class DemoOutboxChat {
     }
   }
 
+  // The end of a send is announced: sent, or not sent.
+  void _onStatusChanged(OutgoingMessage message) {
+    _$statuses[message.clientMessageId] = message.status;
+    _$statusRevision.value++;
+    switch (message.status) {
+      case OutgoingStatus$Sent():
+        _announce?.call(DemoOutgoingStrings.sent);
+      case OutgoingStatus$Failed():
+        _announce?.call(DemoOutgoingStrings.notSent);
+      case OutgoingStatus$Preparing() ||
+          OutgoingStatus$Uploading() ||
+          OutgoingStatus$Publishing() ||
+          OutgoingStatus$Cancelled():
+        break;
+    }
+  }
+
   void _onCancelled(OutgoingCancelled cancelled) {
+    _$statuses.remove(cancelled.message.clientMessageId);
+    _$statusRevision.value++;
     if (cancelled.rowRemoved) return;
     _$source?.removeMessages([cancelled.message.position]);
   }
@@ -404,6 +549,7 @@ final class DemoOutboxChat {
   }
 
   void _dispose() {
+    _$statusRevision.dispose();
     unawaited(_$deliveries?.cancel());
     _$source?.dispose();
     _$source = null;

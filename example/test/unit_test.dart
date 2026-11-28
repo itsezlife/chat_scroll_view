@@ -126,9 +126,15 @@ import 'features/chat/message_editability_test.dart'
     as message_editability_test;
 import 'features/chat/outbox/chat_outbox_screen_test.dart'
     as outbox_chat_outbox_screen_test;
+import 'features/chat/outbox/demo_delivery_test.dart'
+    as outbox_demo_delivery_test;
 import 'features/chat/outbox/demo_outbox_test.dart' as outbox_demo_outbox_test;
 import 'features/chat/outbox/demo_outgoing_payload_test.dart'
     as outbox_demo_outgoing_payload_test;
+import 'features/chat/outbox/outgoing_badge_rtl_test.dart'
+    as outbox_outgoing_badge_rtl_test;
+import 'features/chat/outbox/outgoing_status_screen_test.dart'
+    as outbox_outgoing_status_screen_test;
 import 'features/chat/outbox/demo_upload_transport_test.dart'
     as outbox_demo_upload_transport_test;
 import 'features/chat/outbox/fake_chat_server_test.dart'
@@ -384,12 +390,24 @@ void main() {
     message_editability_test.main,
   );
   group(
+    'features/chat/outbox/demo_delivery_test.dart',
+    outbox_demo_delivery_test.main,
+  );
+  group(
     'features/chat/outbox/demo_outbox_test.dart',
     outbox_demo_outbox_test.main,
   );
   group(
     'features/chat/outbox/demo_outgoing_payload_test.dart',
     outbox_demo_outgoing_payload_test.main,
+  );
+  group(
+    'features/chat/outbox/outgoing_badge_rtl_test.dart',
+    outbox_outgoing_badge_rtl_test.main,
+  );
+  group(
+    'features/chat/outbox/outgoing_status_screen_test.dart',
+    outbox_outgoing_status_screen_test.main,
   );
   group(
     'features/chat/outbox/demo_upload_transport_test.dart',
