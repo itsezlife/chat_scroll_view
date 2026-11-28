@@ -62,6 +62,7 @@ final class ChatSendPublisher<M> implements Publisher {
     required CapabilityFeedback feedback,
     required void Function(OutgoingSent<M> sent)? onSent,
     required PublishCounters counters,
+    void Function(OutgoingMessage message)? onStatusChanged,
     required DateTime Function() now,
     required Future<OutgoingMessage?> Function(String clientMessageId)
     restoredMessage,
@@ -72,6 +73,7 @@ final class ChatSendPublisher<M> implements Publisher {
        _sender = sender,
        _feedback = feedback,
        _onSent = onSent,
+       _onStatusChanged = onStatusChanged,
        _counters = counters,
        _now = now;
 
@@ -85,6 +87,7 @@ final class ChatSendPublisher<M> implements Publisher {
   final OutgoingMessageSender<M> _sender;
   final CapabilityFeedback _feedback;
   final void Function(OutgoingSent<M> sent)? _onSent;
+  final void Function(OutgoingMessage message)? _onStatusChanged;
   final PublishCounters _counters;
   final DateTime Function() _now;
 
@@ -206,7 +209,8 @@ final class ChatSendPublisher<M> implements Publisher {
           // show the message sent: it is sent from the server's accept.
           if (_projection.lookup(chatId, clientMessageId) case final current?
               when current.status is! OutgoingStatus$Sent) {
-            _projection.put(current.withStatus(const OutgoingStatus.sent()));
+            final sent = current.withStatus(const OutgoingStatus.sent());
+            _projection.put(sent);
             _report(
               ChatEventLevel.debug,
               OutboxOp.statusChanged,
@@ -216,6 +220,7 @@ final class ChatSendPublisher<M> implements Publisher {
                 'to': const OutgoingStatus.sent().name,
               },
             );
+            _onStatusChanged?.call(sent);
           }
         } else {
           // Not accepted: the cancel applies. The job is gone by then, so

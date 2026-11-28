@@ -8,6 +8,10 @@ this package is pre-1.0.
 
 ### Added
 
+- `ChatOutbox(onStatusChanged:)`: the host hears each change of an
+  outgoing message's status (a job moving on, a failure, a retry, the
+  server's accept), so its time pill and error badge redraw when the row
+  does not move.
 - The package ([ADR 048](../../docs/adr/048-outgoing-messages.md)), on
   `content_model` and `chat_capabilities`.
 - `OutgoingMessage` and `OutgoingItem`; `OutgoingStatus` (`preparing`,

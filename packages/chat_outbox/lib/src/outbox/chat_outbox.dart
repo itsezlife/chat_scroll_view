@@ -76,6 +76,13 @@ final class ChatOutbox<M> {
   /// left a message that goes on: the host's duty there is to drop the item
   /// from its row.
   ///
+  /// [onStatusChanged] hears of each change of a message's status after its
+  /// send, with the message as it is now: the job moving on, failing, a
+  /// retry repeating a stage, the server's accept. It is what the host's
+  /// time pill and error badge redraw on, since a status change need not
+  /// move the row. A cancel is not one: [onCancelled] reports it, and the
+  /// row is gone.
+  ///
   /// [localKeyOf] and [undecodableRowOf] serve [pendingFor] after a restart,
   /// when a message is known only from its job: [localKeyOf] maps an item's
   /// media key back to its local content key (the inverse of the mapping
@@ -105,6 +112,7 @@ final class ChatOutbox<M> {
     void Function(OutgoingSent<M> sent)? onSent,
     void Function(OutgoingCancelled cancelled)? onCancelled,
     void Function(OutgoingItemDropped dropped)? onItemDropped,
+    void Function(OutgoingMessage message)? onStatusChanged,
     ContentKey Function(MediaKey mediaKey)? localKeyOf,
     IChatMessage Function(OutgoingMessage message)? undecodableRowOf,
     bool deleteOnSystemInterruption = false,
@@ -122,6 +130,7 @@ final class ChatOutbox<M> {
          onSent: onSent,
          onCancelled: onCancelled,
          onItemDropped: onItemDropped,
+         onStatusChanged: onStatusChanged,
          localKeyOf: localKeyOf,
          undecodableRowOf: undecodableRowOf,
          deleteOnSystemInterruption: deleteOnSystemInterruption,
@@ -143,11 +152,13 @@ final class ChatOutbox<M> {
     void Function(OutgoingSent<M> sent)? onSent,
     void Function(OutgoingCancelled cancelled)? onCancelled,
     void Function(OutgoingItemDropped dropped)? onItemDropped,
+    void Function(OutgoingMessage message)? onStatusChanged,
     ContentKey Function(MediaKey mediaKey)? localKeyOf,
     IChatMessage Function(OutgoingMessage message)? undecodableRowOf,
     this.deleteOnSystemInterruption = false,
   }) : _onCancelled = onCancelled,
        _onItemDropped = onItemDropped,
+       _onStatusChanged = onStatusChanged,
        _localKeyOf = localKeyOf,
        _undecodableRowOf = undecodableRowOf,
        _transfers = transfers,
@@ -202,6 +213,7 @@ final class ChatOutbox<M> {
   final void Function(OutgoingSent<M> sent)? _onSent;
   final void Function(OutgoingCancelled cancelled)? _onCancelled;
   final void Function(OutgoingItemDropped dropped)? _onItemDropped;
+  final void Function(OutgoingMessage message)? _onStatusChanged;
 
   /// The cancels accepted so far, by (chat id, client message id, item id or
   /// null for the whole message), with when: the input guard drops a repeat,
@@ -633,6 +645,7 @@ final class ChatOutbox<M> {
         sender: sender,
         feedback: _feedback,
         onSent: _onSent,
+        onStatusChanged: _onStatusChanged,
         counters: _$publishCounters,
         now: _now,
         restoredMessage: _restoredMessage,
@@ -1096,13 +1109,12 @@ final class ChatOutbox<M> {
     final stage = job.stage ?? PublishStage.publish;
     // The job's stage at once, not at its next snapshot: a repeat failure
     // then reads as a new one, and the row sinks again.
-    _projection.put(
-      message.withStatus(switch (stage) {
-        PublishStage.prepare => const OutgoingStatus.preparing(),
-        PublishStage.upload => const OutgoingStatus.uploading(),
-        PublishStage.publish => const OutgoingStatus.publishing(),
-      }),
-    );
+    final retried = message.withStatus(switch (stage) {
+      PublishStage.prepare => const OutgoingStatus.preparing(),
+      PublishStage.upload => const OutgoingStatus.uploading(),
+      PublishStage.publish => const OutgoingStatus.publishing(),
+    });
+    _projection.put(retried);
     _$strategies[chatId]?.retry(clientMessageId);
     ChatDiagnostics.current.emit(
       ChatEventLevel.info,
@@ -1120,6 +1132,7 @@ final class ChatOutbox<M> {
       },
     );
     _syncInFlight(chatId);
+    _onStatusChanged?.call(_current(retried));
     return OutgoingRetryOutcome.retried;
   }
 
@@ -1633,6 +1646,9 @@ final class ChatOutbox<M> {
       final stage?,
     )) {
       _failed(message, failure, stage, job);
+    }
+    if (_projection.lookup(chatId, clientMessageId) case final current?) {
+      _onStatusChanged?.call(_current(current));
     }
   }
 

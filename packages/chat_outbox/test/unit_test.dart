@@ -32,6 +32,8 @@ import 'outbox/chat_outbox_send_origin_test.dart'
     as outbox_chat_outbox_send_origin_test;
 import 'outbox/chat_outbox_send_test.dart' as outbox_chat_outbox_send_test;
 import 'outbox/chat_outbox_sender_test.dart' as outbox_chat_outbox_sender_test;
+import 'outbox/chat_outbox_status_changes_test.dart'
+    as outbox_chat_outbox_status_changes_test;
 import 'outbox/chat_outbox_test.dart' as outbox_chat_outbox_test;
 import 'testing/fake_outgoing_id_strategy_test.dart'
     as testing_fake_outgoing_id_strategy_test;
@@ -92,6 +94,10 @@ void main() {
   group(
     'outbox/chat_outbox_sender_test.dart',
     outbox_chat_outbox_sender_test.main,
+  );
+  group(
+    'outbox/chat_outbox_status_changes_test.dart',
+    outbox_chat_outbox_status_changes_test.main,
   );
   group('outbox/chat_outbox_test.dart', outbox_chat_outbox_test.main);
   group(
