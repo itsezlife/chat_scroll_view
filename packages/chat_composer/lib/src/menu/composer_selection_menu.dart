@@ -4,7 +4,6 @@ import 'dart:ui' show FlutterView;
 
 import 'package:chat_composer/src/menu/composer_formatting_option.dart';
 import 'package:chat_composer/src/menu/composer_menu_policy.dart';
-import 'package:chat_composer/src/menu/overlay_back_button_listener.dart';
 import 'package:chat_composer/src/menu/selection_menu_appearance.dart';
 import 'package:chat_composer/src/menu/selection_menu_items.dart';
 import 'package:chat_composer/src/menu/selection_menu_metrics.dart';

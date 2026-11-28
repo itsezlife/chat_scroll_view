@@ -27,6 +27,7 @@ export 'src/icons/chrome_icon_id.dart';
 export 'src/icons/chrome_icon_painter.dart';
 export 'src/icons/chrome_icon_registry.dart';
 export 'src/icons/chrome_icon_scope.dart';
+export 'src/menu/overlay_back_button_listener.dart';
 export 'src/menu/pointer_menu.dart';
 export 'src/menu/pointer_menu_aim.dart';
 export 'src/menu/pointer_menu_entry.dart';

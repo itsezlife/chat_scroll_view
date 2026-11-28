@@ -27,6 +27,8 @@ import 'glass/glass_surface_route_test.dart' as glass_surface_route_test;
 import 'glass/glass_surface_test.dart' as glass_surface_test;
 import 'icons/chrome_icon_registry_test.dart' as chrome_icon_registry_test;
 import 'icons/chrome_icon_test.dart' as chrome_icon_test;
+import 'menu/overlay_back_button_listener_test.dart'
+    as overlay_back_button_listener_test;
 import 'menu/pointer_menu_aim_test.dart' as pointer_menu_aim_test;
 import 'menu/pointer_menu_entry_test.dart' as pointer_menu_entry_test;
 import 'menu/pointer_menu_golden_test.dart' as pointer_menu_golden_test;
@@ -90,6 +92,10 @@ void main() {
   group('glass/glass_surface_test.dart', glass_surface_test.main);
   group('icons/chrome_icon_registry_test.dart', chrome_icon_registry_test.main);
   group('icons/chrome_icon_test.dart', chrome_icon_test.main);
+  group(
+    'menu/overlay_back_button_listener_test.dart',
+    overlay_back_button_listener_test.main,
+  );
   group('menu/pointer_menu_aim_test.dart', pointer_menu_aim_test.main);
   group('menu/pointer_menu_test.dart', pointer_menu_test.main);
   group('menu/pointer_menu_golden_test.dart', pointer_menu_golden_test.main);
