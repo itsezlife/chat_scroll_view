@@ -229,6 +229,43 @@ abstract final class OutgoingIdStrategyContract {
         });
       });
 
+      group('removeAll', () {
+        test('the rows leave together in one rebaseTail and the rows after '
+            'them move down', () {
+          allocate('a');
+          allocate('b');
+          allocate('c');
+          allocate('d');
+
+          expect(strategy.removeAll(['b', 'd', 'nope']), {'b', 'd'});
+
+          expectTail(['a', 'c']);
+          expect(tail.rebases, hasLength(1));
+          expect(strategy.positionOf('b'), isNull);
+          expect(strategy.positionOf('d'), isNull);
+          expect(tail.at(103), isNull);
+          expect(tail.at(104), isNull);
+        });
+
+        test('every row removed empties the tail', () {
+          allocate('a');
+          allocate('b');
+
+          expect(strategy.removeAll(['a', 'b']), {'a', 'b'});
+
+          expectTail([]);
+          expect(allocate('c'), 101);
+        });
+
+        test('answers none and moves nothing for rows it does not hold', () {
+          allocate('a');
+
+          expect(strategy.removeAll(['nope']), isEmpty);
+          expect(strategy.removeAll([]), isEmpty);
+          expect(tail.rebases, isEmpty);
+        });
+      });
+
       group('confirm', () {
         test('the confirmed row leaves at tip+1 and the tip advances', () {
           allocate('a');

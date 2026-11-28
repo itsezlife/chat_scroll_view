@@ -78,6 +78,16 @@ final class ChatOutbox<M> {
   /// [itemOf] answers with), and [undecodableRowOf] builds the row of a
   /// message whose payload the [codec] cannot read, which has no model for
   /// [rowOf].
+  ///
+  /// [deleteOnSystemInterruption] is what a message does when the system
+  /// ends the transfer envelope its job runs in (an OS time limit or
+  /// expiry, a low-memory kill): by default (false, on every platform) the
+  /// job pauses and the message keeps sending in its stage, going on once
+  /// the app is back in the foreground; true deletes it instead, as a
+  /// cancel does. The envelope itself, its notification's strings, the
+  /// iOS `Info.plist` entries and the Play Console declaration are the
+  /// host's duties toward `mpx_transfer` (see its README, "Android" and
+  /// "iOS"); the outbox only reads what the jobs do.
   ChatOutbox({
     required OutboxTransfers transfers,
     required OutgoingPayloadCodec<M> codec,
@@ -93,6 +103,7 @@ final class ChatOutbox<M> {
     void Function(OutgoingItemDropped dropped)? onItemDropped,
     ContentKey Function(MediaKey mediaKey)? localKeyOf,
     IChatMessage Function(OutgoingMessage message)? undecodableRowOf,
+    bool deleteOnSystemInterruption = false,
   }) : this.over(
          OutboxProjection(),
          transfers: transfers,
@@ -109,6 +120,7 @@ final class ChatOutbox<M> {
          onItemDropped: onItemDropped,
          localKeyOf: localKeyOf,
          undecodableRowOf: undecodableRowOf,
+         deleteOnSystemInterruption: deleteOnSystemInterruption,
        );
 
   /// An outbox reading [projection], for tests that set rows up directly.
@@ -129,6 +141,7 @@ final class ChatOutbox<M> {
     void Function(OutgoingItemDropped dropped)? onItemDropped,
     ContentKey Function(MediaKey mediaKey)? localKeyOf,
     IChatMessage Function(OutgoingMessage message)? undecodableRowOf,
+    this.deleteOnSystemInterruption = false,
   }) : _onCancelled = onCancelled,
        _onItemDropped = onItemDropped,
        _localKeyOf = localKeyOf,
@@ -163,6 +176,10 @@ final class ChatOutbox<M> {
 
   /// The tag prefix every publish job of [chatId] starts with.
   static String tagPrefixOf(String chatId) => 'chat:$chatId:';
+
+  /// Whether a message whose job the system's end of the transfer envelope
+  /// paused is deleted rather than kept sending; see [ChatOutbox.new].
+  final bool deleteOnSystemInterruption;
 
   final OutboxProjection _projection;
   final OutboxTransfers _transfers;
@@ -226,6 +243,18 @@ final class ChatOutbox<M> {
   final Map<String, Completer<OutgoingMessage?>> _$restoreWaiters = {};
 
   int _$restored = 0;
+
+  /// Jobs the system's end of the transfer envelope paused, until they go
+  /// on: each is reported `systemInterrupted` once, then `resumed` once.
+  final Set<PublishJobId> _$interrupted = {};
+
+  /// Messages the engine took away from the outbox (their job left without
+  /// its owner cancelling it) or that leave as their job paused, by chat
+  /// and client message id, with what made them go: deleted together once
+  /// the engine's burst of snapshots is read ([_leaveSoon]).
+  final Map<String, Map<String, _Trigger>> _$leaving = {};
+  Timer? _$leavingFlush;
+
   bool _$disposed = false;
 
   // --- Sending ---------------------------------------------------------------
@@ -713,15 +742,29 @@ final class ChatOutbox<M> {
     String clientMessageId, {
     required _Trigger trigger,
   }) {
+    final (outcome, now) = _admitCancel(chatId, clientMessageId, trigger);
+    if (now != null) _cancelNow([now], trigger);
+    return outcome;
+  }
+
+  /// Admits a cancel of the message [clientMessageId] of [chatId]: answers
+  /// the outcome, and the message to cancel now when it is
+  /// [OutgoingCancelOutcome.cancelled]. A message whose server answer is in
+  /// flight is cancelled once it comes, unless it is an accept.
+  (OutgoingCancelOutcome, OutgoingMessage?) _admitCancel(
+    String chatId,
+    String clientMessageId,
+    _Trigger trigger,
+  ) {
     if (_repeated(chatId, clientMessageId, null)) {
-      return OutgoingCancelOutcome.dropped;
+      return (OutgoingCancelOutcome.dropped, null);
     }
     final message = switch (_projection.lookup(chatId, clientMessageId)) {
       final message? => _current(message),
       null => null,
     };
-    if (message == null) return OutgoingCancelOutcome.unknown;
-    if (_tooLate(message)) return OutgoingCancelOutcome.tooLate;
+    if (message == null) return (OutgoingCancelOutcome.unknown, null);
+    if (_tooLate(message)) return (OutgoingCancelOutcome.tooLate, null);
     _$cancelsAccepted[(chatId, clientMessageId, null)] = _now();
     final key = (chatId, clientMessageId);
     if (_projection.sending.contains(key)) {
@@ -729,13 +772,12 @@ final class ChatOutbox<M> {
       // once it answers, unless the answer is an accept.
       _projection.cancelRequests[key] = () {
         if (_projection.lookup(chatId, clientMessageId) case final message?) {
-          _cancelNow(_current(message), trigger);
+          _cancelNow([_current(message)], trigger);
         }
       };
-      return OutgoingCancelOutcome.pending;
+      return (OutgoingCancelOutcome.pending, null);
     }
-    _cancelNow(message, trigger);
-    return OutgoingCancelOutcome.cancelled;
+    return (OutgoingCancelOutcome.cancelled, message);
   }
 
   /// Whether [message] is past cancelling, the server having accepted it;
@@ -784,45 +826,63 @@ final class ChatOutbox<M> {
     return true;
   }
 
-  /// Cancels [message]'s job and makes the message Absent, its row leaving
-  /// the tail.
-  void _cancelNow(OutgoingMessage message, _Trigger trigger) {
-    final OutgoingMessage(:chatId, :clientMessageId) = message;
-    final job = _projection.jobOf(chatId, clientMessageId);
-    // The engine may have dropped the job already (it lost its last item,
-    // or ended); the message goes all the same.
-    if (job != null) _transfers.cancel(job.id);
-    final rowRemoved = _$strategies[chatId]?.remove(clientMessageId) ?? false;
-    _projection.remove(chatId, clientMessageId);
-    _$itemsDropped.remove((chatId, clientMessageId));
-    _$cancelsAccepted[(chatId, clientMessageId, null)] ??= _now();
-    _$cancels++;
-    ChatDiagnostics.current.emit(
-      ChatEventLevel.info,
-      ChatEventCategory.outbox,
-      OutboxOp.cancelled,
-      correlation: ChatCorrelation(
-        chatId: chatId,
-        clientMessageId: clientMessageId,
-        jobId: job?.id,
-      ),
-      fields: () => {
-        'trigger': trigger.name,
-        'stage': switch (message.status) {
-          OutgoingStatus$Preparing() => PublishStage.prepare.name,
-          OutgoingStatus$Uploading() => PublishStage.upload.name,
-          OutgoingStatus$Publishing() => PublishStage.publish.name,
-          final status => status.name,
+  /// Cancels the jobs of [messages], all of one chat, and makes the
+  /// messages Absent, their rows leaving the tail in one `rebaseTail`.
+  void _cancelNow(List<OutgoingMessage> messages, _Trigger trigger) {
+    if (messages.isEmpty) return;
+    final chatId = messages.first.chatId;
+    final jobs = [
+      for (final message in messages)
+        _projection.jobOf(chatId, message.clientMessageId),
+    ];
+    for (final job in jobs) {
+      // The engine may have dropped the job already (it lost its last item,
+      // ended, or the envelope's cancel of all took it); the message goes
+      // all the same.
+      if (job != null) _transfers.cancel(job.id);
+    }
+    final rowsRemoved =
+        _$strategies[chatId]?.removeAll([
+          for (final message in messages) message.clientMessageId,
+        ]) ??
+        const <String>{};
+    for (final (index, message) in messages.indexed) {
+      final clientMessageId = message.clientMessageId;
+      final job = jobs[index];
+      _projection.remove(chatId, clientMessageId);
+      if (job != null) _$interrupted.remove(job.id);
+      _$itemsDropped.remove((chatId, clientMessageId));
+      _$cancelsAccepted[(chatId, clientMessageId, null)] ??= _now();
+      _$cancels++;
+      ChatDiagnostics.current.emit(
+        ChatEventLevel.info,
+        ChatEventCategory.outbox,
+        OutboxOp.cancelled,
+        correlation: ChatCorrelation(
+          chatId: chatId,
+          clientMessageId: clientMessageId,
+          jobId: job?.id,
+        ),
+        fields: () => {
+          'trigger': trigger.name,
+          'stage': switch (message.status) {
+            OutgoingStatus$Preparing() => PublishStage.prepare.name,
+            OutgoingStatus$Uploading() => PublishStage.upload.name,
+            OutgoingStatus$Publishing() => PublishStage.publish.name,
+            final status => status.name,
+          },
         },
-      },
-    );
+      );
+    }
     _syncInFlight(chatId);
-    _onCancelled?.call(
-      OutgoingCancelled(
-        message: message.withStatus(const OutgoingStatus.cancelled()),
-        rowRemoved: rowRemoved,
-      ),
-    );
+    for (final message in messages) {
+      _onCancelled?.call(
+        OutgoingCancelled(
+          message: message.withStatus(const OutgoingStatus.cancelled()),
+          rowRemoved: rowsRemoved.contains(message.clientMessageId),
+        ),
+      );
+    }
   }
 
   /// Takes item [index] out of [message] and answers the message without
@@ -1187,8 +1247,135 @@ final class ChatOutbox<M> {
         if (clientMessageId == null || clientMessageId.contains(':')) continue;
         _projectJob(chatId, clientMessageId, job);
       }
+      _projectRemovals(chatId, jobs);
     });
     _syncInFlight(chatId);
+  }
+
+  /// Deletes each message of [chatId] whose job left [jobs] without the
+  /// outbox cancelling it: the user cancelled every job of the system's
+  /// transfer envelope from its notification or progress UI, and the
+  /// engine removed them. (A cancel of the outbox's own makes its message
+  /// Absent first, so its job's leaving finds nothing here.)
+  ///
+  /// Only a job seen in an earlier snapshot counts as gone: a snapshot the
+  /// engine sent before a new job was made may arrive after the send, and
+  /// it would read as the new job's removal. A sent message stays sent
+  /// when its job leaves (the engine forgets a completed job after a while).
+  void _projectRemovals(String chatId, List<PublishJobSnapshot> jobs) {
+    final present = {for (final job in jobs) job.id};
+    for (final message in _projection.tailOf(chatId)) {
+      if (message.status is OutgoingStatus$Sent) continue;
+      final job = _projection.jobOf(chatId, message.clientMessageId);
+      if (job == null || job.state == null || present.contains(job.id)) {
+        continue;
+      }
+      _leaveSoon(
+        chatId,
+        message.clientMessageId,
+        _Trigger.notificationCancelAll,
+      );
+    }
+  }
+
+  /// Follows the system's end of the transfer envelope for [message]'s
+  /// [job]: reports `systemInterrupted` once when the job pauses for it,
+  /// and deletes the message when [deleteOnSystemInterruption] says so;
+  /// reports `resumed` once the job goes on.
+  ///
+  /// A kept message needs nothing more: the paused job reads as its stage
+  /// (`JobProjection`), so it keeps sending.
+  void _followInterruption(OutgoingMessage message, PublishJobSnapshot job) {
+    final correlation = ChatCorrelation(
+      chatId: message.chatId,
+      clientMessageId: message.clientMessageId,
+      jobId: job.id,
+    );
+    switch (job.state) {
+      case PublishJobState$Paused(reason: PauseReason.systemInterrupted):
+        if (!_$interrupted.add(job.id)) return;
+        ChatDiagnostics.current.emit(
+          ChatEventLevel.info,
+          ChatEventCategory.outbox,
+          OutboxOp.systemInterrupted,
+          correlation: correlation,
+          fields: () => {
+            'action': deleteOnSystemInterruption ? 'deleted' : 'kept',
+          },
+        );
+        if (deleteOnSystemInterruption) {
+          _leaveSoon(
+            message.chatId,
+            message.clientMessageId,
+            _Trigger.systemInterruption,
+          );
+        }
+      case PublishJobState$Preparing() ||
+              PublishJobState$Uploading() ||
+              PublishJobState$Publishing() ||
+              PublishJobState$AwaitingPublisher()
+          when _$interrupted.remove(job.id):
+        final (status: _, :stage) = JobProjection.of(job, message.status);
+        ChatDiagnostics.current.emit(
+          ChatEventLevel.info,
+          ChatEventCategory.outbox,
+          OutboxOp.resumed,
+          correlation: correlation,
+          fields: () => {'stage': ?stage?.name},
+        );
+      case _:
+        // Paused for another reason, or ended: not a resume.
+        if (job.state is! PublishJobState$Paused) _$interrupted.remove(job.id);
+    }
+  }
+
+  /// Deletes the message [clientMessageId] of [chatId] for [trigger] once
+  /// the snapshots the engine sent in one burst are read: a cancel of all,
+  /// or the system's end of the envelope, reaches every job in it one
+  /// snapshot at a time, and the chat's messages then leave together, their
+  /// rows in one `rebaseTail`.
+  ///
+  /// The engine sends that burst within one turn of the event loop, its
+  /// snapshots delivered as microtasks; a zero timer runs after all of
+  /// them, where a microtask would run between two.
+  void _leaveSoon(String chatId, String clientMessageId, _Trigger trigger) {
+    (_$leaving[chatId] ??= {})[clientMessageId] ??= trigger;
+    _$leavingFlush ??= Timer(Duration.zero, _leave);
+  }
+
+  void _leave() {
+    _$leavingFlush = null;
+    if (_$disposed) return;
+    final leaving = {..._$leaving};
+    _$leaving.clear();
+    for (final MapEntry(key: chatId, value: messages) in leaving.entries) {
+      for (final trigger in {...messages.values}) {
+        final now = <OutgoingMessage>[];
+        var pending = 0;
+        for (final MapEntry(key: clientMessageId, value: of)
+            in messages.entries) {
+          if (of != trigger) continue;
+          switch (_admitCancel(chatId, clientMessageId, trigger)) {
+            case (OutgoingCancelOutcome.cancelled, final message?):
+              now.add(message);
+            case (OutgoingCancelOutcome.pending, _):
+              pending++;
+            case _:
+              break;
+          }
+        }
+        _cancelNow(now, trigger);
+        if (trigger == _Trigger.notificationCancelAll) {
+          ChatDiagnostics.current.emit(
+            ChatEventLevel.info,
+            ChatEventCategory.outbox,
+            OutboxOp.envelopeCancelAll,
+            correlation: ChatCorrelation(chatId: chatId),
+            fields: () => {'deleted': now.length, 'pending': pending},
+          );
+        }
+      }
+    }
   }
 
   void _projectJob(
@@ -1206,6 +1393,7 @@ final class ChatOutbox<M> {
         _projection.jobOf(chatId, clientMessageId)?.id != job.id) {
       return;
     }
+    _followInterruption(message, job);
     final kept = _dropRemovedItems(message, job);
     if (job.state is PublishJobState$AwaitingOwner &&
         kept.items.isEmpty &&
@@ -1404,6 +1592,9 @@ final class ChatOutbox<M> {
   Future<void> dispose() async {
     if (_$disposed) return;
     _$disposed = true;
+    _$leavingFlush?.cancel();
+    _$leavingFlush = null;
+    _$leaving.clear();
     final watches = [..._$watches.values];
     _$watches.clear();
     for (final notifier in _$inFlightNotifiers.values) {
@@ -1447,6 +1638,14 @@ enum _Trigger {
   /// A cell's status control cancelled an item's upload, which the engine
   /// took out of the job.
   statusControl,
+
+  /// The system ended the transfer envelope, and the host asked for the
+  /// message to be deleted then.
+  systemInterruption,
+
+  /// The user cancelled every job of the transfer envelope from the
+  /// system's UI (its notification, or the progress it shows).
+  notificationCancelAll,
 }
 
 /// What the outbox does with a job that lost its last item.

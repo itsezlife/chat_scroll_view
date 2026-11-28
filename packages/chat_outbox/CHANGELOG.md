@@ -93,6 +93,19 @@ this package is pre-1.0.
 - `OutboxTransfers.cancel`, `removeItem` and `commit`; `FakeOutboxTransfers`
   records them and scripts a status control cancel with `cancelUpload`.
 - The snapshot's `cancels`, `itemsDropped` and `cancelsTooLate` counters.
+- The system envelope: a job the system's end of the envelope paused
+  (`paused(systemInterrupted)`) keeps its message sending and resumes;
+  `ChatOutbox(deleteOnSystemInterruption: true)` deletes the message
+  instead. A cancel of all from the envelope's notification, which the
+  outbox reads as its jobs leaving without its cancel, deletes every
+  outgoing message among them, each chat's rows in one `rebaseTail`.
+  `OutboxOp`: `systemInterrupted`, `resumed`, `envelopeCancelAll`; the
+  `cancelled` triggers `systemInterruption` and `notificationCancelAll`.
+- `OutgoingIdStrategy.removeAll(clientMessageIds)`: rows that leave
+  together, in one `rebaseTail`. An implementation of the seam adds it;
+  `remove` stays.
+- A message the server accepts while a cancel waits for the answer is
+  sent from the accept, also when its job is gone.
 - `OutboxOp`: `cancelled`, `itemDropped`, `cancelTooLate`,
   `awaitingOwner`, `actionDropped`.
 - `ChatOutbox.pendingFor(chatId)`: after a restart, the chat's outgoing

@@ -294,18 +294,30 @@ final class ProvisionalTailOrder {
   }
 
   /// See [OutgoingIdStrategy.remove].
-  bool remove(String clientMessageId) {
+  bool remove(String clientMessageId) =>
+      removeAll([clientMessageId]).isNotEmpty;
+
+  /// See [OutgoingIdStrategy.removeAll].
+  Set<String> removeAll(List<String> clientMessageIds) {
     sync();
-    final index = _indexOf(clientMessageId);
-    if (index < 0) {
-      _$settled.remove(clientMessageId);
-      return false;
+    final leaving = {
+      for (final id in clientMessageIds)
+        if (_indexOf(id) >= 0) id,
+    };
+    for (final id in clientMessageIds) {
+      if (!leaving.contains(id)) _$settled.remove(id);
     }
+    if (leaving.isEmpty) return leaving;
     final before = _positions();
-    _$rows.removeAt(index);
-    _rebase(TailRebaseReason.removed, before, clientMessageId: clientMessageId);
+    _$rows.removeWhere((row) => leaving.contains(row.id));
+    _rebase(
+      TailRebaseReason.removed,
+      before,
+      // One row names itself; a batch names only the rows it moved.
+      clientMessageId: leaving.length == 1 ? leaving.single : null,
+    );
     if (_$rows.isEmpty) _$start = null;
-    return true;
+    return leaving;
   }
 
   /// See [OutgoingIdStrategy.confirm].

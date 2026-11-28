@@ -201,6 +201,22 @@ final class ChatSendPublisher<M> implements Publisher {
             'stage': PublishStage.publish.name,
           });
           _counters.cancelsTooLate++;
+          // The job may be gone already (the system's cancel of every job in
+          // the transfer envelope took it), and then no completion comes to
+          // show the message sent: it is sent from the server's accept.
+          if (_projection.lookup(chatId, clientMessageId) case final current?
+              when current.status is! OutgoingStatus$Sent) {
+            _projection.put(current.withStatus(const OutgoingStatus.sent()));
+            _report(
+              ChatEventLevel.debug,
+              OutboxOp.statusChanged,
+              correlation(),
+              {
+                'from': current.status.name,
+                'to': const OutgoingStatus.sent().name,
+              },
+            );
+          }
         } else {
           // Not accepted: the cancel applies. The job is gone by then, so
           // the engine reads nothing of this answer.
