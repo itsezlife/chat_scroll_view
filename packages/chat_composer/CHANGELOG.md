@@ -8,6 +8,21 @@ is pre-1.0.
 
 ### Added (draft options overlay)
 
+- The Android presentation: `DraftOptionsPolicy$Android` draws the
+  overlay as `DraftOptionsCardView`, a card over the window with the header
+  (title and subtitle) and the live preview at its list's bottom, and the
+  link page's rows in a glass menu under it (`GlassMaterial.scrimMenu`,
+  sampling the scrim's glass source). The card follows the preview: its
+  visible top stands 4 above the bubble, within 80 % of the display, the
+  group centred; in landscape it is full height beside the menu. It opens
+  and closes by fading and scaling about its centre (250 ms on the list
+  cubic) and follows an option change 50 ms behind, then scrolls its list to
+  the card's end. A press on the band above the visible top closes it like
+  any press outside. The values are `DraftOptionsPolicy$Android.card`
+  (`DraftOptionsCardLayout`, placing by `resolve` into a
+  `DraftOptionsCardGeometry`) and `.cardMotion` (`DraftOptionsCardMotion`);
+  the chrome motion speed scales every motion. `DraftOptionsSession`
+  reports each motion (`reportMotion`, `OverlayOp.motion`).
 - `DraftOptionsController` opens the draft options overlay from the link
   preview strip: `DraftOptionsOverlay` over a `ChromeScrim` in the root
   overlay, the link page with its title from

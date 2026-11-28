@@ -1,4 +1,5 @@
 import 'package:chat_composer/src/draft_options/draft_link_page_policy.dart';
+import 'package:chat_composer/src/draft_options/draft_options_card.dart';
 import 'package:chat_composer/src/input/composer_keyboard_intent.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/foundation.dart';
@@ -145,6 +146,8 @@ sealed class DraftOptionsPolicy {
     DraftOptionsLinkChoice linkChoice,
     bool keepsChosenLinkSelected,
     DraftLinkPagePolicy linkPage,
+    DraftOptionsCardLayout card,
+    DraftOptionsCardMotion cardMotion,
   }) = DraftOptionsPolicy$Android;
 
   /// See [DraftOptionsPolicy$IOS].
@@ -251,7 +254,9 @@ sealed class DraftOptionsPolicy {
 
 /// The Android form: a full-window card over the chat under the Android
 /// scrim, applied live, opening on a pending page; pages reply, forward,
-/// link, each headed by a title and subtitle.
+/// link, each headed by a title and subtitle. The card's metrics are [card]
+/// and its motion [cardMotion]; the link page's rows stand in a glass menu
+/// under it that samples the scrim's glass source.
 final class DraftOptionsPolicy$Android extends DraftOptionsPolicy {
   /// The Android policy; every field is the platform's default unless given.
   const DraftOptionsPolicy$Android({
@@ -268,10 +273,18 @@ final class DraftOptionsPolicy$Android extends DraftOptionsPolicy {
     super.linkChoice = DraftOptionsLinkChoice.severalLinks,
     super.keepsChosenLinkSelected = false,
     super.linkPage = DraftLinkPagePolicy.android,
+    this.card = DraftOptionsCardLayout.android,
+    this.cardMotion = DraftOptionsCardMotion.android,
   });
 
   @override
   final ChromeScrimPreset scrim;
+
+  /// Where the card and its menu stand, portrait and landscape.
+  final DraftOptionsCardLayout card;
+
+  /// How the card opens, closes and follows a change.
+  final DraftOptionsCardMotion cardMotion;
 
   @override
   DraftOptionsPresentation get presentation => DraftOptionsPresentation.android;
