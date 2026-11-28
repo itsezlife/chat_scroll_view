@@ -6,6 +6,7 @@ library;
 
 import 'package:chat_composer/chat_composer.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:flutter/animation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -194,5 +195,90 @@ void main() {
       const DraftOptionsPolicy$Web().presentation,
       DraftOptionsPresentation.web,
     );
+  });
+
+  group('link page', () {
+    const metrics = DraftLinkRowMetrics(
+      height: 48,
+      iconSize: 24,
+      iconStart: 17,
+      labelStart: 59,
+      fontSize: 16,
+      minWidthBeyondLabel: 77,
+    );
+
+    test('Android: size row always (inert at 50 %), 8 gap at 6 %, apply, '
+        '"Do not preview" with a 12 % press, next link, ripple, 300 ms '
+        'ease-out-quint label', () {
+      final page = const DraftOptionsPolicy$Android().linkPage;
+
+      expect(page.sizeRow, DraftLinkSizeRow.inertWithoutShrinkable);
+      expect(page.inertOpacity, 0.5);
+      expect(page.positionNeedsText, isFalse);
+      expect(page.separator, DraftLinkSeparator.gap);
+      expect(page.separatorExtent, 8);
+      expect(page.separatorOpacity, 0.06);
+      expect(page.applyRow, isTrue);
+      expect(page.removeLabel, DraftLinkRemoveLabel.doNotPreview);
+      expect(page.removePressOpacity, 0.12);
+      expect(page.linkHint, isFalse);
+      expect(page.removeFallsBackToNextLink, isTrue);
+      expect(page.rowMetrics, metrics);
+      expect(
+        page.labelChange,
+        const MotionSpec(Duration(milliseconds: 300), Curves.easeOutQuint),
+      );
+      expect(page.ink, ChromeInkKind.ripple);
+      expect(page.rowGuard, const Duration(milliseconds: 400));
+    });
+
+    test('iOS: size row only when shrinkable, separator, apply, "Do not '
+        'preview", highlight, the label at once', () {
+      final page = const DraftOptionsPolicy$IOS().linkPage;
+
+      expect(page.sizeRow, DraftLinkSizeRow.whenShrinkable);
+      expect(page.positionNeedsText, isFalse);
+      expect(page.separator, DraftLinkSeparator.gap);
+      expect(page.applyRow, isTrue);
+      expect(page.removeLabel, DraftLinkRemoveLabel.doNotPreview);
+      expect(page.linkHint, isFalse);
+      expect(page.removeFallsBackToNextLink, isFalse);
+      expect(page.labelChange.duration, Duration.zero);
+      expect(page.ink, ChromeInkKind.highlight);
+      expect(const DraftOptionsPolicy$IOS(iPad: true).linkPage, page);
+    });
+
+    test('desktop: 4 skip above, position only with text, size only when '
+        'shrinkable, no apply row, "Remove preview", the link hint, pointer, '
+        'instant', () {
+      final page = const DraftOptionsPolicy$Desktop().linkPage;
+
+      expect(page.sizeRow, DraftLinkSizeRow.whenShrinkable);
+      expect(page.positionNeedsText, isTrue);
+      expect(page.separator, DraftLinkSeparator.skipAbove);
+      expect(page.separatorExtent, 4);
+      expect(page.applyRow, isFalse);
+      expect(page.removeLabel, DraftLinkRemoveLabel.removePreview);
+      expect(page.linkHint, isTrue);
+      expect(page.removeFallsBackToNextLink, isFalse);
+      expect(page.labelChange.duration, Duration.zero);
+      expect(page.ink, ChromeInkKind.pointer);
+    });
+
+    test('web: the menu applies each choice, no apply row', () {
+      final page = const DraftOptionsPolicy$Web().linkPage;
+
+      expect(page.applyRow, isFalse);
+      expect(page.sizeRow, DraftLinkSizeRow.whenShrinkable);
+    });
+
+    test('a host may override a field', () {
+      final policy = DraftOptionsPolicy.android(
+        linkPage: DraftLinkPagePolicy.android.copyWith(applyRow: false),
+      );
+
+      expect(policy.linkPage.applyRow, isFalse);
+      expect(policy.linkPage.ink, ChromeInkKind.ripple);
+    });
   });
 }

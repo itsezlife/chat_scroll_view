@@ -75,6 +75,16 @@ final ChromeStrings demoChromeStrings = ChromeStrings(
     draftOptions: const DraftOptionsStrings(
       linkTitle: 'Предпросмотр ссылки',
       linkSubtitle: 'Вы можете настроить ссылку',
+      moveUp: 'Переместить вверх',
+      moveDown: 'Переместить вниз',
+      enlargePhoto: 'Увеличить фото',
+      shrinkPhoto: 'Уменьшить фото',
+      enlargeVideo: 'Увеличить видео',
+      shrinkVideo: 'Уменьшить видео',
+      applyChanges: 'Применить изменения',
+      doNotPreview: 'Не показывать превью',
+      removePreview: 'Убрать превью',
+      chooseLinkHint: 'Нажмите на ссылку, чтобы выбрать',
     ),
   ),
   formatting: FormattingStrings(

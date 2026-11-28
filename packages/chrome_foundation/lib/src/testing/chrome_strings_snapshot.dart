@@ -72,6 +72,18 @@ abstract final class ChromeStringsSnapshot {
       'composer.slowModeEnded': composer.slowModeEnded,
       'composer.draftOptions[linkTitle]': composer.draftOptions.linkTitle,
       'composer.draftOptions[linkSubtitle]': composer.draftOptions.linkSubtitle,
+      'composer.draftOptions[moveUp]': composer.draftOptions.moveUp,
+      'composer.draftOptions[moveDown]': composer.draftOptions.moveDown,
+      'composer.draftOptions[enlargePhoto]': composer.draftOptions.enlargePhoto,
+      'composer.draftOptions[shrinkPhoto]': composer.draftOptions.shrinkPhoto,
+      'composer.draftOptions[enlargeVideo]': composer.draftOptions.enlargeVideo,
+      'composer.draftOptions[shrinkVideo]': composer.draftOptions.shrinkVideo,
+      'composer.draftOptions[applyChanges]': composer.draftOptions.applyChanges,
+      'composer.draftOptions[doNotPreview]': composer.draftOptions.doNotPreview,
+      'composer.draftOptions[removePreview]':
+          composer.draftOptions.removePreview,
+      'composer.draftOptions[chooseLinkHint]':
+          composer.draftOptions.chooseLinkHint,
       // 90 s, spelled from a motion constant: only the motion directory
       // writes a literal duration.
       'composer.slowModeCountdown[90s]': composer.slowModeCountdown(

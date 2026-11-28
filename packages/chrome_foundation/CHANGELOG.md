@@ -6,6 +6,16 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (link page rows, breaking)
+
+- `DraftOptionsStrings` gains the link page's row labels (`moveUp`,
+  `moveDown`, `enlargePhoto`, `shrinkPhoto`, `enlargeVideo`, `shrinkVideo`,
+  `applyChanges`, `doNotPreview`, `removePreview`) and `chooseLinkHint`.
+  Required: a host that builds `DraftOptionsStrings` adds them.
+- Stock icons `moveUp`, `moveDown`, `enlarge`, `shrink`, `delete`.
+- `ChromeMenuRowTiming`: a toggle row's label cross-fade (300 ms ease out
+  quint) and the instant change.
+
 ### Added (draft options strings, breaking)
 
 - `ComposerStrings.draftOptions`, a `DraftOptionsStrings` (`linkTitle`,

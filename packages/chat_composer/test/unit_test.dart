@@ -11,6 +11,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'boundaries_test.dart' as boundaries_test;
 import 'draft_options/draft_link_choice_test.dart'
     as draft_options_draft_link_choice_test;
+import 'draft_options/draft_link_page_test.dart'
+    as draft_options_draft_link_page_test;
+import 'draft_options/draft_link_rows_test.dart'
+    as draft_options_draft_link_rows_test;
 import 'draft_options/draft_options_overlay_test.dart'
     as draft_options_overlay_test;
 import 'draft_options/draft_options_policy_test.dart'
@@ -107,6 +111,14 @@ void main() {
   group(
     'draft_options/draft_link_choice_test.dart',
     draft_options_draft_link_choice_test.main,
+  );
+  group(
+    'draft_options/draft_link_page_test.dart',
+    draft_options_draft_link_page_test.main,
+  );
+  group(
+    'draft_options/draft_link_rows_test.dart',
+    draft_options_draft_link_rows_test.main,
   );
   group(
     'draft_options/draft_options_overlay_test.dart',

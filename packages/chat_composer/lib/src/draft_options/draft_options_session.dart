@@ -269,7 +269,6 @@ final class DraftOptionsSession {
       close(DraftOptionsCloseTrigger.apply);
       return;
     }
-    if (_unsaved.isNotEmpty) _report(_value.value, _unsaved);
     close(DraftOptionsCloseTrigger.save);
   }
 
@@ -277,17 +276,20 @@ final class DraftOptionsSession {
   /// the edits were reported already and only the overlay closes.
   void cancel() => close(DraftOptionsCloseTrigger.cancel);
 
-  /// Closes the session by [trigger]. Under commit on save anything but a
-  /// save discards the copy. Further calls do nothing.
+  /// Closes the session by [trigger]. Under commit on save a save and a
+  /// remove report the copy (a removed preview is the user's choice, made
+  /// at once); anything else discards it. Further calls do nothing.
   void close(DraftOptionsCloseTrigger trigger) {
     if (isClosing) return;
+    final commits =
+        trigger == DraftOptionsCloseTrigger.save ||
+        trigger == DraftOptionsCloseTrigger.remove;
+    if (!_live && commits && _unsaved.isNotEmpty) {
+      _report(_value.value, _unsaved);
+    }
     _closedBy = trigger;
-    final committed = _live
-        ? _edits > 0
-        : trigger == DraftOptionsCloseTrigger.save && _edits > 0;
-    if (!_live &&
-        trigger != DraftOptionsCloseTrigger.save &&
-        _unsaved.isNotEmpty) {
+    final committed = _live ? _edits > 0 : commits && _edits > 0;
+    if (!_live && !commits && _unsaved.isNotEmpty) {
       final discarded = _edits;
       _emit(
         ChatEventLevel.debug,

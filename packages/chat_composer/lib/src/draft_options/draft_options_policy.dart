@@ -1,3 +1,4 @@
+import 'package:chat_composer/src/draft_options/draft_link_page_policy.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/foundation.dart';
 
@@ -88,6 +89,7 @@ sealed class DraftOptionsPolicy {
     required this.title,
     required this.linkChoice,
     required this.keepsChosenLinkSelected,
+    required this.linkPage,
   });
 
   /// See [DraftOptionsPolicy$Android].
@@ -99,6 +101,7 @@ sealed class DraftOptionsPolicy {
     ChromeScrimPreset scrim,
     DraftOptionsLinkChoice linkChoice,
     bool keepsChosenLinkSelected,
+    DraftLinkPagePolicy linkPage,
   }) = DraftOptionsPolicy$Android;
 
   /// See [DraftOptionsPolicy$IOS].
@@ -111,6 +114,7 @@ sealed class DraftOptionsPolicy {
     ChromeScrimPreset? scrim,
     DraftOptionsLinkChoice linkChoice,
     bool keepsChosenLinkSelected,
+    DraftLinkPagePolicy linkPage,
   }) = DraftOptionsPolicy$IOS;
 
   /// See [DraftOptionsPolicy$Desktop].
@@ -122,6 +126,7 @@ sealed class DraftOptionsPolicy {
     ChromeScrimPreset scrim,
     DraftOptionsLinkChoice linkChoice,
     bool keepsChosenLinkSelected,
+    DraftLinkPagePolicy linkPage,
   }) = DraftOptionsPolicy$Desktop;
 
   /// See [DraftOptionsPolicy$Web].
@@ -130,6 +135,7 @@ sealed class DraftOptionsPolicy {
     DraftOptionsApply apply,
     bool opensOnPending,
     DraftOptionsLinkChoice linkChoice,
+    DraftLinkPagePolicy linkPage,
   }) = DraftOptionsPolicy$Web;
 
   /// The default of [platform]: Android (and Fuchsia), iOS (the iPad form
@@ -174,6 +180,10 @@ sealed class DraftOptionsPolicy {
   /// loaded; otherwise the highlight goes with the spinner.
   final bool keepsChosenLinkSelected;
 
+  /// The link page's rows: which show and when, their labels, presses and
+  /// motion.
+  final DraftLinkPagePolicy linkPage;
+
   /// The presentation family, for the overlay's events.
   DraftOptionsPresentation get presentation;
 
@@ -207,6 +217,7 @@ final class DraftOptionsPolicy$Android extends DraftOptionsPolicy {
     this.scrim = ChromeScrimPreset.android,
     super.linkChoice = DraftOptionsLinkChoice.severalLinks,
     super.keepsChosenLinkSelected = false,
+    super.linkPage = DraftLinkPagePolicy.android,
   });
 
   @override
@@ -235,6 +246,7 @@ final class DraftOptionsPolicy$IOS extends DraftOptionsPolicy {
     ChromeScrimPreset? scrim,
     super.linkChoice = DraftOptionsLinkChoice.anyLink,
     super.keepsChosenLinkSelected = false,
+    super.linkPage = DraftLinkPagePolicy.ios,
   }) : _scrim = scrim;
 
   /// Whether the window is regular width: the iPad form.
@@ -268,6 +280,7 @@ final class DraftOptionsPolicy$Desktop extends DraftOptionsPolicy {
     this.scrim = ChromeScrimPreset.desktop,
     super.linkChoice = DraftOptionsLinkChoice.anyLink,
     super.keepsChosenLinkSelected = true,
+    super.linkPage = DraftLinkPagePolicy.desktop,
   });
 
   @override
@@ -290,6 +303,7 @@ final class DraftOptionsPolicy$Web extends DraftOptionsPolicy {
     super.apply = DraftOptionsApply.liveApply,
     super.opensOnPending = true,
     super.linkChoice = DraftOptionsLinkChoice.anyLink,
+    super.linkPage = DraftLinkPagePolicy.web,
   }) : super(title: DraftOptionsTitle.none, keepsChosenLinkSelected: false);
 
   @override
