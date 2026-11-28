@@ -1,7 +1,7 @@
 name: chat_outbox
 description: >
-  The chat outbox: outgoing messages over publish jobs, their status, and the
-  lookups a host matches echoes and fresh rows by.
+  Outgoing chat messages over mpx publish jobs, with their status, row ids,
+  restart and the lookups a host matches echoes by.
 version: 0.1.0
 publish_to: none
 resolution: workspace

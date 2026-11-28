@@ -1203,6 +1203,34 @@ A draft is markdown in the wire's dialect, kept in the host's
 Do not store `RichText.toJson` as a draft; it is the rich clipboard's payload.
 A later server draft sync carries the same string.
 
+### Outgoing messages
+
+A host that sends adds `chat_outbox` ([ADR 048](adr/048-outgoing-messages.md);
+the package README has every duty). In order:
+
+1. Open one `Transfers` (mpx's engine) with its journal in a folder that
+   survives restarts, and wrap it with `OutboxTransfers.of`. The system
+   envelope's strings, `Info.plist` entries, Android permissions and the Play
+   declaration are `mpx_transfer`'s.
+2. Make one `ChatOutbox<M>` with the host's `OutgoingPayloadCodec<M>`, its
+   item resolver, the chat's id strategy (`SequentialServerIds` or
+   `LocalIds`) and row builder, and the chat's capabilities. Register the
+   `OutgoingMessageSender` once with `registerSender`.
+3. Per chat: set `identityOf` on the chat's `ChatDataSource` (it answers a
+   provisional row's client message id), `await pendingFor(chatId)` before
+   the chat's first send of the run, hand incoming messages to
+   `idStrategy(chatId).incoming`, skip a server echo that `byClientMessageId`
+   holds, and fold `sendInFlight(chatId)` into the capabilities' `slowMode.pending`.
+4. In the chat's rows: settle a published row in `onSent`, follow
+   `onCancelled` and `onItemDropped`, draw the time pill and the error badge
+   from `onStatusChanged`, animate a fresh row with `appearanceOf`, close an
+   open message menu through `ChatDataSource.rowPresence`, and wire
+   `MessageMediaState(sendOrigin: outbox.takeSendOrigin)`.
+
+The outbox keeps no store, so its lifetime is the app's; the jobs run on in
+the engine after `dispose()`. A chat's data source outlives its screen while a
+publish can still settle a row.
+
 ### Connectivity
 
 The cache never touches the network. When the connection returns, call
@@ -1276,6 +1304,8 @@ desktop.
 | `ComposerController` (and the focus node, scroll controller and text controller it was handed) | Chat screen | Chat screen | Chat screen |
 | `PanelShellController`, `PanelPresentationController`, the strategies, `ImeInput` | Chat screen | Chat screen | Chat screen |
 | Page controllers (catalogue offset, atlas host) | The shell's registry | Chat screen | The shell controller |
+| `Transfers`, `OutboxTransfers`, `ChatOutbox`, the sender and payload codec | Host | App | Host (the outbox first; its jobs run on in the engine) |
+| A chat's `ChatDataSource` while it can hold outgoing rows | Host | App, or until the chat's jobs settle | Host |
 | `ComposerSpec`, the page list | Host, rebuilt from chat state | Chat screen | Host |
 | Panel event handler (a subscription to the shell's `events`), inset aggregation | Host | Chat screen | Host (cancel the subscription) |
 | `Listenable.onError` | Host | App | Never reset |
@@ -1436,4 +1466,5 @@ not use the hover-open toggle region.
 | Popup anchor, composer view, apply-formatting toast | `example/lib/src/features/chat/widgets/chat_composer.dart` |
 | Link prompt dialog, notes field with lists | `example/lib/src/features/chat/widgets/link_url_dialog.dart`, `example/lib/src/features/chat/widgets/notes_dialog.dart` |
 | Suggestion panels, link preview, apply-formatting offer | `example/lib/src/features/chat/widgets/chat_suggestion_bar.dart`, `example/lib/src/features/chat/input/chat_link_preview.dart`, `example/lib/src/features/chat/input/chat_format_offer.dart` |
+| Outgoing messages: the engine, the outbox, the fake accept-if-next server, the time pill and its motion, the error badge, the debug panel | `example/lib/src/features/chat/outbox/` (`demo_transfers.dart`, `demo_outbox.dart`, `fake_chat_server.dart`, `demo_delivery.dart`, `demo_status_motion.dart`, `outbox_debug_panel.dart`); launch flags in `example/README.md` |
 | Panel box and shortcuts | `example/lib/src/features/chat/widgets/chat_bottom_chrome.dart` |

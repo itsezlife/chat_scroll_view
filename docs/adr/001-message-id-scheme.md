@@ -125,7 +125,10 @@ the bottom of the tail.
   in one atomic write, with one notification and its own mutation, carrying
   row-keyed state to the new ids (a moved row's text selection is cleared),
   and applying a range fetch's rows inside the tail through the same move
-  instead of writing them into provisional slots. Removing a provisional row and inserting a different
+  instead of writing them into provisional slots. An identity left out of
+  `order` leaves the tail in the same write, which is how a cancelled or
+  deleted outgoing row goes. The tail is computed from `identityOf` at each
+  call and its chunks are kept from eviction. Removing a provisional row and inserting a different
   message at its id through the ordinary calls is still a recycled id and
   is still forbidden.
 - **"Do not recycle ids" (§1) applies to server-confirmed ids and to

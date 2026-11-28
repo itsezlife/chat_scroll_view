@@ -7,6 +7,8 @@ restart reads the same messages back.
 
 Decision: [ADR 048](../../docs/adr/048-outgoing-messages.md). Diagnostics:
 [ADR 050](../../docs/adr/050-diagnostics-events.md).
+The example app is a working host: [its README](../../example/README.md#outgoing-messages-and-the-outbox-debug-panel)
+and `example/lib/src/features/chat/outbox/`.
 
 ## Types
 
@@ -27,6 +29,7 @@ Decision: [ADR 048](../../docs/adr/048-outgoing-messages.md). Diagnostics:
 | `OutgoingCancelOutcome` | What a cancel did: `cancelled`, `itemDropped`, `pending` (the server's answer is in flight), `tooLate` (the server accepted), `dropped` (a repeat), `unknown`. |
 | `OutgoingCancelled`, `OutgoingItemDropped` | What `onCancelled` and `onItemDropped` hand the host: the cancelled message and whether its row left the tail; the message without the item, the item and its index. |
 | `OutboxTransfers` | What the outbox uses of mpx's `Transfers`: `publish`, `watchJobs`, `registerPublisher`, and the owner's `cancel`, `removeItem` and `commit`. `OutboxTransfers.of(transfers)` wraps the host's facade; `FakeOutboxTransfers` (`testing.dart`) scripts job states and runs a registered publisher as the engine does. `RecordingOutgoingSender` (`testing.dart`) answers from a script. |
+| `OutgoingAppearancePolicy`, `OutgoingAppearance` | How a fresh row appears per platform and the answer a row's situation resolves to (see Appearance). |
 | `OutboxDebugSnapshot` | The strategy and tip, the tail row by row, the publisher, the send in flight and counters, as `toMap()`; no user content. |
 | `OutboxOp` | The `outbox` diagnostics operations. |
 
@@ -37,6 +40,7 @@ Decision: [ADR 048](../../docs/adr/048-outgoing-messages.md). Diagnostics:
 | Make the outbox | `ChatOutbox(transfers: OutboxTransfers.of(transfers), codec:, itemOf:, idStrategyOf:, rowOf:, capabilitiesOf:, feedback:)` in the composition root. |
 | Choose the ids | `idStrategyOf(chatId)` returns the chat's strategy over its data source: `SequentialServerIds(chatId:, tail: OutgoingTailTarget.of(dataSource))` or `LocalIds(…)`. Set the data source's `identityOf` to answer a row's client message id. |
 | Build the row | `rowOf(message, payload)` returns the host's row for an accepted message, at `message.position`. |
+| Say which rows are outgoing | Set `identityOf` on the chat's `ChatDataSource`: it answers a provisional row's `clientMessageId` and null for every other row. The data source reads the provisional tail through it, so `rebaseTail` needs nothing else. The outbox's `OutgoingTailTarget.of(dataSource)` is how a strategy writes. |
 | Hand incoming messages | An incoming message whose id falls inside the provisional tail goes to `idStrategy(chatId).incoming([...])`; when it answers false, insert it as usual. |
 | Register the sender | `registerSender(sender)` once at start; jobs wait at their publish stage until then, after a restart too. |
 | Restore after a restart | `await pendingFor(chatId)` for each chat that may hold outgoing messages, before the chat's first send of the run: each message the engine still holds gets a fresh row (sending ones first, then failed ones, each in creation order). A job of an earlier run waits at its publish stage until its chat is restored. Pass `localKeyOf(mediaKey)` (the inverse of the media key `itemOf` gives) to restore media items, and `undecodableRowOf(message)` for the row of a message whose payload the codec cannot read: it reads as failed, and without that builder it is left out. |
@@ -44,7 +48,9 @@ Decision: [ADR 048](../../docs/adr/048-outgoing-messages.md). Diagnostics:
 | Follow a cancel | `onCancelled(cancelled)`: the row has left the tail; when `rowRemoved` is false (a row an appended message settled), remove the row at `message.position`. `onItemDropped(dropped)`: drop the item from the row at `message.position`. Both fire for the status control's cancel too, which reaches the outbox through the jobs. |
 | Draw the status | `onStatusChanged(message)` hears each change of a message's status after its send (the job moving on, a failure, a retry, the server's accept), with the message as it is now: the time pill and the error badge redraw on it, since a change need not move the row. A cancel is `onCancelled`'s. |
 | Animate a fresh row | As a row is first built, `appearanceOf(chatId, id, atBottom:, reduceMotion:)` answers once how it appears (see Appearance), null for a row that is not fresh; the host animates its own row with the answer's values. |
+| Draw the time pill and the error badge | The pill reads the status: a clock while sending, one check on `sent`; the second check is the server's read state, which the host owns. A `failed` message shows an error badge by the time, and a tap or click on it opens the message menu through the viewport's selection facade. |
 | Offer Retry and Delete | For a `failed` message the menu calls `retry(chatId, id)` and `delete(chatId, id)`. Whether a denial offers Retry is the host's per-platform choice; an `undecodable` answer means only Delete helps. For `failed(sourceLost)` ask the user for the file again and pass its bytes: `retry(chatId, id, sources: {itemId: SourceBytes.blob(file)})`. Delete is followed by `onCancelled`, as a cancel is. |
+| Say why a send was refused | Pass `feedback:` so a refusal before the job and a server denial reach `onDenied`, with the host's `denialText`. |
 | Answer the server | Return a conflict or a replay with the confirmed messages between the tip and the server's id in `missing` when you have them, so the row can move to the server's id; return a server denial as `denied(action, reason)`, not a rejection. |
 | Resolve attach items | `itemOf(item, form)` returns the item's keys (the media key through the content assets' key mapping) and its source: a preparation input with its intent, a prepared file, or `remote`. |
 | Pass the chat's capabilities | `capabilitiesOf(chatId)` returns the listenable the chat's other consumers read; the outbox checks slow mode and the limits against it before each job. |
@@ -178,5 +184,42 @@ strategy's positions and tip with them.
 ## Diagnostics
 
 Every path reports through `ChatDiagnostics.current` (`content_model`) under
-the `outbox` category. No event and no snapshot carries the payload, its
+the `outbox` category, with `chatId` on every event and, where they exist,
+`clientMessageId`, the row's scroll id, `MediaItemId`, `MediaKey` and the
+publish job's `jobId`. No event and no snapshot carries the payload, its
 bytes or anything decoded from it; the payload is reported by its length.
+A server's rejection code is never logged, only its form.
+
+| `OutboxOp` | Reports |
+| --- | --- |
+| `accepted`, `refusedBeforeJob`, `jobCreated`, `sendInFlight` | a send entering, a refusal before any job, the job's shape, the send in flight turning on or off |
+| `statusChanged`, `echoMatched`, `freshOutgoingTaken`, `rowAppeared` | the status moving, a lookup by client message id, the one-shot flag, how a fresh row appeared |
+| `positionAllocated`, `tailRebased`, `incomingAppended` | a row placed, a row moved (one event per moved row, with its reason: `incoming`, `publishStart`, `failedSink`, `retry`, `restart`, `removed`, `fetch`), `LocalIds` appending an incoming message |
+| `publisherRegistered`, `publishAttempt`, `publishConflict`, `publishConflictExhausted`, `published`, `replayRebased`, `reuploadRequested`, `rejected`, `denied`, `senderFailed` | the `chat.send` publisher and what the sender answered; a conflict's or a replay's moves are `incoming` right after |
+| `cancelled`, `itemDropped`, `cancelTooLate`, `awaitingOwner`, `actionDropped` | cancel, with its trigger, and the input guard on cancel, retry and delete |
+| `failed`, `retried`, `deleted` | a failure with its closed reason, a retry, a delete |
+| `restored`, `payloadDecodeFailed`, `foreignJob` | the restart query and what it could not read |
+| `systemInterrupted`, `resumed`, `envelopeCancelAll` | the system envelope |
+| `sendOriginStored`, `sendOriginTaken`, `sendOriginDropped` | the send origin hand-off |
+
+The tail's moves in the engine are the root package's `rebase` operations.
+The trace sections `chat_scroll_view.outbox.project` (one job update
+projected) and `chat_scroll_view.outbox.publish` (one publisher call, the
+conflict loop included) cost nothing in a default build.
+
+## Snapshot
+
+`debugSnapshot(chatId)` returns an `OutboxDebugSnapshot`, and `toMap()` its
+JSON form. It has the same shape every time; a part the outbox does not
+know yet is null.
+
+| Part | Holds |
+| --- | --- |
+| `strategy`, `tip` | the chat's id strategy and its last confirmed position; null before the chat has one |
+| `tail` | each provisional row in order: position, `clientMessageId`, status, failure, fresh, payload bytes, job id, job state, stage, attempts, and its items (`MediaItemId`, local key, media key, transfer state, whether its send origin is still held) |
+| `publisherRegistered`, `sendInFlight` | whether the sender is registered, whether a send is in flight |
+| `counters` | accepted, rebases by reason, conflicts, retries, cancels, items dropped, cancels too late, restores |
+
+An external key is reported as `external`, never its id, which may be a URL.
+Reading a snapshot creates nothing and consumes no one-shot.
+

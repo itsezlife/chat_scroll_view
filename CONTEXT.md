@@ -435,7 +435,7 @@ A message the user sent from this device that the server has not confirmed yet, 
 _Avoid_: Pending message, optimistic row, draft (a draft is unsent text in the composer), temp message
 
 **Outbox**:
-The per-chat owner of **outgoing messages**: it turns a send into one publish job, places the row, moves it on a **tail rebase**, reports its status, and offers cancel, retry, delete and the pending messages after a restart. It keeps no store of its own; the publish job's journal is the truth.
+The owner of **outgoing messages**, one facade with state per chat: it checks slow mode and limits, turns a send into one publish job, places the row, moves it on a **tail rebase**, reports its status, and offers cancel, retry, delete and the pending messages after a restart. It keeps no store of its own; the publish job's journal is the truth.
 _Avoid_: Send queue, pending store, message sender (the sender is the host's transport behind it)
 
 **Provisional tail**:
@@ -443,11 +443,11 @@ The run of **outgoing message** rows after the newest server message, at the nex
 _Avoid_: Temp ids, reserved range, optimistic ids, local id block
 
 **Tail rebase**:
-The one sanctioned move of the **provisional tail**: in a single atomic write the outgoing rows take a new order (a reorder, not only a shift) and any incoming messages take the positions before them. Message selection, highlight and a running change transition move with each row; a text selection on a moved row is cleared and an open menu on it closes. A reader who scrolled up is not pulled to the tail. Server rows a fetch returns inside the tail are placed through the same move, never written over a provisional row.
+The one sanctioned move of the **provisional tail**: in a single atomic write the outgoing rows take a new order (a reorder, not only a shift) and any incoming messages take the positions before them. A row left out of the new order leaves the tail in the same write. Message selection, highlight and a running change transition move with each row; a text selection on a moved row is cleared and an open menu on it closes (for a menu the host watches through the data source's row presence). A reader who scrolled up is not pulled to the tail. Server rows a fetch returns inside the tail are placed through the same move, never written over a provisional row.
 _Avoid_: Renumber, rename, re-insert, remove and insert
 
 **Send origin**:
-Where each sent media item was on screen when the user sent it (its thumbnail's rectangle in the picker), handed with the send so the item can fly from there into its cell once on first paint. Without one, the platform's default appearance applies.
+Where each sent media item was on screen when the user sent it (its thumbnail's rectangle in the picker), handed with the send, by the item's order in it, so the item can fly from there into its cell once on first paint. The **outbox** re-keys the rectangles by the items' ids and hands each out once. Without one, the platform's default appearance applies.
 _Avoid_: Hero tag, source frame, transition anchor (the viewer origin frame of a media hit is a different thing)
 
 ### Message menu
