@@ -102,6 +102,9 @@ abstract final class ChromeStringsPresets {
         chooseLinkHint: 'Click a link to choose',
         save: 'Save',
         cancel: 'Cancel',
+        dismiss: 'Dismiss',
+        loadingPreview: 'Loading preview',
+        previewLoaded: 'Preview loaded',
       ),
     ),
     formatting: FormattingStrings(
@@ -430,6 +433,9 @@ abstract final class ChromeStringsPresets {
         chooseLinkHint: 'Нажмите на ссылку, чтобы выбрать',
         save: 'Сохранить',
         cancel: 'Отмена',
+        dismiss: 'Закрыть',
+        loadingPreview: 'Загрузка превью',
+        previewLoaded: 'Превью загружено',
       ),
     ),
     formatting: FormattingStrings(

@@ -96,6 +96,11 @@ enum OverlayOp implements DiagnosticOp {
   /// speed, and `reduceMotion` when the speed is instant.
   motion,
 
+  /// The overlay announced its link's page politely (trace): its `kind`,
+  /// `loadingPreview` (the page is being looked up) or `loaded` (a page
+  /// announced as loading has loaded).
+  announced,
+
   /// The web's draft options menu opened at the strip (debug): the
   /// `inputClass` (`touch`, `mouse`) and `widthClass` (`compact`, `medium`,
   /// `expanded`) at the open, its `trigger` (`hover`, `tap`) and the `side`

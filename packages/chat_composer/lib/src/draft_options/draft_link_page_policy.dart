@@ -120,12 +120,13 @@ final class DraftLinkPagePolicy {
     this.linkHintAlign = TextAlign.center,
     this.keyboardFocus = false,
     this.iconMorph = true,
+    this.labelChangeRtl = ChromeMenuRowTiming.labelInstant,
   });
 
   /// The Android rows: position, size (always, inert at 50 % without
   /// shrinkable media), an 8 gap, apply, remove; ripples; the label
-  /// cross-fades over 300 ms ease-out-quint; remove falls back to the next
-  /// link.
+  /// cross-fades over 300 ms ease-out-quint, at once in a right-to-left
+  /// text; remove falls back to the next link.
   static const DraftLinkPagePolicy android = DraftLinkPagePolicy(
     sizeRow: DraftLinkSizeRow.inertWithoutShrinkable,
     inertOpacity: 0.5,
@@ -285,6 +286,11 @@ final class DraftLinkPagePolicy {
   /// duration, or at once for a zero one.
   final MotionSpec labelChange;
 
+  /// How a row's label changes in a right-to-left text, in place of
+  /// [labelChange]: at once on every preset, since only the left-to-right
+  /// label has a cross-fade to keep.
+  final MotionSpec labelChangeRtl;
+
   /// How a row answers a press.
   final ChromeInkKind ink;
 
@@ -327,6 +333,7 @@ final class DraftLinkPagePolicy {
     TextAlign? linkHintAlign,
     bool? keyboardFocus,
     bool? iconMorph,
+    MotionSpec? labelChangeRtl,
   }) => DraftLinkPagePolicy(
     sizeRow: sizeRow ?? this.sizeRow,
     inertOpacity: inertOpacity ?? this.inertOpacity,
@@ -348,6 +355,7 @@ final class DraftLinkPagePolicy {
     linkHintAlign: linkHintAlign ?? this.linkHintAlign,
     keyboardFocus: keyboardFocus ?? this.keyboardFocus,
     iconMorph: iconMorph ?? this.iconMorph,
+    labelChangeRtl: labelChangeRtl ?? this.labelChangeRtl,
   );
 
   @override
@@ -371,7 +379,8 @@ final class DraftLinkPagePolicy {
       other.linkHintPadding == linkHintPadding &&
       other.linkHintAlign == linkHintAlign &&
       other.keyboardFocus == keyboardFocus &&
-      other.iconMorph == iconMorph;
+      other.iconMorph == iconMorph &&
+      other.labelChangeRtl == labelChangeRtl;
 
   @override
   int get hashCode => Object.hashAll([
@@ -394,5 +403,6 @@ final class DraftLinkPagePolicy {
     linkHintAlign,
     keyboardFocus,
     iconMorph,
+    labelChangeRtl,
   ]);
 }

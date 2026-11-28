@@ -116,8 +116,9 @@ class DraftLinkRows extends StatelessWidget {
 ///
 /// The icon animates a change of state through the chrome icon morph where
 /// the policy has it; the label cross-fades over the policy's label change,
-/// or changes at once.
-/// In a right-to-left text the icon stands at the end. Under the policy's
+/// or changes at once. In a right-to-left text the row mirrors (the label
+/// right-aligned) and its label changes by the policy's right-to-left
+/// change, at once by default. Under the policy's
 /// keyboard focus the row takes focus and Enter or Space presses it.
 class DraftLinkRowView extends StatelessWidget {
   /// A row showing [state] as [label].
@@ -160,7 +161,10 @@ class DraftLinkRowView extends StatelessWidget {
       overflow: TextOverflow.ellipsis,
       style: style.copyWith(color: textColor),
     );
-    final change = policy.labelChange;
+    final change = switch (Directionality.of(context)) {
+      TextDirection.rtl => policy.labelChangeRtl,
+      TextDirection.ltr => policy.labelChange,
+    };
     final shownLabel = change.duration == Duration.zero
         ? text
         : AnimatedSwitcher(

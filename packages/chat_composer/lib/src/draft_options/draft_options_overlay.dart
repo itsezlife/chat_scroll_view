@@ -565,7 +565,26 @@ class DraftOptionsOverlay extends StatelessWidget {
         ),
       ),
     };
-    Widget overlay = ChromeScrim(controller: scrim, child: surface);
+    Widget overlay = ChromeScrim(
+      controller: scrim,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // One node for the whole area outside the content, a button that
+          // closes as a press outside does. It sits under the surface, so a
+          // reader reaches the rows first where they stand; it takes no
+          // pointer, so a press still lands on the scrim and keeps its
+          // closeOn.
+          Semantics(
+            button: true,
+            label: ChromeStringsScope.composerOf(context).draftOptions.dismiss,
+            onTap: () => session.close(DraftOptionsCloseTrigger.outside),
+            child: const SizedBox.expand(),
+          ),
+          surface,
+        ],
+      ),
+    );
     if (session.policy.apply == DraftOptionsApply.commitOnSave) {
       // The box takes focus, so Enter and Escape reach it: a scope of its
       // own, since the route's scope keeps its focus and would leave the
@@ -584,7 +603,12 @@ class DraftOptionsOverlay extends StatelessWidget {
     if (passesPresses case final passes?) {
       overlay = _PressPassThrough(passes: passes, child: overlay);
     }
-    return ChromeTextRoot(child: overlay);
+    return ChromeTextRoot(
+      child: _DraftOptionsAnnouncer(
+        announcement: session.announcement,
+        child: overlay,
+      ),
+    );
   }
 
   // The Android card: the header from the policy's title, the live preview
@@ -820,6 +844,73 @@ class _ContourPainter extends CustomPainter {
   @override
   bool shouldRepaint(_ContourPainter old) =>
       !identical(old.contour, contour) || old.color != color;
+}
+
+/// Speaks the session's [announcement] politely, from the chrome strings:
+/// the one standing when it mounts (an open on a pending page) and each one
+/// set after.
+class _DraftOptionsAnnouncer extends StatefulWidget {
+  const _DraftOptionsAnnouncer({
+    required this.announcement,
+    required this.child,
+  });
+
+  final ValueListenable<DraftOptionsAnnouncement?> announcement;
+  final Widget child;
+
+  @override
+  State<_DraftOptionsAnnouncer> createState() => _DraftOptionsAnnouncerState();
+}
+
+class _DraftOptionsAnnouncerState extends State<_DraftOptionsAnnouncer> {
+  @override
+  void initState() {
+    super.initState();
+    widget.announcement.addListener(_speak);
+    // After the first frame, where the scopes stand; unless a newer
+    // announcement was spoken first.
+    final standing = widget.announcement.value;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (identical(widget.announcement.value, standing)) _speak();
+    });
+  }
+
+  @override
+  void didUpdateWidget(_DraftOptionsAnnouncer old) {
+    super.didUpdateWidget(old);
+    if (identical(old.announcement, widget.announcement)) return;
+    old.announcement.removeListener(_speak);
+    widget.announcement.addListener(_speak);
+  }
+
+  @override
+  void dispose() {
+    widget.announcement.removeListener(_speak);
+    super.dispose();
+  }
+
+  void _speak() {
+    if (!mounted) return;
+    final strings = ChromeStringsScope.composerOf(context).draftOptions;
+    final message = switch (widget.announcement.value) {
+      DraftOptionsAnnouncement.loadingPreview => strings.loadingPreview,
+      DraftOptionsAnnouncement.loaded => strings.previewLoaded,
+      null => null,
+    };
+    if (message == null) return;
+    final view = View.maybeOf(context);
+    if (view == null) return;
+    // Politely, so it waits for what the reader is saying.
+    SemanticsService.sendAnnouncement(
+      view,
+      message,
+      Directionality.of(context),
+      assertiveness: Assertiveness.polite,
+    ).ignore();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 /// Lets presses through to what is under it while [passes] answers true.

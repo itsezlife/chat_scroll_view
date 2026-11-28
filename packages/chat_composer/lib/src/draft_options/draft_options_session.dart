@@ -88,6 +88,17 @@ enum DraftOptionsMotionPhase {
   change,
 }
 
+/// What the draft options overlay says politely about its link's page, as
+/// its `announced` event names it.
+enum DraftOptionsAnnouncement {
+  /// The page is being looked up: on an open on a pending page, and when a
+  /// chosen link's lookup starts.
+  loadingPreview,
+
+  /// A page announced as loading has loaded.
+  loaded,
+}
+
 /// One open of the draft options overlay: the value it edits, when edits
 /// reach the host, and how it closes.
 ///
@@ -112,6 +123,15 @@ enum DraftOptionsMotionPhase {
 /// loaded or none (kept, settled, on loaded under
 /// [DraftOptionsPolicy.keepsChosenLinkSelected]). A newer choice drops the
 /// older lookup: its late answer changes nothing.
+///
+/// ## Announcements
+///
+/// [announcement] is what a screen reader should be told about the page, by
+/// its transitions: [DraftOptionsAnnouncement.loadingPreview] when the page
+/// becomes pending (or the overlay opens on a pending page) and
+/// [DraftOptionsAnnouncement.loaded] when that page loads. A page that comes
+/// to nothing says nothing more, and a page already loaded says nothing.
+/// The skin speaks each value as it is set, from the chrome strings.
 final class DraftOptionsSession {
   /// Opens a session of [policy] on [part], from the host's [initial] value
   /// and the link's [page], and emits `opened`.
@@ -151,6 +171,9 @@ final class DraftOptionsSession {
         'keyboardWasUp': keyboardWasUp,
       },
     );
+    if (page case LinkPreviewState$Pending()) {
+      _announce(DraftOptionsAnnouncement.loadingPreview);
+    }
   }
 
   /// The policy the session follows.
@@ -175,6 +198,9 @@ final class DraftOptionsSession {
   final ValueNotifier<DraftLinkPart> _value;
   final ValueNotifier<LinkPreviewState> _page;
   final ValueNotifier<DraftLinkHighlight?> _highlight = ValueNotifier(null);
+  final ValueNotifier<DraftOptionsAnnouncement?> _announcement = ValueNotifier(
+    null,
+  );
   final DateTime _openedAt;
   // The chosen link's lookup while it is followed, and when it was tapped.
   listen.ValueListenable<LinkPreviewState>? _lookup;
@@ -195,13 +221,18 @@ final class DraftOptionsSession {
   /// The chosen link's mark above the live preview, or null when none shows.
   ValueListenable<DraftLinkHighlight?> get highlight => _highlight;
 
+  /// The latest announcement about the page, or null since the page came to
+  /// nothing (or while nothing was announced); see the class's
+  /// *Announcements*.
+  ValueListenable<DraftOptionsAnnouncement?> get announcement => _announcement;
+
   /// Whether the session has closed: it takes no more edits.
   bool get isClosing => _closedBy != null;
 
   bool get _live => policy.apply == DraftOptionsApply.liveApply;
 
   /// The link's page moved to [state].
-  set pageState(LinkPreviewState state) => _page.value = state;
+  set pageState(LinkPreviewState state) => _setPage(state);
 
   /// The user changed [field], making the part [next].
   void edit(DraftLinkPart next, {required DraftOptionsField field}) {
@@ -359,6 +390,32 @@ final class DraftOptionsSession {
     _value.dispose();
     _page.dispose();
     _highlight.dispose();
+    _announcement.dispose();
+  }
+
+  // The page moves to [state]; a change of its kind is announced.
+  void _setPage(LinkPreviewState state) {
+    final was = _page.value;
+    _page.value = state;
+    switch ((was, state)) {
+      case (LinkPreviewState$Pending(), LinkPreviewState$Pending()):
+        break;
+      case (_, LinkPreviewState$Pending()):
+        _announce(DraftOptionsAnnouncement.loadingPreview);
+      case (LinkPreviewState$Pending(), LinkPreviewState$Loaded()):
+        _announce(DraftOptionsAnnouncement.loaded);
+      case (_, LinkPreviewState$None()):
+        _announcement.value = null;
+      case _:
+        break;
+    }
+  }
+
+  void _announce(DraftOptionsAnnouncement kind) {
+    // Never the same value twice in a row: a page only loads after it was
+    // pending, and comes back to pending only from another state.
+    _announcement.value = kind;
+    _emit(ChatEventLevel.trace, OverlayOp.announced, () => {'kind': kind.name});
   }
 
   void _onLookup() {
@@ -372,7 +429,7 @@ final class DraftOptionsSession {
       OverlayOp.linkState,
       () => {'state': _pageName(state), 'ms': ms},
     );
-    _page.value = state;
+    _setPage(state);
     if (!state.isTerminal) return;
     _unfollow();
     _highlight.value = switch ((state, _highlight.value)) {
