@@ -37,6 +37,20 @@ enum ChatRebaseOp implements DiagnosticOp {
   /// `target` (`tail` or `history`) and `pinned` (whether a moved or removed
   /// position was held by the animation).
   animationKept,
+
+  /// Row state carried across a move by the viewport (debug):
+  /// `selectionCarried` (selected rows that moved), `highlightCarried`,
+  /// `transitionsCarried` (built rows whose widget state, a running change
+  /// transition among it, moved with the message), `textSelectionsCleared`,
+  /// `menusClosed` (watched rows, `ChatDataSource.rowPresence`, whose watch
+  /// the move ended), with the scroll id of the first moved row before the
+  /// move and `toScrollId` after it.
+  rowStateCarried,
+
+  /// A range fetch returned rows inside the provisional tail and applied them
+  /// through the move instead of writing them into its slots (info):
+  /// `rows`, with the scroll id of the first one returned.
+  fetchInsideTail,
 }
 
 /// Why `ChatDataSource.rebaseTail` refused a move; the `rule` of a

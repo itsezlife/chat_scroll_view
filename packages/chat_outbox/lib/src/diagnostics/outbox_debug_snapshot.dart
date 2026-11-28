@@ -66,12 +66,12 @@ final class OutboxDebugSnapshot {
 final class OutboxDebugRow {
   /// A row; [items] is copied.
   OutboxDebugRow({
+    required this.position,
     required this.clientMessageId,
     required this.status,
     required this.payloadBytes,
     required this.fresh,
     List<OutboxDebugItem> items = const [],
-    this.position,
     this.failure,
     this.jobId,
     this.jobState,
@@ -108,7 +108,7 @@ final class OutboxDebugRow {
   );
 
   /// The row's id in the tail; null while no id strategy has placed it.
-  final int? position;
+  final int position;
 
   /// The message's identity.
   final String clientMessageId;

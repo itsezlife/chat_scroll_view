@@ -12,8 +12,11 @@ Decision: [ADR 048](../../docs/adr/048-outgoing-messages.md). Diagnostics:
 
 | Type | Role |
 | --- | --- |
-| `ChatOutbox<M>` | The facade. `send(chatId, plannedSend, payload:)` and `sendText` make one publish job per send, after slow mode and the chat's limits let it through (a refusal reaches `onDenied` and makes no job); `sendInFlight(chatId)` is on while one of the chat's messages is sending; `byClientMessageId(chatId, id)` matches the server's echo of the host's own message, so the host inserts no twin row; `isFreshOutgoing(chatId, id)` answers true once per message the user just sent, for the host's row appearance; `takeSendOrigin(mediaItemId)` answers an item's send origin once; `debugSnapshot(chatId)` describes what it holds. |
-| `OutgoingMessage` | Chat id, `clientMessageId` (its identity), its current position in the provisional tail (null until an id strategy places the row), its items (`OutgoingItem`: `MediaItemId` and local `ContentKey`), status and payload bytes. |
+| `ChatOutbox<M>` | The facade. `send(chatId, plannedSend, payload:)` and `sendText` make one publish job per send, after slow mode and the chat's limits let it through (a refusal reaches `onDenied` and makes no job); `idStrategy(chatId)` is the chat's id strategy, which places each accepted message's row; `sendInFlight(chatId)` is on while one of the chat's messages is sending; `byClientMessageId(chatId, id)` matches the server's echo of the host's own message, so the host inserts no twin row; `isFreshOutgoing(chatId, id)` answers true once per message the user just sent, for the host's row appearance; `takeSendOrigin(mediaItemId)` answers an item's send origin once; `debugSnapshot(chatId)` describes what it holds. |
+| `OutgoingMessage` | Chat id, `clientMessageId` (its identity), its current position in the provisional tail, its items (`OutgoingItem`: `MediaItemId` and local `ContentKey`), status and payload bytes. |
+| `OutgoingIdStrategy` | The `allocate` / `rebase` seam of one chat's provisional tail: `allocate` places a new row, `incoming`, `publishStart`, `fail`, `retry`, `remove` and `confirm` move it, each move one `rebaseTail`. It writes through `OutgoingTailTarget` (`OutgoingTailTarget.of(dataSource)`). A host may supply its own, held to `OutgoingIdStrategyContract` (`testing.dart`). |
+| `SequentialServerIds` | For a server with one sequential id counter per chat that accepts a proposed id only if it is the next one: `proposedId` is `tip+1`, read at publish. |
+| `LocalIds` | For global or UUID server ids: the host numbers rows with local ids (`nextIncomingId` for an incoming message) and keeps the server id in its model. `appendIncoming` puts incoming messages after the outgoing rows, which then stop moving. |
 | `OutgoingStatus` | `preparing`, `uploading`, `publishing`, `sent`, `failed(OutgoingFailure)`, `cancelled`. |
 | `OutgoingFailure` | The closed set of reasons: `network`, `rejected(reason)`, `denied(CapabilityAction)`, `sourceLost`, `tooLarge`, `unknown`. |
 | `OutgoingPayloadCodec<M>` | The host's message model to bytes and back, a `dart:convert` `Codec`; the outbox stores bytes only. |
@@ -26,7 +29,11 @@ Decision: [ADR 048](../../docs/adr/048-outgoing-messages.md). Diagnostics:
 
 | Duty | How |
 | --- | --- |
-| Make the outbox | `ChatOutbox(transfers: OutboxTransfers.of(transfers), codec:, itemOf:, capabilitiesOf:, feedback:)` in the composition root. |
+| Make the outbox | `ChatOutbox(transfers: OutboxTransfers.of(transfers), codec:, itemOf:, idStrategyOf:, rowOf:, capabilitiesOf:, feedback:)` in the composition root. |
+| Choose the ids | `idStrategyOf(chatId)` returns the chat's strategy over its data source: `SequentialServerIds(chatId:, tail: OutgoingTailTarget.of(dataSource))` or `LocalIds(…)`. Set the data source's `identityOf` to answer a row's client message id. |
+| Build the row | `rowOf(message, payload)` returns the host's row for an accepted message, at `message.position`. |
+| Hand incoming messages | An incoming message whose id falls inside the provisional tail goes to `idStrategy(chatId).incoming([...])`; when it answers false, insert it as usual. |
+| Confirm a row | `idStrategy(chatId).confirm(id)` answers the position the confirmed message replaces the row at (`updateMessage`). Address a provisional row by its current position (`positionOf`). |
 | Resolve attach items | `itemOf(item, form)` returns the item's keys (the media key through the content assets' key mapping) and its source: a preparation input with its intent, a prepared file, or `remote`. |
 | Pass the chat's capabilities | `capabilitiesOf(chatId)` returns the listenable the chat's other consumers read; the outbox checks slow mode and the limits against it before each job. |
 | Fold the send in flight | Put `sendInFlight(chatId)` into the chat's capabilities as `slowMode.pending`, so the composer and the picker hold the next send. |
@@ -60,11 +67,17 @@ nobody takes goes when its message is sent or cancelled, or
 nor the media cells depend on the outbox: the lookup is a plain
 `Rect? Function(MediaItemId)`.
 
-## Identity
+## Identity and order
 
-A row's id is a position in the provisional tail and moves when an incoming
-message takes it. The message's identity is its `clientMessageId`: look a
-message up by it, never by its row's id.
+A row's id is a position in the provisional tail, `tip+1 … tip+k`, and moves
+when an incoming message takes it. The message's identity is its
+`clientMessageId`: look a message up by it, never by its row's id.
+
+Sending rows keep creation order; a row that starts publishing moves to
+`tip+1`; failed rows sit below every sending row, in creation order, so a
+failed message is always at the bottom of the chat; a retried row joins the
+end of the sending rows. A cancelled row's position may be taken by the
+next row; confirmed ids are never reused.
 
 ## Diagnostics
 

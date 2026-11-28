@@ -551,6 +551,46 @@ class ChatSelectionController implements Listenable {
     _notify();
   }
 
+  /// Carries selection across a provisional tail move: membership of each
+  /// key of [moved] goes to its value, [removed] rows leave the selection,
+  /// and a text selection on any of them is cleared (its range indexes the
+  /// row's old body and cannot be carried). One notification.
+  ///
+  /// Returns how many selected rows moved and whether a text selection was
+  /// cleared. Called by the viewport for its data source's
+  /// `RebaseTailMutation`; hosts never call it. A no-op once disposed.
+  @internal
+  ({int selectionCarried, bool textCleared}) carryRows(
+    Map<int, int> moved,
+    Iterable<int> removed,
+  ) {
+    if (_disposed) return (selectionCarried: 0, textCleared: false);
+    final gone = {...moved.keys, ...removed};
+    Set<int> remap(Set<int> ids) => {
+      for (final id in ids)
+        if (moved[id] case final to?) to else if (!gone.contains(id)) id,
+    };
+    final carried = _selectedIds.where(moved.containsKey).length;
+    final changed = _selectedIds.any(gone.contains);
+    if (changed) {
+      final next = remap(_selectedIds);
+      _selectedIds
+        ..clear()
+        ..addAll(next);
+    }
+    final drag = _dragSelectedIds;
+    final dragChanged = drag != null && drag.any(gone.contains);
+    if (dragChanged) _dragSelectedIds = remap(drag);
+    final textCleared = gone.contains(_text.subjectId) && _text.disarm();
+    if (textCleared) {
+      _hasEstablishedTextRange = false;
+      _pendingWordSelect = false;
+      _lastSameDocTextSelection = null;
+    }
+    if (changed || dragChanged || textCleared) _notify();
+    return (selectionCarried: carried, textCleared: textCleared);
+  }
+
   void _clearMessageIds() {
     if (_selectedIds.isEmpty) return;
     _selectedIds.clear();

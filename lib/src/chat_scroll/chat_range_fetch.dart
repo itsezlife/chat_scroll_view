@@ -27,13 +27,15 @@ class ChatRangeFetch {
     int? Function()? unconfirmedTailThroughId,
     void Function(int? maxReturnedId)? onFetchSuccess,
     bool Function(int id)? skipFetchUpsert,
+    List<IChatMessage> Function(List<IChatMessage> messages)? applyInsideTail,
   }) : _chunks = chunks,
        _fetchRange = fetchRange,
        _notifyDataChanged = notifyDataChanged,
        _isDisposed = isDisposed,
        _unconfirmedTailThroughId = unconfirmedTailThroughId,
        _onFetchSuccess = onFetchSuccess,
-       _skipFetchUpsert = skipFetchUpsert;
+       _skipFetchUpsert = skipFetchUpsert,
+       _applyInsideTail = applyInsideTail;
 
   static final math.Random _rnd = math.Random();
 
@@ -48,6 +50,13 @@ class ChatRangeFetch {
   final int? Function()? _unconfirmedTailThroughId;
   final void Function(int? maxReturnedId)? _onFetchSuccess;
   final bool Function(int id)? _skipFetchUpsert;
+
+  /// Applies the returned rows that land inside the provisional tail through
+  /// the tail move and returns the others, which are written into their
+  /// slots. Writing a row into a provisional slot would silently overwrite
+  /// an outgoing row the server does not know yet.
+  final List<IChatMessage> Function(List<IChatMessage> messages)?
+  _applyInsideTail;
 
   Object? _fetchToken;
   int _fetchRetryStep = 0;
@@ -307,7 +316,10 @@ class ChatRangeFetch {
         final chunks = _chunks();
         // Upsert returned messages into their slots. Skip ids the integrator
         // removed locally — static/refetch sources may still return them.
-        for (final msg in messages) {
+        // Rows inside the provisional tail are not upserted: they go before
+        // it through the tail move.
+        final upserts = _applyInsideTail?.call(messages) ?? messages;
+        for (final msg in upserts) {
           assert(
             msg.id >= fromId && msg.id <= toId,
             'fetchRange returned message id ${msg.id} outside the requested '

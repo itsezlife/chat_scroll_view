@@ -12,6 +12,7 @@ import 'package:listen/listen.dart';
 import 'package:mpx_transfer/mpx_transfer.dart';
 
 import '../support/note_payload_codec.dart';
+import '../support/outgoing_messages.dart';
 import '../support/sends.dart';
 
 void main() {
@@ -32,6 +33,8 @@ void main() {
       transfers: transfers,
       codec: const NotePayloadCodec(),
       itemOf: sendItemOf,
+      idStrategyOf: fakeIdStrategyOf,
+      rowOf: fakeRowOf,
       clientMessageIds: clientMessageIdsFrom(),
       now: () => clock,
     );
@@ -98,6 +101,8 @@ void main() {
         transfers: transfers,
         codec: const NotePayloadCodec(),
         itemOf: sendItemOf,
+        idStrategyOf: fakeIdStrategyOf,
+        rowOf: fakeRowOf,
         clientMessageIds: clientMessageIdsFrom(),
         capabilitiesOf: (_) => ValueNotifier(
           const ChatCapabilities(

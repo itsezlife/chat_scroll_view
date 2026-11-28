@@ -19,6 +19,11 @@ dependencies:
   # reason (ADR 049; ADR 020 amendment, the chat_outbox row).
   chat_capabilities:
     path: ../chat_capabilities
+  # ChatDataSource.rebaseTail, the one move of the provisional tail, and the
+  # IChatMessage rows an id strategy places (spec §5.3; map 25 §7). The root
+  # never depends on chat_outbox, so the graph stays a DAG.
+  chat_scroll_view:
+    path: ../..
   # MediaItemId and ContentKey, an outgoing item's identity and local key, and
   # the diagnostics contract (ChatDiagnostics, DiagnosticOp; ADR 050).
   content_model:
@@ -27,6 +32,11 @@ dependencies:
   # send origin's rect, and the edges to the root package and mpx_transfer
   # are Flutter packages (ADR 048).
   flutter:
+    sdk: flutter
+  # Only lib/testing.dart needs this: the id strategy contract suite is written
+  # with the test framework, and a library cannot import a dev dependency.
+  # Production entry points never import it.
+  flutter_test:
     sdk: flutter
   # The listenables the outbox exposes (send in flight) and reads (the chat
   # capabilities), as chat_capabilities declares them.
@@ -45,7 +55,3 @@ dependencies:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_transfer
       ref: 645a44248c1f68224fcbb8e521d024171b124546
-
-dev_dependencies:
-  flutter_test:
-    sdk: flutter

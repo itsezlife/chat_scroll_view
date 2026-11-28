@@ -100,22 +100,10 @@ final class OutboxProjection {
   bool isFresh(String chatId, String clientMessageId) =>
       _$fresh.contains((chatId, clientMessageId));
 
-  /// [chatId]'s outgoing messages in tail order, lowest position first; a
-  /// message no strategy has placed yet comes after the placed ones, and
-  /// messages of the same position keep the order they were first put in.
-  List<OutgoingMessage> tailOf(String chatId) {
-    // List.sort is not stable: the first-put order breaks ties explicitly.
-    final indexed = [...?_$chats[chatId]?.values.indexed]
-      ..sort(
-        (a, b) => switch ((a.$2.position, b.$2.position)) {
-          (final a?, final b?) when a != b => a.compareTo(b),
-          (null, _?) => 1,
-          (_?, null) => -1,
-          _ => a.$1.compareTo(b.$1),
-        },
-      );
-    return [for (final (_, message) in indexed) message];
-  }
+  /// [chatId]'s outgoing messages in tail order, lowest position first.
+  List<OutgoingMessage> tailOf(String chatId) =>
+      [...?_$chats[chatId]?.values]
+        ..sort((a, b) => a.position.compareTo(b.position));
 
   /// Whether [chatId] has a message still on its way: preparing, uploading
   /// or publishing.

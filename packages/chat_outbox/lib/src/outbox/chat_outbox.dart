@@ -7,6 +7,7 @@ import 'package:chat_capabilities/chat_capabilities.dart';
 import 'package:chat_outbox/src/diagnostics/outbox_debug_snapshot.dart';
 import 'package:chat_outbox/src/diagnostics/outbox_op.dart';
 import 'package:chat_outbox/src/diagnostics/outbox_trace.dart';
+import 'package:chat_outbox/src/ids/outgoing_id_strategy.dart';
 import 'package:chat_outbox/src/message/outgoing_message.dart';
 import 'package:chat_outbox/src/message/outgoing_payload_codec.dart';
 import 'package:chat_outbox/src/message/outgoing_status.dart';
@@ -15,6 +16,7 @@ import 'package:chat_outbox/src/outbox/outbox_projection.dart';
 import 'package:chat_outbox/src/send/outgoing_send_item.dart';
 import 'package:chat_outbox/src/send/send_check.dart';
 import 'package:chat_outbox/src/transfers/outbox_transfers.dart';
+import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:content_model/content_model.dart';
 import 'package:listen/listen.dart';
 import 'package:meta/meta.dart';
@@ -27,7 +29,9 @@ import 'package:mpx_transfer/mpx_transfer.dart';
 /// under the chat's tag, after the chat's slow mode and limits let it
 /// through; the job's state, watched per chat, is the message's status.
 /// [M] is the host's message model, which the outbox keeps as bytes
-/// through the host's [OutgoingPayloadCodec].
+/// through the host's [OutgoingPayloadCodec]. The chat's
+/// [OutgoingIdStrategy] places each accepted message's row in the
+/// provisional tail and moves it there.
 ///
 /// It keeps no store of its own; its view of each chat is a projection of
 /// the publish jobs, so a restart reads the same messages back. Every
@@ -42,7 +46,10 @@ final class ChatOutbox<M> {
   ///
   /// [codec] turns the host's message model into the job's payload.
   /// [itemOf] answers, for each attach item of a planned send, its keys
-  /// and where its bytes come from. [capabilitiesOf] gives the chat's
+  /// and where its bytes come from. [idStrategyOf] makes a chat's id
+  /// strategy, once per chat, on its first send; [rowOf] builds the host's
+  /// row for an accepted message at the position the strategy gives it
+  /// (`OutgoingMessage.position`). [capabilitiesOf] gives the chat's
   /// capabilities listenable, the one the host passes the chat's other
   /// consumers; a chat without one is unrestricted. [feedback] hears of a
   /// refused send. [clientMessageIds] issues each send's client message id
@@ -53,6 +60,8 @@ final class ChatOutbox<M> {
     required OutboxTransfers transfers,
     required OutgoingPayloadCodec<M> codec,
     required OutgoingSendItemResolver itemOf,
+    required OutgoingIdStrategy Function(String chatId) idStrategyOf,
+    required OutgoingRowBuilder<M> rowOf,
     ValueListenable<ChatCapabilities>? Function(String chatId)? capabilitiesOf,
     CapabilityFeedback feedback = CapabilityFeedback.none,
     String Function()? clientMessageIds,
@@ -62,6 +71,8 @@ final class ChatOutbox<M> {
          transfers: transfers,
          codec: codec,
          itemOf: itemOf,
+         idStrategyOf: idStrategyOf,
+         rowOf: rowOf,
          capabilitiesOf: capabilitiesOf,
          feedback: feedback,
          clientMessageIds: clientMessageIds,
@@ -75,6 +86,8 @@ final class ChatOutbox<M> {
     required OutboxTransfers transfers,
     required OutgoingPayloadCodec<M> codec,
     required OutgoingSendItemResolver itemOf,
+    required OutgoingIdStrategy Function(String chatId) idStrategyOf,
+    required OutgoingRowBuilder<M> rowOf,
     ValueListenable<ChatCapabilities>? Function(String chatId)? capabilitiesOf,
     CapabilityFeedback feedback = CapabilityFeedback.none,
     String Function()? clientMessageIds,
@@ -82,6 +95,8 @@ final class ChatOutbox<M> {
   }) : _transfers = transfers,
        _codec = codec,
        _itemOf = itemOf,
+       _makeIdStrategy = idStrategyOf,
+       _rowOf = rowOf,
        _capabilitiesOf = capabilitiesOf,
        _feedback = feedback,
        _issueClientMessageId = clientMessageIds ?? _$randomClientMessageId,
@@ -111,6 +126,11 @@ final class ChatOutbox<M> {
   final OutboxTransfers _transfers;
   final OutgoingPayloadCodec<M> _codec;
   final OutgoingSendItemResolver _itemOf;
+  final OutgoingIdStrategy Function(String chatId) _makeIdStrategy;
+  final OutgoingRowBuilder<M> _rowOf;
+
+  /// Each chat's id strategy, made on its first use.
+  final Map<String, OutgoingIdStrategy> _$strategies = {};
   final ValueListenable<ChatCapabilities>? Function(String chatId)?
   _capabilitiesOf;
   final CapabilityFeedback _feedback;
@@ -146,16 +166,19 @@ final class ChatOutbox<M> {
   ///
   /// Each item's `MediaItemId` is the client message id and the item's
   /// index (`<clientMessageId>:<index>`), unless the host gives its own
-  /// [itemIds], one per item in order. The message is fresh: the host's
-  /// [isFreshOutgoing] answers true for it once.
+  /// [itemIds], one per item in order. After the job is made the chat's id
+  /// strategy places the message's row (built by the host's row builder)
+  /// in the provisional tail; the answered message holds its position. The
+  /// message is fresh: the host's [isFreshOutgoing] answers true for it
+  /// once.
   ///
   /// [origins] are the picker's send origins by item order: each item's
   /// global thumbnail rect at send time, null for an item the picker did
   /// not show. The outbox keys them by the items' `MediaItemId`s and hands
   /// each out once through [takeSendOrigin].
   ///
-  /// Reports `refusedBeforeJob`, or `accepted`, `jobCreated` and, with
-  /// [origins], `sendOriginStored`. Throws an [ArgumentError] when
+  /// Reports `refusedBeforeJob`, or `accepted`, `jobCreated`,
+  /// `positionAllocated` and, with [origins], `sendOriginStored`. Throws an [ArgumentError] when
   /// [itemIds] or [origins] does not give one entry per item, and
   /// whatever the engine throws for a request it cannot run, after which
   /// the outbox holds nothing of the send.
@@ -207,6 +230,7 @@ final class ChatOutbox<M> {
       PlannedSend$Text() => SendForm.media,
     };
     final sendItems = [for (final item in items) _itemOf(item, form)];
+    final strategy = idStrategy(chatId);
     ChatDiagnostics.current.emit(
       ChatEventLevel.info,
       ChatEventCategory.outbox,
@@ -220,6 +244,7 @@ final class ChatOutbox<M> {
         },
         'items': items.length,
         'idsIssuedBy': itemIds == null ? 'outbox' : 'host',
+        'strategy': strategy.name,
       },
     );
     final request = PublishRequest(
@@ -241,15 +266,22 @@ final class ChatOutbox<M> {
     );
     final jobId = _transfers.publish(request);
     _reportJobCreated(request, correlation, jobId);
-    final message = OutgoingMessage(
+    OutgoingMessage at(int position) => OutgoingMessage(
       chatId: chatId,
       clientMessageId: clientMessageId,
+      position: position,
       status: _firstStatusOf(request),
       payload: request.payload,
       items: [
         for (final (index, item) in sendItems.indexed)
           OutgoingItem(id: ids[index], localKey: item.localKey),
       ],
+    );
+    final message = at(
+      strategy.allocate(
+        clientMessageId,
+        (position) => _rowOf(at(position), payload),
+      ),
     );
     _projection.put(message, fresh: true, job: OutboxJobView(jobId));
     if (origins != null) _storeOrigins(message, origins);
@@ -339,6 +371,26 @@ final class ChatOutbox<M> {
       },
     );
   }
+
+  /// The id strategy of [chatId], made on first use: the one that places
+  /// and moves the chat's outgoing rows.
+  ///
+  /// The host's duty: hand it the incoming messages that land inside the
+  /// provisional tail (`OutgoingIdStrategy.incoming`) instead of inserting
+  /// them, so they take their positions before the outgoing rows.
+  OutgoingIdStrategy idStrategy(String chatId) =>
+      _$strategies.putIfAbsent(chatId, () => _makeIdStrategy(chatId));
+
+  /// [message] at the position its chat's strategy holds for it now; the
+  /// stored one when the strategy no longer moves it.
+  OutgoingMessage _current(OutgoingMessage message) =>
+      switch (_$strategies[message.chatId]?.positionOf(
+        message.clientMessageId,
+      )) {
+        final position? when position != message.position =>
+          message.withPosition(position),
+        _ => message,
+      };
 
   SendRefusal? _refusalOf(String chatId, PlannedSend send) {
     final capabilities = _capabilitiesOf?.call(chatId)?.value;
@@ -459,7 +511,10 @@ final class ChatOutbox<M> {
     String clientMessageId,
     PublishJobSnapshot job,
   ) {
-    final message = _projection.lookup(chatId, clientMessageId);
+    final message = switch (_projection.lookup(chatId, clientMessageId)) {
+      final message? => _current(message),
+      null => null,
+    };
     // A job this outbox did not make in this run (a restart's) is not
     // projected here.
     if (message == null ||
@@ -481,10 +536,7 @@ final class ChatOutbox<M> {
         chatId: chatId,
         clientMessageId: clientMessageId,
         jobId: job.id,
-        scrollId: switch (message.position) {
-          final position? => '$position',
-          null => null,
-        },
+        scrollId: '${message.position}',
       ),
       fields: () => {
         'from': message.status.name,
@@ -518,7 +570,10 @@ final class ChatOutbox<M> {
   /// is the host's own message, which it settles in place instead of
   /// inserting a twin row. Reports `echoMatched`.
   OutgoingMessage? byClientMessageId(String chatId, String clientMessageId) {
-    final message = _projection.lookup(chatId, clientMessageId);
+    final message = switch (_projection.lookup(chatId, clientMessageId)) {
+      final message? => _current(message),
+      null => null,
+    };
     ChatDiagnostics.current.emit(
       ChatEventLevel.debug,
       ChatEventCategory.outbox,
@@ -526,8 +581,8 @@ final class ChatOutbox<M> {
       correlation: ChatCorrelation(
         chatId: chatId,
         clientMessageId: clientMessageId,
-        scrollId: switch (message?.position) {
-          final position? => '$position',
+        scrollId: switch (message) {
+          final message? => '${message.position}',
           null => null,
         },
       ),
@@ -563,15 +618,22 @@ final class ChatOutbox<M> {
   /// What the outbox holds for [chatId] right now, without user content;
   /// see [OutboxDebugSnapshot].
   ///
-  /// Reading it changes nothing: a row's fresh flag stays unread, and an
-  /// origin it shows as held is still there to take (it drops the expired
-  /// ones first, as every call does).
+  /// Reading it changes nothing: a row's fresh flag stays unread, a
+  /// chat with no strategy yet gets none, and an origin it shows as
+  /// held is still there to take (it drops the expired ones first, as
+  /// every call does).
   OutboxDebugSnapshot debugSnapshot(String chatId) {
     _projection.origins.expire(_now());
+    final strategy = _$strategies[chatId];
+    final messages = [
+      for (final message in _projection.tailOf(chatId)) _current(message),
+    ]..sort((a, b) => a.position.compareTo(b.position));
     return OutboxDebugSnapshot(
       chatId: chatId,
+      strategy: strategy?.name,
+      tip: strategy?.tip,
       tail: [
-        for (final message in _projection.tailOf(chatId))
+        for (final message in messages)
           OutboxDebugRow.of(
             message,
             fresh: _projection.isFresh(chatId, message.clientMessageId),
@@ -580,7 +642,10 @@ final class ChatOutbox<M> {
           ),
       ],
       sendInFlight: _projection.hasInFlight(chatId),
-      counters: OutboxDebugCounters(accepted: _$accepted),
+      counters: OutboxDebugCounters(
+        accepted: _$accepted,
+        rebases: strategy?.rebases ?? const {},
+      ),
     );
   }
 
@@ -612,3 +677,10 @@ final class ChatOutbox<M> {
       _$random.nextInt(256).toRadixString(16).padLeft(2, '0'),
   ].join();
 }
+
+/// Builds the host's row for an accepted outgoing [message], at
+/// `message.position`, from its message model [payload]: the row the
+/// chat's id strategy inserts, for which the data source's `identityOf`
+/// answers the message's client message id.
+typedef OutgoingRowBuilder<M> =
+    IChatMessage Function(OutgoingMessage message, M payload);

@@ -16,7 +16,18 @@ ChatOutbox<Note> outboxOver(
   transfers: transfers ?? FakeOutboxTransfers(),
   codec: const NotePayloadCodec(),
   itemOf: sendItemOf,
+  idStrategyOf: fakeIdStrategyOf,
+  rowOf: fakeRowOf,
 );
+
+/// A fresh fake id strategy for [chatId], over its own tail whose newest
+/// confirmed message is 100.
+OutgoingIdStrategy fakeIdStrategyOf(String chatId) =>
+    FakeOutgoingIdStrategy(chatId: chatId);
+
+/// The tests' outgoing row: the message's client message id at its position.
+FakeTailMessage fakeRowOf(OutgoingMessage message, Note payload) =>
+    FakeTailMessage(message.position, message.clientMessageId);
 
 /// An outgoing message of chat `c1` for the tests, its payload the [Note]
 /// [text] through [NotePayloadCodec].
