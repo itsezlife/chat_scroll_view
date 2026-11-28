@@ -48,6 +48,7 @@ export 'src/preview/catalog_content_preview.dart';
 export 'src/preview/content_preview_item.dart';
 export 'src/preview/content_preview_layout.dart';
 export 'src/preview/content_preview_menu.dart';
+export 'src/preview/content_preview_op.dart';
 export 'src/preview/content_preview_session.dart';
 export 'src/scroll/page_scroll_reporter.dart';
 export 'src/snapshot/catalog_snapshot_builder.dart';

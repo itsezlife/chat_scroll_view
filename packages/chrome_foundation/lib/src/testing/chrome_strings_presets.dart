@@ -2,6 +2,7 @@ import 'package:chrome_foundation/src/strings/attach_strings.dart';
 import 'package:chrome_foundation/src/strings/bulletin_strings.dart';
 import 'package:chrome_foundation/src/strings/chrome_strings.dart';
 import 'package:chrome_foundation/src/strings/composer_strings.dart';
+import 'package:chrome_foundation/src/strings/draft_options_strings.dart';
 import 'package:chrome_foundation/src/strings/edit_menu_strings.dart';
 import 'package:chrome_foundation/src/strings/formatting_strings.dart';
 import 'package:chrome_foundation/src/strings/media_strings.dart';
@@ -86,6 +87,25 @@ abstract final class ChromeStringsPresets {
       slowModeStarted: (countdown) =>
           'Slow mode: you can send again in $countdown',
       slowModeEnded: 'You can send a message now',
+      draftOptions: const DraftOptionsStrings(
+        linkTitle: 'Link Preview',
+        linkSubtitle: 'You can customize your link',
+        moveUp: 'Move up',
+        moveDown: 'Move down',
+        enlargePhoto: 'Enlarge photo',
+        shrinkPhoto: 'Shrink photo',
+        enlargeVideo: 'Enlarge video',
+        shrinkVideo: 'Shrink video',
+        applyChanges: 'Apply changes',
+        doNotPreview: 'Do not preview',
+        removePreview: 'Remove preview',
+        chooseLinkHint: 'Click a link to choose',
+        save: 'Save',
+        cancel: 'Cancel',
+        dismiss: 'Dismiss',
+        loadingPreview: 'Loading preview',
+        previewLoaded: 'Preview loaded',
+      ),
     ),
     formatting: FormattingStrings(
       quoteAction: 'Quote',
@@ -398,6 +418,25 @@ abstract final class ChromeStringsPresets {
       slowModeStarted: (countdown) =>
           'Медленный режим: отправить снова можно через $countdown',
       slowModeEnded: 'Можно отправить сообщение',
+      draftOptions: const DraftOptionsStrings(
+        linkTitle: 'Предпросмотр ссылки',
+        linkSubtitle: 'Вы можете настроить ссылку',
+        moveUp: 'Переместить вверх',
+        moveDown: 'Переместить вниз',
+        enlargePhoto: 'Увеличить фото',
+        shrinkPhoto: 'Уменьшить фото',
+        enlargeVideo: 'Увеличить видео',
+        shrinkVideo: 'Уменьшить видео',
+        applyChanges: 'Применить изменения',
+        doNotPreview: 'Не показывать превью',
+        removePreview: 'Убрать превью',
+        chooseLinkHint: 'Нажмите на ссылку, чтобы выбрать',
+        save: 'Сохранить',
+        cancel: 'Отмена',
+        dismiss: 'Закрыть',
+        loadingPreview: 'Загрузка превью',
+        previewLoaded: 'Превью загружено',
+      ),
     ),
     formatting: FormattingStrings(
       quoteAction: 'Цитата',

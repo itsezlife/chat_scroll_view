@@ -806,7 +806,9 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
   void _onHover(PointerHoverEvent event) {
     final hovered = _hovered;
     final cursor = _cursor;
-    _updateHover(event.position);
+    // A pointer the policy does not hover with (a stylus or a touch screen
+    // on the web) leaves the media as if nothing hovered.
+    _updateHover(_gestures.hoversWith(event.kind) ? event.position : null);
     if (hovered != _hovered || cursor != _cursor) setState(() {});
   }
 

@@ -9,6 +9,44 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'boundaries_test.dart' as boundaries_test;
+import 'draft_options/draft_link_choice_test.dart'
+    as draft_options_draft_link_choice_test;
+import 'draft_options/draft_link_page_test.dart'
+    as draft_options_draft_link_page_test;
+import 'draft_options/draft_link_rows_test.dart'
+    as draft_options_draft_link_rows_test;
+import 'draft_options/draft_options_card_golden_test.dart'
+    as draft_options_card_golden_test;
+import 'draft_options/draft_options_card_test.dart' as draft_options_card_test;
+import 'draft_options/draft_options_card_view_test.dart'
+    as draft_options_card_view_test;
+import 'draft_options/draft_options_desktop_golden_test.dart'
+    as draft_options_desktop_golden_test;
+import 'draft_options/draft_options_desktop_test.dart'
+    as draft_options_desktop_test;
+import 'draft_options/draft_options_entry_test.dart'
+    as draft_options_entry_test;
+import 'draft_options/draft_options_ios_golden_test.dart'
+    as draft_options_ios_golden_test;
+import 'draft_options/draft_options_ios_presentation_test.dart'
+    as draft_options_ios_presentation_test;
+import 'draft_options/draft_options_keyboard_test.dart'
+    as draft_options_keyboard_test;
+import 'draft_options/draft_options_overlay_test.dart'
+    as draft_options_overlay_test;
+import 'draft_options/draft_options_policy_test.dart'
+    as draft_options_policy_test;
+import 'draft_options/draft_options_semantics_test.dart'
+    as draft_options_semantics_test;
+import 'draft_options/draft_options_session_test.dart'
+    as draft_options_session_test;
+import 'draft_options/draft_options_web_menu_golden_test.dart'
+    as draft_options_web_menu_golden_test;
+import 'draft_options/draft_options_web_menu_policy_test.dart'
+    as draft_options_web_menu_policy_test;
+import 'draft_options/draft_options_web_menu_test.dart'
+    as draft_options_web_menu_test;
+import 'draft_options/overlay_trace_test.dart' as overlay_trace_test;
 import 'input/composer_clipboard_test.dart' as input_composer_clipboard_test;
 import 'input/composer_controller_extent_test.dart'
     as composer_controller_extent_test;
@@ -18,6 +56,8 @@ import 'input/composer_draft_contract_test.dart'
 import 'input/composer_edit_state_test.dart' as composer_edit_state_test;
 import 'input/composer_field_integration_test.dart'
     as composer_field_integration_test;
+import 'input/composer_keyboard_intent_test.dart'
+    as composer_keyboard_intent_test;
 import 'input/composer_lists_paste_test.dart' as composer_lists_paste_test;
 import 'input/composer_mentions_test.dart' as composer_mentions_test;
 import 'input/composer_paste_report_test.dart' as composer_paste_report_test;
@@ -97,6 +137,83 @@ import 'view/composer_view_test.dart' as composer_view_test;
 void main() {
   group('boundaries_test.dart', boundaries_test.main);
   group(
+    'draft_options/draft_link_choice_test.dart',
+    draft_options_draft_link_choice_test.main,
+  );
+  group(
+    'draft_options/draft_link_page_test.dart',
+    draft_options_draft_link_page_test.main,
+  );
+  group(
+    'draft_options/draft_link_rows_test.dart',
+    draft_options_draft_link_rows_test.main,
+  );
+  group(
+    'draft_options/draft_options_card_golden_test.dart',
+    draft_options_card_golden_test.main,
+  );
+  group(
+    'draft_options/draft_options_card_test.dart',
+    draft_options_card_test.main,
+  );
+  group(
+    'draft_options/draft_options_card_view_test.dart',
+    draft_options_card_view_test.main,
+  );
+  group(
+    'draft_options/draft_options_entry_test.dart',
+    draft_options_entry_test.main,
+  );
+  group(
+    'draft_options/draft_options_ios_golden_test.dart',
+    draft_options_ios_golden_test.main,
+  );
+  group(
+    'draft_options/draft_options_ios_presentation_test.dart',
+    draft_options_ios_presentation_test.main,
+  );
+  group(
+    'draft_options/draft_options_desktop_golden_test.dart',
+    draft_options_desktop_golden_test.main,
+  );
+  group(
+    'draft_options/draft_options_desktop_test.dart',
+    draft_options_desktop_test.main,
+  );
+  group(
+    'draft_options/draft_options_keyboard_test.dart',
+    draft_options_keyboard_test.main,
+  );
+  group(
+    'draft_options/draft_options_overlay_test.dart',
+    draft_options_overlay_test.main,
+  );
+  group(
+    'draft_options/draft_options_policy_test.dart',
+    draft_options_policy_test.main,
+  );
+  group(
+    'draft_options/draft_options_semantics_test.dart',
+    draft_options_semantics_test.main,
+  );
+  group(
+    'draft_options/draft_options_session_test.dart',
+    draft_options_session_test.main,
+  );
+  group(
+    'draft_options/draft_options_web_menu_golden_test.dart',
+    draft_options_web_menu_golden_test.main,
+  );
+  group(
+    'draft_options/draft_options_web_menu_policy_test.dart',
+    draft_options_web_menu_policy_test.main,
+  );
+  group(
+    'draft_options/draft_options_web_menu_test.dart',
+    draft_options_web_menu_test.main,
+  );
+  group('draft_options/overlay_trace_test.dart', overlay_trace_test.main);
+  group(
     'input/composer_clipboard_test.dart',
     input_composer_clipboard_test.main,
   );
@@ -113,6 +230,10 @@ void main() {
   group(
     'input/composer_field_integration_test.dart',
     composer_field_integration_test.main,
+  );
+  group(
+    'input/composer_keyboard_intent_test.dart',
+    composer_keyboard_intent_test.main,
   );
   group('input/composer_lists_paste_test.dart', composer_lists_paste_test.main);
   group('input/composer_mentions_test.dart', composer_mentions_test.main);

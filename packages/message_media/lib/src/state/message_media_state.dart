@@ -1,7 +1,11 @@
 import 'dart:ui' show Offset, Rect;
 
+import 'package:chrome_foundation/chrome_foundation.dart'
+    show ChromeInputClass, ChromeWidthClass;
 import 'package:content_model/content_model.dart';
+import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:listen/listen.dart';
+import 'package:message_media/src/diagnostics/media_op.dart';
 import 'package:meta/meta.dart';
 
 /// A rect of one media item in global coordinates, or null where there is
@@ -50,6 +54,7 @@ final class MessageMediaState {
   final Map<MediaItemId, Offset> _revealOrigins = {};
   final List<MediaItemRect> _origins = [];
   bool _disposed = false;
+  ({ChromeWidthClass width, ChromeInputClass input})? _$webClasses;
 
   /// The state of [id]; notifies only when that item's state changes.
   ///
@@ -115,6 +120,41 @@ final class MessageMediaState {
   /// Removes a lookup [attachOrigins] added.
   @internal
   void detachOrigins(MediaItemRect lookup) => _origins.remove(lookup);
+
+  /// Notes the window's width class and the input class a web view of this
+  /// chat was built under, and reports a change from the last ones noted
+  /// (`media` / `webClassChanged`, with [chatId]) after the frame.
+  ///
+  /// Every view of the chat notes them on each build, and a resize rebuilds
+  /// them all, so the state keeps what it last saw: one report per change,
+  /// not one per view or per frame. The first note reports nothing, there
+  /// being nothing it changed from. The report waits for the frame's end:
+  /// a build reports nothing of its own.
+  @internal
+  void noteWebClasses(
+    ChromeWidthClass width,
+    ChromeInputClass input, {
+    String? chatId,
+  }) {
+    if (_disposed) return;
+    final last = _$webClasses;
+    _$webClasses = (width: width, input: input);
+    if (last == null || (last.width == width && last.input == input)) return;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (_disposed) return;
+      ChatDiagnostics.current.emit(
+        ChatEventLevel.debug,
+        ChatEventCategory.media,
+        MediaOp.webClassChanged,
+        correlation: ChatCorrelation(chatId: chatId),
+        fields: () => {
+          'from': last.width.name,
+          'to': width.name,
+          'input': input.name,
+        },
+      );
+    });
+  }
 
   /// Releases the item notifiers; the state is unusable afterwards.
   void dispose() {

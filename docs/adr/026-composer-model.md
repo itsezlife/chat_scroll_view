@@ -83,3 +83,37 @@ link preview options in the composer's menu).
 | Text | The overlay's entry puts a `ChromeTextRoot` at its root; its text styles start from `ChromeTypography.of(context)`. |
 
 Nothing was left open at acceptance.
+
+## Amendment (2026-11-28): the draft options overlay as built
+
+Recorded from the `## Decisions` of the draft-options-overlay issues 06 to 15. These are differences from the amendment above, not new policy; the maintainer accepts them with the rest.
+
+| Area | As built |
+| ---- | -------- |
+| Shape | `DraftOptionsController` (one per composer) opens a `DraftOptionsOverlay` over a `ChromeScrimController` with the policy's preset. `DraftOptionsSession` holds one open headlessly; `DraftOptionsHost` is the host's seam. The web's menu is `DraftOptionsWebMenuController`, a separate controller over the same session and link page. |
+| Input guard | A press within `openGuard` (400 ms) of an accepted open passes through the scrim, so a tap burst on the strip opens one overlay and does not close it; after the window an open while one is up is refused (06). |
+| Apply | `apply()` closes under `liveApply` and saves under `commitOnSave`. Remove also reports the copy under `commitOnSave`. Choosing a link is an edit like the others: under `commitOnSave` it stays in the copy until save. The host's `chooseLink` is a lookup that writes no draft (06, 07, 08, 15). |
+| Link page | The size facts (kind, shrinkable, large by default) come from the host through `DraftLinkMediaReader`, because `chat_composer` may not import `message_media`. Android's fall back to the next link follows the shared dismissal: under its default policy the cross turns the whole field off, so no link remains. Whether the next link or the next header strip is meant is the maintainer's to confirm (07). |
+| Link choice | `linkTapIgnored` also takes `current` (the link already previewed) and `notInText`. Desktop keeps the chosen link selected after it loads (08). |
+| Presentation | The 80 % rule on Android's card is a floor: the visible card plus the menu never drop under 80 % of the display less 8 (09). iOS centres the content and its actions together and moves the content vertically only (10). The desktop box focuses into itself on open and returns focus to the composer's field when the close starts; Enter on a focused row or button presses it (11). |
+| Web | `ComposerHeader.linkPreview` gains `onHover(Rect?)`, reported for a mouse or trackpad only, because the host cannot wrap the strip. A click opens the menu at once as hover does. The leave grace is 200 ms. The placement reading of "top end, 8 inset" is unverified (12). |
+| Keyboard | The reopen goes through the composer (`reopenKeyboard`), not the host, because it comes 50 ms into the close and the hold lasts until 15 ms after the full close. While the intent is `hold`, `requestKeyboard` does nothing. `hide` stays the published intent after a remove until the next open (13). |
+| Semantics | The dismiss node closes through the session, so a screen reader's tap reports `closed` (trigger `outside`) without `scrimDismissed`. Announcements are decided by the session and spoken by the skin (14). |
+| Example | The preview bubble is the chat's own outgoing bubble behind `IgnorePointer`, reading links through its own selection controller. Desktop Save asks the resolver once more for a chosen link (15). |
+
+## Amendment (2026-11-28): the draft options after review
+
+Recorded from the code review of the draft-options-overlay branch. They reshape the as-built table above; the maintainer accepts them with the rest.
+
+| Area | After review |
+| ---- | ------------ |
+| One owner | A host binds the strip to one `DraftOptionsEntry`, which opens the overlay or the web's menu by the policy and feeds `page` and `linkPreviewsAllowed` to whichever is up. The two controllers share the open's rules and its events through an internal gate (`DraftOptionsGate`); `DraftOptionsPolicy.openGuard` is the one guard. |
+| Policy shape | `DraftOptionsOverlayPolicy` (Android, iOS, desktop) carries the apply mode, `opensOnPending`, the title, the keyboard, `keepsChosenLinkSelected` and the scrim; `DraftOptionsPolicy$Web` takes none of them and applies live. `DraftOptionsTitle.linkHeading` is the one title mapping. |
+| Platform form | Without a host policy the entry takes the platform's at each open from the window there, so an iPad window that became regular width opens the iPad form (D14); a form that is up stays until it closes. |
+| Denial | `DraftOptionsHost.previewDenied` reports a preview removed by denied previews, apart from the user's edits, so a host runs no dismissal follow-up for it (spec §5.10). |
+| Size row | iOS and desktop offer it only for a page whose media is large by default (`LinkPreviewMediaSizeRule.offersSwitch` reads `hasLargeMedia`); Android for any shrinkable photo (spec §5.4). |
+| Back | The iOS and iPad scrim presets take no back (`ChromeScrimPreset.closesOnBack`, spec §5.8). |
+| Focus | The desktop box's focus scope, Enter and focus return follow the box (`DraftOptionsPolicy$Desktop`), not the apply mode. The three presentations share their open / close lifecycle (`DraftOptionsPresentationMotion`). |
+| Tags | Refusals and ignored link taps are enums (`DraftOptionsOpenRefusal`, `DraftLinkTapIgnored`); `desktopNotLoaded` is `notLoaded`, named by the rule. With no draft link an open is refused `noDraft`. |
+| Traces | `chat_scroll_view.overlay.scrimCapture`, `…scrimStill` (an async span from capture to the still made) and `…previewBuild`, for the overlay and the content preview, through each package's trace enum (ADR 041). |
+

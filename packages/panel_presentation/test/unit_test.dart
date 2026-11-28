@@ -21,6 +21,7 @@ import 'keyboard/keyboard_height_store_test.dart' as keyboard_height_store_test;
 import 'keyboard/keyboard_replacement_strategy_test.dart'
     as keyboard_replacement_strategy_test;
 import 'keyboard/keyboard_slot_test.dart' as keyboard_slot_test;
+import 'keyboard/occupancy_hold_test.dart' as occupancy_hold_test;
 import 'kind/panel_occupancy_test.dart' as panel_occupancy_test;
 import 'policy/panel_presentation_policy_test.dart'
     as panel_presentation_policy_test;
@@ -54,6 +55,7 @@ void main() {
     keyboard_replacement_strategy_test.main,
   );
   group('keyboard/keyboard_slot_test.dart', keyboard_slot_test.main);
+  group('keyboard/occupancy_hold_test.dart', occupancy_hold_test.main);
   group('kind/panel_occupancy_test.dart', panel_occupancy_test.main);
   group(
     'policy/panel_presentation_policy_test.dart',

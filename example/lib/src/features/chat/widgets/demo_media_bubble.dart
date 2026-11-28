@@ -4,6 +4,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/chat_received_li
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_delivery.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_media_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message_meta.dart';
+import 'package:chrome_foundation/chrome_foundation.dart' show ChromeWidthClass;
 import 'package:content_model/content_model.dart';
 import 'package:content_model/markdown.dart' show RichTextMarkdown;
 import 'package:flutter/material.dart';
@@ -219,6 +220,7 @@ class _DemoMediaBubbleState extends State<DemoMediaBubble> {
           items: widget.items,
           availableWidth: screen.width,
           displaySize: screen,
+          widthClass: ChromeWidthClass.of(context),
           maxContentWidth: maxWidth,
           captionWidth: _captionWidthOf(maxWidth),
           linkPreview: _cardOf(direction),

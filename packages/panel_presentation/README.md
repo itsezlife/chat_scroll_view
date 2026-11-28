@@ -160,6 +160,15 @@ ime.report(ImeSample(
   safe area included. A panel that replaces the keyboard claims the slot at
   once, at least as tall as the keyboard; the keyboard collapsing or
   glitching beneath it changes nothing.
+- **Occupancy hold.** `KeyboardReplacementStrategy.holdOccupancy(shrink)`
+  keeps the bottom occupancy at the height it has when the hold is taken,
+  with no motion, while the keyboard is hidden: a host carrying out an
+  overlay's keyboard intent `hold` takes it before it lowers the keyboard.
+  Holds are counted and a release is idempotent. Released, a keyboard that
+  reaches the held height takes it over; one that settles lower, stays down
+  or is still moving after `handOffTimeout` lets it shrink over `shrink`. The
+  strategy runs that shrink on its own ticker, so it works when no panel was
+  shown. `PanelPresentationOp.occupancyHold` reports `start` and `end`.
 - **Paced mount.** The strategy mounts the shell with the search field one
   frame after the page when the panel grows into a free slot, and all at once
   when it replaces the keyboard (chrome would pop in over content already on

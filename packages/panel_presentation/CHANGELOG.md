@@ -6,6 +6,16 @@ this package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (occupancy hold)
+
+- `KeyboardReplacementStrategy.holdOccupancy(shrink)` (and
+  `KeyboardSlot.holdOccupancy`): a `KeyboardOccupancyHold` keeps the bottom
+  occupancy at the keyboard's height with no motion while the keyboard is
+  hidden. Released, a keyboard that reopened takes the held height over;
+  one that settles lower or stays down lets it shrink over `shrink`.
+  `PanelPresentationOp.occupancyHold` reports its start and end under the
+  `overlay` category.
+
 ### Added
 
 - `KeyboardPanelDock` and `KeyboardPanelField`: the swap between a field's
