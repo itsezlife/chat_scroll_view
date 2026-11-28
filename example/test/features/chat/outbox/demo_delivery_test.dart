@@ -12,9 +12,9 @@ import 'package:chat_outbox/chat_outbox.dart';
 import 'package:chat_outbox/testing.dart';
 import 'package:chat_scroll_view_example/src/app/demo_chrome_strings.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_chat_server.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_delivery.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outbox.dart';
-import 'package:chat_scroll_view_example/src/features/chat/outbox/fake_chat_server.dart';
 import 'package:content_model/content_model.dart' show MediaItemId;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mpx_core/mpx_core.dart';
@@ -25,14 +25,14 @@ void main() {
   const history = 20;
 
   late FakeOutboxTransfers transfers;
-  late FakeChatServer server;
+  late DemoChatServer server;
   late DemoOutbox demo;
   late GeneratedChatDataSource source;
   late List<String> announced;
 
   setUp(() {
     transfers = FakeOutboxTransfers();
-    server = FakeChatServer(peerDelay: Duration.zero);
+    server = DemoChatServer(peerDelay: Duration.zero);
     demo = DemoOutbox(transfers: transfers, server: server);
     source = GeneratedChatDataSource(messageCount: history);
     announced = [];
@@ -120,7 +120,10 @@ void main() {
 
       expect(
         demo.outbox
-            .byClientMessageId(chat, transfers.requests.single.idempotencyKey!)
+            .byClientMessageId(
+              const ChatId(chat),
+              ClientMessageId(transfers.requests.single.idempotencyKey!),
+            )
             ?.status,
         const OutgoingStatus.sent(),
       );
@@ -191,7 +194,10 @@ void main() {
       final message = sendPhoto(bound);
       await pumpEventQueue();
       await failUpload(message);
-      final at = demo.outbox.byClientMessageId(chat, message.clientMessageId)!;
+      final at = demo.outbox.byClientMessageId(
+        const ChatId(chat),
+        message.clientMessageId,
+      )!;
 
       final outcomes = await Future.wait([
         for (var i = 0; i < 10; i++) bound.retryAt(at.position),
@@ -220,7 +226,7 @@ void main() {
         await pumpEventQueue();
         await failUpload(message, reason: 'sourceLost');
         final at = demo.outbox.byClientMessageId(
-          chat,
+          const ChatId(chat),
           message.clientMessageId,
         )!;
 
@@ -241,7 +247,10 @@ void main() {
       final message = sendPhoto(bound);
       await pumpEventQueue();
       await failUpload(message);
-      final at = demo.outbox.byClientMessageId(chat, message.clientMessageId)!;
+      final at = demo.outbox.byClientMessageId(
+        const ChatId(chat),
+        message.clientMessageId,
+      )!;
       final job = jobOf(message);
 
       for (var i = 0; i < 10; i++) {
@@ -251,7 +260,10 @@ void main() {
 
       expect(transfers.cancelled, [job]);
       expect(
-        demo.outbox.byClientMessageId(chat, message.clientMessageId),
+        demo.outbox.byClientMessageId(
+          const ChatId(chat),
+          message.clientMessageId,
+        ),
         isNull,
       );
       expect(source.getMessage(at.position), isNull);

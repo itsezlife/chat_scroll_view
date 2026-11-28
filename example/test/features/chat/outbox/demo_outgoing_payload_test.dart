@@ -11,16 +11,48 @@ void main() {
   const codec = DemoOutgoingPayloadCodec();
 
   test('a payload round-trips through its bytes', () {
-    const payload = DemoOutgoingPayload(
+    final payload = DemoOutgoingPayload(
       sender: 'Hixie',
       body: 'hello **there**',
-      extras: {
-        'invertMedia': true,
-        'linkPreview': {'url': 'https://example.com'},
-      },
+      linkPreview: MessageLinkPreview(
+        options: LinkPreviewOptions(url: Uri.parse('https://example.com')),
+      ),
+      invertMedia: true,
     );
 
     expect(codec.decode(codec.encode(payload)), payload);
+    expect(payload.extras, {
+      'invertMedia': true,
+      'linkPreview': isA<Map<String, Object?>>(),
+    });
+  });
+
+  test('a payload read from the wire holds its link preview fields typed, '
+      'equal whatever order the wire wrote its keys in', () {
+    final wire = {
+      'linkPreview': {'url': 'https://example.com', 'media': 'large'},
+      'invertMedia': true,
+    };
+    final reordered = {
+      'invertMedia': true,
+      'linkPreview': {'media': 'large', 'url': 'https://example.com'},
+    };
+
+    final a = DemoOutgoingPayload.fromWire(
+      sender: 's',
+      body: 'b',
+      extras: wire,
+    );
+    final b = DemoOutgoingPayload.fromWire(
+      sender: 's',
+      body: 'b',
+      extras: reordered,
+    );
+
+    expect(a, b);
+    expect(a.hashCode, b.hashCode);
+    expect(a.invertMedia, isTrue);
+    expect(a.linkPreview?.options.url, Uri.parse('https://example.com'));
   });
 
   test('a payload without extras writes none and reads back empty', () {

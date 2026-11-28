@@ -31,7 +31,7 @@ void main() {
   };
 
   test('an empty outbox declares every section', () {
-    expect(outbox.debugSnapshot('c1').toMap(), {
+    expect(outbox.debugSnapshot(const ChatId('c1')).toMap(), {
       'chatId': 'c1',
       'strategy': null,
       'tip': null,
@@ -45,15 +45,15 @@ void main() {
   test('a one-row outbox describes the row and its items', () {
     projection.put(
       outgoingNote(
-        'm1',
+        const ClientMessageId('m1'),
         position: 101,
         text: 'abc',
-        items: [outgoingItem('m1', 0)],
+        items: [outgoingItem(const ClientMessageId('m1'), 0)],
       ),
       fresh: true,
     );
 
-    expect(outbox.debugSnapshot('c1').toMap(), {
+    expect(outbox.debugSnapshot(const ChatId('c1')).toMap(), {
       'chatId': 'c1',
       'strategy': null,
       'tip': null,
@@ -91,17 +91,22 @@ void main() {
     projection
       ..put(
         outgoingNote(
-          'late',
+          const ClientMessageId('late'),
           position: 103,
           status: const OutgoingStatus.failed(
             OutgoingFailure.denied(CapabilityAction.sendPhoto),
           ),
         ),
       )
-      ..put(outgoingNote('early', position: 102))
-      ..put(outgoingNote('other chat', chatId: 'c2'));
+      ..put(outgoingNote(const ClientMessageId('early'), position: 102))
+      ..put(
+        outgoingNote(
+          const ClientMessageId('other chat'),
+          chatId: const ChatId('c2'),
+        ),
+      );
 
-    final tail = outbox.debugSnapshot('c1').tail;
+    final tail = outbox.debugSnapshot(const ChatId('c1')).tail;
 
     expect(tail.map((row) => row.clientMessageId), ['early', 'late']);
     expect(tail.last.status, 'failed');
@@ -109,20 +114,23 @@ void main() {
   });
 
   test('reading the snapshot leaves the fresh flag unread', () {
-    projection.put(outgoingNote('m1'), fresh: true);
+    projection.put(outgoingNote(const ClientMessageId('m1')), fresh: true);
 
     outbox
-      ..debugSnapshot('c1')
-      ..debugSnapshot('c1');
+      ..debugSnapshot(const ChatId('c1'))
+      ..debugSnapshot(const ChatId('c1'));
 
-    expect(outbox.isFreshOutgoing('c1', 'm1'), isTrue);
-    expect(outbox.debugSnapshot('c1').tail.single.fresh, isFalse);
+    expect(
+      outbox.isFreshOutgoing(const ChatId('c1'), const ClientMessageId('m1')),
+      isTrue,
+    );
+    expect(outbox.debugSnapshot(const ChatId('c1')).tail.single.fresh, isFalse);
   });
 
   test('an external local key is reported by its kind only', () {
     projection.put(
       outgoingNote(
-        'm1',
+        const ClientMessageId('m1'),
         items: [
           const OutgoingItem(
             id: MediaItemId('m1:0'),
@@ -133,16 +141,27 @@ void main() {
     );
 
     expect(
-      outbox.debugSnapshot('c1').tail.single.items.single.localKey,
+      outbox
+          .debugSnapshot(const ChatId('c1'))
+          .tail
+          .single
+          .items
+          .single
+          .localKey,
       'external',
     );
   });
 
   test('the snapshot is JSON-encodable', () {
-    projection.put(outgoingNote('m1', items: [outgoingItem('m1', 0)]));
+    projection.put(
+      outgoingNote(
+        const ClientMessageId('m1'),
+        items: [outgoingItem(const ClientMessageId('m1'), 0)],
+      ),
+    );
 
     expect(
-      () => jsonEncode(outbox.debugSnapshot('c1').toMap()),
+      () => jsonEncode(outbox.debugSnapshot(const ChatId('c1')).toMap()),
       returnsNormally,
     );
   });
@@ -152,18 +171,20 @@ void main() {
     const secret = 'meet me at the north gate';
     projection.put(
       outgoingNote(
-        'm1',
+        const ClientMessageId('m1'),
         text: secret,
         status: const OutgoingStatus.failed(OutgoingFailure.rejected('flood')),
-        items: [outgoingItem('m1', 0)],
+        items: [outgoingItem(const ClientMessageId('m1'), 0)],
       ),
       fresh: true,
     );
 
     outbox
-      ..byClientMessageId('c1', 'm1')
-      ..isFreshOutgoing('c1', 'm1');
-    final snapshot = jsonEncode(outbox.debugSnapshot('c1').toMap());
+      ..byClientMessageId(const ChatId('c1'), const ClientMessageId('m1'))
+      ..isFreshOutgoing(const ChatId('c1'), const ClientMessageId('m1'));
+    final snapshot = jsonEncode(
+      outbox.debugSnapshot(const ChatId('c1')).toMap(),
+    );
 
     expect(diagnostics.events, isNotEmpty);
     for (final event in diagnostics.events) {
@@ -173,7 +194,7 @@ void main() {
     expect(snapshot, isNot(contains('north gate')));
     expect(snapshot, isNot(contains('flood')));
     expect(
-      '${outbox.byClientMessageId('c1', 'm1')}',
+      '${outbox.byClientMessageId(const ChatId('c1'), const ClientMessageId('m1'))}',
       isNot(contains('north gate')),
     );
   });

@@ -4,27 +4,49 @@ import 'dart:typed_data';
 import 'package:chat_outbox/chat_outbox.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outgoing_media.dart';
 import 'package:content_model/content_model.dart';
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:meta/meta.dart';
 import 'package:mpx_core/mpx_core.dart';
 
 /// The demo's message model as the outbox keeps it in a publish job: who
 /// sends, the markdown body as the composer encoded it, and the rest of the
-/// message the bubbles read ([extras]: the link preview and `invertMedia`,
-/// in `LinkPreviewWire`'s form).
+/// message the bubbles read (its [linkPreview] and [invertMedia]).
+///
+/// Typed through and through: the wire form of the link preview fields
+/// (`LinkPreviewWire`'s) is the codec's and the boundaries' ([extras],
+/// [DemoOutgoingPayload.fromWire]), never a map held here.
 ///
 /// A media send's body is its caption; [items] say what each item is, so
 /// the row shows it as media before the server has it, after a restart
 /// too. The items' bytes are the job's.
 @immutable
 final class DemoOutgoingPayload {
-  /// A payload of [body] from [sender], with [extras] and [items] beside
-  /// it.
+  /// A payload of [body] from [sender], with its [linkPreview],
+  /// [invertMedia] and [items].
   const DemoOutgoingPayload({
     required this.sender,
     required this.body,
-    this.extras = const {},
+    this.linkPreview,
+    this.invertMedia = false,
     this.items = const [],
   });
+
+  /// A payload whose link preview fields come in their wire form
+  /// ([extras], a message map in `LinkPreviewWire`'s form), as the chat's
+  /// screen and the server hand them; other keys of the map are not the
+  /// payload's.
+  factory DemoOutgoingPayload.fromWire({
+    required String sender,
+    required String body,
+    Map<String, Object?> extras = const {},
+    List<DemoOutgoingItem> items = const [],
+  }) => DemoOutgoingPayload(
+    sender: sender,
+    body: body,
+    linkPreview: LinkPreviewWire.readLinkPreview(extras),
+    invertMedia: LinkPreviewWire.readInvertMedia(extras),
+    items: items,
+  );
 
   /// Who sends it: the demo's signed-in user.
   final String sender;
@@ -32,39 +54,50 @@ final class DemoOutgoingPayload {
   /// The markdown body, as stored.
   final String body;
 
-  /// The message's other fields, JSON values only.
-  final Map<String, Object?> extras;
+  /// The message's link preview, if it has one.
+  final MessageLinkPreview? linkPreview;
+
+  /// Whether the message puts its media above its text.
+  final bool invertMedia;
+
+  /// The link preview fields in their wire form, for a row's payload and
+  /// the server: empty when there is nothing to say.
+  Map<String, Object?> get extras {
+    final wire = <String, Object?>{};
+    LinkPreviewWire.write(
+      wire,
+      linkPreview: linkPreview,
+      invertMedia: invertMedia,
+    );
+    return wire;
+  }
 
   /// What each media item of the message is, in the send's order.
   final List<DemoOutgoingItem> items;
 
-  // The extras are JSON values: their canonical encoding compares nested
-  // maps and lists by value, which `==` on a map does not.
   @override
   bool operator ==(Object other) =>
       other is DemoOutgoingPayload &&
       other.sender == sender &&
       other.body == body &&
-      jsonEncode(other.extras) == jsonEncode(extras) &&
-      _listEquals(other.items, items);
+      other.linkPreview == linkPreview &&
+      other.invertMedia == invertMedia &&
+      listEquals(other.items, items);
 
   @override
-  int get hashCode =>
-      Object.hash(sender, body, jsonEncode(extras), Object.hashAll(items));
+  int get hashCode => Object.hash(
+    sender,
+    body,
+    linkPreview,
+    invertMedia,
+    Object.hashAll(items),
+  );
 
   // The body is user content: it stays out of logs.
   @override
   String toString() =>
-      'DemoOutgoingPayload(${body.length} chars, ${extras.length} extras, '
-      '${items.length} items)';
-
-  static bool _listEquals<T>(List<T> a, List<T> b) {
-    if (a.length != b.length) return false;
-    for (var i = 0; i < a.length; i++) {
-      if (a[i] != b[i]) return false;
-    }
-    return true;
-  }
+      'DemoOutgoingPayload(${body.length} chars, '
+      'link preview ${linkPreview != null}, ${items.length} items)';
 }
 
 /// What one media item of an outgoing message is, as the picker knew it:
@@ -124,7 +157,10 @@ final class DemoOutgoingItem {
         MediaItemKind.video => MediaForm.video,
         MediaItemKind.animation => MediaForm.animatedImage,
         MediaItemKind.photo => MediaForm.still,
-        _ => MediaForm.unknown,
+        MediaItemKind.file => MediaForm.unknown,
+        // `MediaItemKind` is an open set: a custom kind, which the demo's
+        // picker never makes, has no form of its own.
+        MediaItemKind() => MediaForm.unknown,
       },
       animated: kind == MediaItemKind.animation,
       size: switch ((width, height)) {
@@ -176,8 +212,8 @@ final class DemoOutgoingItem {
 /// | `v` | the format version, `1` |
 /// | `sender` | [DemoOutgoingPayload.sender], a string |
 /// | `body` | [DemoOutgoingPayload.body], a string |
-/// | `extras` | [DemoOutgoingPayload.extras], an object; left out when empty |
-/// | `items` | [DemoOutgoingPayload.items], a list of objects; left out when empty, and read as none when absent (a payload journaled before items were kept) |
+/// | `extras` | [DemoOutgoingPayload.linkPreview] and [DemoOutgoingPayload.invertMedia] in `LinkPreviewWire`'s form, an object; left out when both say nothing |
+/// | `items` | [DemoOutgoingPayload.items], a list of objects; left out when empty, and read as none when absent |
 ///
 /// Each item:
 ///
@@ -238,7 +274,8 @@ final class _Encoder extends Converter<DemoOutgoingPayload, Uint8List> {
       _Key.version: DemoOutgoingPayloadCodec.version,
       _Key.sender: input.sender,
       _Key.body: input.body,
-      if (input.extras.isNotEmpty) _Key.extras: input.extras,
+      if (input.extras case final extras when extras.isNotEmpty)
+        _Key.extras: extras,
       if (input.items.isNotEmpty)
         _Key.items: [for (final item in input.items) _item(item)],
     }),
@@ -270,7 +307,7 @@ final class _Decoder extends Converter<Uint8List, DemoOutgoingPayload> {
         'Unknown payload version "${_Key.version}": ${map[_Key.version]}',
       );
     }
-    return DemoOutgoingPayload(
+    return DemoOutgoingPayload.fromWire(
       sender: _string(map, _Key.sender),
       body: _string(map, _Key.body),
       extras: switch (map[_Key.extras]) {

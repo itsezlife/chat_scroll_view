@@ -242,6 +242,8 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
   @override
   void didUpdateWidget(MessageMediaBody oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // The row was built again: its chrome may have moved.
+    _$chromeAnswer = null;
     if (!identical(oldWidget.state, widget.state)) {
       oldWidget.state.detachOrigins(_rectOf);
       widget.state.attachOrigins(_rectOf);
@@ -569,9 +571,7 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
     final box = _box;
     final id = widget.messageId;
     if (box == null || id == null || !mounted) return null;
-    if (widget.chromeHitAt?.call(globalOffset) case final chrome?) {
-      return chrome;
-    }
+    if (_chromeAt(globalOffset) case final chrome?) return chrome;
     _lastQuery = globalOffset;
     final local = box.globalToLocal(globalOffset);
     final found = _partAt(local);
@@ -804,6 +804,20 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
 
   // --- Mouse --------------------------------------------------------------
 
+  /// The host's chrome at [global], asked once per pointer position: the
+  /// hover and the viewport's hit query read the same pointer, and the
+  /// host's test may be costly. A new widget (the row built again)
+  /// forgets the answer, since the chrome may have moved with the row; a
+  /// rebuild of the body's own (a hover) keeps it.
+  ChatInlineHit? _chromeAt(Offset global) {
+    if (_$chromeAnswer case (final at, final hit) when at == global) return hit;
+    final hit = widget.chromeHitAt?.call(global);
+    _$chromeAnswer = (global, hit);
+    return hit;
+  }
+
+  (Offset, ChatInlineHit?)? _$chromeAnswer;
+
   void _updateHover(Offset? global) {
     _hoverAt = global;
     final box = _box;
@@ -813,7 +827,7 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
         global == null ||
             box == null ||
             _inSelection ||
-            widget.chromeHitAt?.call(global) != null
+            _chromeAt(global) != null
         ? null
         : _partAt(box.globalToLocal(global));
     _hovered = switch (found?.$1) {

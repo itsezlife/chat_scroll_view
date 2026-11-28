@@ -18,6 +18,7 @@ export 'src/diagnostics/outbox_op.dart';
 export 'src/ids/local_ids.dart';
 export 'src/ids/outgoing_id_strategy.dart';
 export 'src/ids/sequential_server_ids.dart';
+export 'src/message/outgoing_ids.dart';
 export 'src/message/outgoing_message.dart';
 export 'src/message/outgoing_payload_codec.dart';
 export 'src/message/outgoing_status.dart';

@@ -8,6 +8,11 @@ enum OutgoingRetryOutcome {
   /// since; this one changes nothing.
   dropped,
 
+  /// The chat's slow mode holds the retry as it holds a send: its countdown
+  /// runs, or another message of the chat is still sending. The host's
+  /// `onDenied` heard of it (`sendNow`); the message stays failed.
+  refused,
+
   /// The message has not failed: it is on its way.
   notFailed,
 

@@ -1,7 +1,6 @@
-import 'dart:math';
-
 import 'package:meta/meta.dart';
 import 'package:mpx_core/mpx_core.dart';
+import 'package:uuid/uuid.dart';
 
 /// Where an outgoing item's picture comes from until the server has it:
 /// the media it was picked as (a library asset, a capture) or a file.
@@ -100,7 +99,7 @@ final class DemoOutgoingMedia {
       key is MediaKey$Remote && key.id.startsWith(_prefix);
 
   /// A new outgoing item's key.
-  MediaKey mint() => MediaKey.remote('$_prefix${_uuid()}');
+  MediaKey mint() => MediaKey.remote('$_prefix${_$uuid.v4()}');
 
   /// The item under [key] shows [source]'s picture.
   void know(MediaKey key, DemoOutgoingSource source) => _$sources[key] = source;
@@ -112,18 +111,7 @@ final class DemoOutgoingMedia {
   ContentFetcher route(ContentFetcher otherwise) =>
       _OutgoingRoute(_$sources, otherwise);
 
-  static final Random _$random = Random.secure();
-
-  static String _uuid() {
-    final bytes = [for (var i = 0; i < 16; i++) _$random.nextInt(256)];
-    bytes[6] = (bytes[6] & 0x0f) | 0x40;
-    bytes[8] = (bytes[8] & 0x3f) | 0x80;
-    final hex = [
-      for (final byte in bytes) byte.toRadixString(16).padLeft(2, '0'),
-    ].join();
-    return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-'
-        '${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
-  }
+  static const Uuid _$uuid = Uuid();
 }
 
 final class _OutgoingRoute implements ContentFetcher {

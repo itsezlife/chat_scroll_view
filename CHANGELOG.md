@@ -1,5 +1,12 @@
 ## Unreleased
 
+### Restored rows
+- **ADDED**: `insertMessage` and `insertMessages` take `followSelf` (true by
+  default), carried on `InsertMutation` and `InsertBatchMutation`. False
+  inserts a self-authored row that is not a new send (an outgoing row placed
+  again after a restart): a reader scrolled into history is not pulled to
+  the tail. Code that compares these mutations by value sees the new field.
+
 ### Caption links
 - **FIXED**: a link in the caption of a media message activates as a link.
   `resolveInlineHit` asks the message's non-text body first and its text body

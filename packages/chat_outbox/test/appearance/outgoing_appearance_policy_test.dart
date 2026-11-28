@@ -18,8 +18,8 @@ void main() {
   group('defaults', () {
     test('Android: a slide at the bottom, a fade and scale elsewhere', () {
       const policy = OutgoingAppearancePolicy.android();
-      expect(policy.atBottom, OutgoingAppearanceForm.slideUp);
-      expect(policy.offBottom, OutgoingAppearanceForm.fadeScale);
+      expect(policy.atBottom, OutgoingRowMotion.slideUp);
+      expect(policy.offBottom, OutgoingRowMotion.fadeScale);
       expect(policy.fliesFromOrigin, isFalse);
       expect(policy.slideDuration, const Duration(milliseconds: 250));
       expect(policy.slideCurve, listCurve);
@@ -32,8 +32,8 @@ void main() {
     test('iOS: the media flies from its origin, else as Android', () {
       const policy = OutgoingAppearancePolicy.ios();
       expect(policy.fliesFromOrigin, isTrue);
-      expect(policy.atBottom, OutgoingAppearanceForm.slideUp);
-      expect(policy.offBottom, OutgoingAppearanceForm.fadeScale);
+      expect(policy.atBottom, OutgoingRowMotion.slideUp);
+      expect(policy.offBottom, OutgoingRowMotion.fadeScale);
       expect(policy.slideDuration, const Duration(milliseconds: 250));
       expect(policy.slideCurve, listCurve);
       expect(policy.scaleFrom, 0.9);
@@ -41,22 +41,22 @@ void main() {
 
     test('desktop: no appearance', () {
       const policy = OutgoingAppearancePolicy.desktop();
-      expect(policy.atBottom, OutgoingAppearanceForm.none);
-      expect(policy.offBottom, OutgoingAppearanceForm.none);
+      expect(policy.atBottom, OutgoingRowMotion.none);
+      expect(policy.offBottom, OutgoingRowMotion.none);
       expect(policy.fliesFromOrigin, isFalse);
     });
 
     test('platform picks the preset of each target platform', () {
       expect(
-        OutgoingAppearancePolicy.platform(TargetPlatform.android),
+        OutgoingAppearancePolicy.platform(platform: TargetPlatform.android),
         const OutgoingAppearancePolicy.android(),
       );
       expect(
-        OutgoingAppearancePolicy.platform(TargetPlatform.fuchsia),
+        OutgoingAppearancePolicy.platform(platform: TargetPlatform.fuchsia),
         const OutgoingAppearancePolicy.android(),
       );
       expect(
-        OutgoingAppearancePolicy.platform(TargetPlatform.iOS),
+        OutgoingAppearancePolicy.platform(platform: TargetPlatform.iOS),
         const OutgoingAppearancePolicy.ios(),
       );
       for (final desktop in [
@@ -65,8 +65,31 @@ void main() {
         TargetPlatform.linux,
       ]) {
         expect(
-          OutgoingAppearancePolicy.platform(desktop),
+          OutgoingAppearancePolicy.platform(platform: desktop),
           const OutgoingAppearancePolicy.desktop(),
+        );
+      }
+    });
+
+    test('web is not desktop: a touched compact window moves as a phone, '
+        'any other window as the desktop, whatever the system', () {
+      expect(
+        OutgoingAppearancePolicy.web(compactTouch: true),
+        const OutgoingAppearancePolicy.android(),
+      );
+      expect(
+        OutgoingAppearancePolicy.web(compactTouch: false),
+        const OutgoingAppearancePolicy.desktop(),
+      );
+      // A web page never flies media in, on an iPhone's browser too.
+      expect(
+        OutgoingAppearancePolicy.web(compactTouch: true).fliesFromOrigin,
+        isFalse,
+      );
+      for (final system in TargetPlatform.values) {
+        expect(
+          OutgoingAppearancePolicy.platform(platform: system, isWeb: true),
+          OutgoingAppearancePolicy.web(compactTouch: false),
         );
       }
     });

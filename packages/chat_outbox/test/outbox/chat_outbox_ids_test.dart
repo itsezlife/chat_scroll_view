@@ -24,6 +24,7 @@ void main() {
         strategiesMade.add(chatId);
         return SequentialServerIds(chatId: chatId, tail: tail);
       },
+      onSent: (_) {},
       rowOf: (message, payload) =>
           FakeTailMessage(message.position, message.clientMessageId),
       clientMessageIds: clientMessageIdsFrom(),
@@ -31,8 +32,11 @@ void main() {
     addTearDown(outbox.dispose);
   });
 
-  OutgoingMessage? sendText(String text) =>
-      outbox.sendText('c1', RichText.plain(text), payload: Note(text: text));
+  OutgoingMessage? sendText(String text) => outbox.sendText(
+    const ChatId('c1'),
+    RichText.plain(text),
+    payload: Note(text: text),
+  );
 
   test('an accepted send takes the next tail position and its row', () {
     final first = sendText('one')!;
@@ -50,6 +54,7 @@ void main() {
       codec: const NotePayloadCodec(),
       itemOf: sendItemOf,
       idStrategyOf: (chatId) => SequentialServerIds(chatId: chatId, tail: tail),
+      onSent: (_) {},
       rowOf: (message, payload) =>
           FakeTailMessage(message.position, message.clientMessageId),
       capabilitiesOf: (_) => null,
@@ -59,7 +64,7 @@ void main() {
 
     expect(
       () => refusing.send(
-        'c1',
+        const ChatId('c1'),
         PlannedSend.single(photo('a'), form: SendForm.media),
         payload: const Note(text: 'x'),
         itemIds: const [],
@@ -76,17 +81,27 @@ void main() {
     sendText('two');
 
     expect(strategiesMade, ['c1']);
-    expect(outbox.idStrategy('c1').tail, ['cm1', 'cm2']);
+    expect(outbox.idStrategy(const ChatId('c1')).tail, ['cm1', 'cm2']);
   });
 
   test('lookups answer the position the row has now', () {
     sendText('one');
     sendText('two');
 
-    outbox.idStrategy('c1').incoming([FakeTailMessage(101)]);
+    outbox.idStrategy(const ChatId('c1')).incoming([FakeTailMessage(101)]);
 
-    expect(outbox.byClientMessageId('c1', 'cm1')?.position, 102);
-    expect(outbox.byClientMessageId('c1', 'cm2')?.position, 103);
+    expect(
+      outbox
+          .byClientMessageId(const ChatId('c1'), const ClientMessageId('cm1'))
+          ?.position,
+      102,
+    );
+    expect(
+      outbox
+          .byClientMessageId(const ChatId('c1'), const ClientMessageId('cm2'))
+          ?.position,
+      103,
+    );
   });
 
   test('accepted reports the strategy', () {
@@ -111,11 +126,11 @@ void main() {
   test('the snapshot holds the strategy, the tip, positions and rebases', () {
     sendText('one');
     sendText('two');
-    outbox.idStrategy('c1')
+    outbox.idStrategy(const ChatId('c1'))
       ..incoming([FakeTailMessage(101)])
-      ..publishStart('cm2');
+      ..publishStart(const ClientMessageId('cm2'));
 
-    final snapshot = outbox.debugSnapshot('c1');
+    final snapshot = outbox.debugSnapshot(const ChatId('c1'));
 
     expect(snapshot.strategy, 'sequentialServerIds');
     expect(snapshot.tip, 101);
@@ -127,7 +142,7 @@ void main() {
   });
 
   test('the snapshot of a chat with no send yet names no strategy', () {
-    expect(outbox.debugSnapshot('c2').strategy, isNull);
+    expect(outbox.debugSnapshot(const ChatId('c2')).strategy, isNull);
     expect(strategiesMade, isEmpty);
   });
 }

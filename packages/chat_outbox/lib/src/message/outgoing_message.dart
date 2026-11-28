@@ -1,7 +1,9 @@
 import 'dart:typed_data';
 
+import 'package:chat_outbox/src/message/outgoing_ids.dart';
 import 'package:chat_outbox/src/message/outgoing_status.dart';
 import 'package:content_model/content_model.dart';
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:meta/meta.dart';
 
 /// A message the user sent from this device that the server has not yet
@@ -29,10 +31,10 @@ final class OutgoingMessage {
        payload = Uint8List.fromList(payload).asUnmodifiableView();
 
   /// The chat the message is sent to.
-  final String chatId;
+  final ChatId chatId;
 
   /// The message's identity, issued before its publish job and never reused.
-  final String clientMessageId;
+  final ClientMessageId clientMessageId;
 
   /// The row's current id in the chat's provisional tail: a position, not
   /// the message's identity. The chat's id strategy places the row when the
@@ -78,8 +80,8 @@ final class OutgoingMessage {
         other.clientMessageId == clientMessageId &&
         other.position == position &&
         other.status == status &&
-        _listEquals(other.items, items) &&
-        _listEquals(other.payload, payload);
+        listEquals(other.items, items) &&
+        listEquals(other.payload, payload);
   }
 
   @override
@@ -98,14 +100,6 @@ final class OutgoingMessage {
       'OutgoingMessage($chatId, $clientMessageId at $position, '
       '$status, '
       '${items.length} items, ${payload.length} payload bytes)';
-
-  static bool _listEquals<T>(List<T> a, List<T> b) {
-    if (a.length != b.length) return false;
-    for (var i = 0; i < a.length; i++) {
-      if (a[i] != b[i]) return false;
-    }
-    return true;
-  }
 }
 
 /// One media item of an [OutgoingMessage]: its identity in the chat and the

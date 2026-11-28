@@ -1,9 +1,9 @@
 import 'package:chat_outbox/testing.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_chat_server.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outbox.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_server_script_sheet.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_upload_transport.dart';
-import 'package:chat_scroll_view_example/src/features/chat/outbox/fake_chat_server.dart';
-import 'package:chat_scroll_view_example/src/features/chat/outbox/fake_server_script_sheet.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/outbox_debug_actions.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/outbox_debug_panel.dart';
 import 'package:chat_scroll_view_example/src/features/logs/data/diagnostics_journal.dart';
@@ -22,7 +22,7 @@ void main() {
   const url = 'https://example.com/private/path';
 
   late RecordingDiagnostics diagnostics;
-  late FakeChatServer server;
+  late DemoChatServer server;
   late DemoOutbox demo;
   late DemoOutboxChat bound;
   late _FakeEngine engine;
@@ -33,7 +33,7 @@ void main() {
 
   setUp(() {
     diagnostics = RecordingDiagnostics.install();
-    server = FakeChatServer(peerDelay: Duration.zero);
+    server = DemoChatServer(peerDelay: Duration.zero);
     demo = DemoOutbox(transfers: FakeOutboxTransfers(), server: server);
     engine = _FakeEngine();
     exits = 0;
@@ -50,7 +50,7 @@ void main() {
 
   // A failed send stays in the provisional tail, so the snapshot has a row.
   Future<String> failedSend(WidgetTester tester, String text) async {
-    server.script(chat, FakeServerScript.reject);
+    server.script(chat, DemoServerScript.reject);
     final message = bound.sendText(text)!;
     await tester.pump();
     await tester.pump();
@@ -230,10 +230,10 @@ void main() {
   testWidgets("opens the fake server's script sheet", (tester) async {
     await open(tester);
 
-    await tester.tap(find.byKey(FakeServerScriptSheet.openKey));
+    await tester.tap(find.byKey(DemoServerScriptSheet.openKey));
     await tester.pumpAndSettle();
 
-    expect(find.byType(FakeServerScriptSheet), findsOneWidget);
+    expect(find.byType(DemoServerScriptSheet), findsOneWidget);
   });
 
   testWidgets('a row of the tail opens the logs of its message', (

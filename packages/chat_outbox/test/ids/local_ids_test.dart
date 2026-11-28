@@ -7,13 +7,17 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('incoming above the sending rows', () {
     OutgoingIdStrategyContract.run(
-      (tail) => LocalIds(chatId: 'c1', tail: tail),
+      (tail) => LocalIds(chatId: const ChatId('c1'), tail: tail),
     );
   });
 
   group('incoming appended', () {
     OutgoingIdStrategyContract.run(
-      (tail) => LocalIds(chatId: 'c1', tail: tail, appendIncoming: true),
+      (tail) => LocalIds(
+        chatId: const ChatId('c1'),
+        tail: tail,
+        appendIncoming: true,
+      ),
       appendsIncoming: true,
     );
   });
@@ -22,16 +26,18 @@ void main() {
 
   setUp(() => tail = FakeOutgoingTail());
 
-  void allocate(OutgoingIdStrategy strategy, String id) =>
-      strategy.allocate(id, (position) => FakeTailMessage(position, id));
+  void allocate(OutgoingIdStrategy strategy, String id) => strategy.allocate(
+    ClientMessageId(id),
+    (position) => FakeTailMessage(position, id),
+  );
 
   test('is named localIds', () {
-    expect(LocalIds(chatId: 'c1', tail: tail).name, 'localIds');
+    expect(LocalIds(chatId: const ChatId('c1'), tail: tail).name, 'localIds');
   });
 
   group('nextIncomingId', () {
     test('is tip+1 while rows wait, so the message lands above them', () {
-      final strategy = LocalIds(chatId: 'c1', tail: tail);
+      final strategy = LocalIds(chatId: const ChatId('c1'), tail: tail);
       allocate(strategy, 'a');
       allocate(strategy, 'b');
 
@@ -39,18 +45,22 @@ void main() {
       strategy.incoming([FakeTailMessage(strategy.nextIncomingId)]);
 
       expect(tail.provisional, ['a', 'b']);
-      expect(strategy.positionOf('a'), 102);
+      expect(strategy.positionOf(const ClientMessageId('a')), 102);
       expect(strategy.nextIncomingId, 102);
     });
 
     test('is the id after the newest row with no rows waiting', () {
-      final strategy = LocalIds(chatId: 'c1', tail: tail);
+      final strategy = LocalIds(chatId: const ChatId('c1'), tail: tail);
 
       expect(strategy.nextIncomingId, 101);
     });
 
     test('is the id after the rows with the append flag', () {
-      final strategy = LocalIds(chatId: 'c1', tail: tail, appendIncoming: true);
+      final strategy = LocalIds(
+        chatId: const ChatId('c1'),
+        tail: tail,
+        appendIncoming: true,
+      );
       allocate(strategy, 'a');
       allocate(strategy, 'b');
 
@@ -61,7 +71,11 @@ void main() {
   group('appendIncoming', () {
     test('the appended message settles the rows above it', () {
       final diagnostics = RecordingDiagnostics.install();
-      final strategy = LocalIds(chatId: 'c1', tail: tail, appendIncoming: true);
+      final strategy = LocalIds(
+        chatId: const ChatId('c1'),
+        tail: tail,
+        appendIncoming: true,
+      );
       allocate(strategy, 'a');
       allocate(strategy, 'b');
       final message = FakeTailMessage(strategy.nextIncomingId);
@@ -73,14 +87,14 @@ void main() {
       // their positions and are no longer moved.
       expect(tail.provisional, isEmpty);
       expect(strategy.tail, isEmpty);
-      expect(strategy.positionOf('a'), 101);
+      expect(strategy.positionOf(const ClientMessageId('a')), 101);
       strategy
-        ..publishStart('b')
-        ..fail('a');
+        ..publishStart(const ClientMessageId('b'))
+        ..fail(const ClientMessageId('a'));
       expect(tail.rebases, isEmpty);
-      expect(strategy.remove('a'), isFalse);
-      expect(strategy.positionOf('a'), isNull);
-      expect(strategy.confirm('b'), 102);
+      expect(strategy.remove(const ClientMessageId('a')), isFalse);
+      expect(strategy.positionOf(const ClientMessageId('a')), isNull);
+      expect(strategy.confirm(const ClientMessageId('b')), 102);
       expect(
         diagnostics.whereOp(OutboxOp.incomingAppended).single,
         isChatEvent(
@@ -93,7 +107,11 @@ void main() {
     });
 
     test('rows placed after the appended message form a new tail', () {
-      final strategy = LocalIds(chatId: 'c1', tail: tail, appendIncoming: true);
+      final strategy = LocalIds(
+        chatId: const ChatId('c1'),
+        tail: tail,
+        appendIncoming: true,
+      );
       allocate(strategy, 'a');
       final message = FakeTailMessage(strategy.nextIncomingId);
       strategy.incoming([message]);
@@ -101,16 +119,20 @@ void main() {
 
       allocate(strategy, 'b');
       allocate(strategy, 'c');
-      strategy.publishStart('c');
+      strategy.publishStart(const ClientMessageId('c'));
 
       expect(strategy.tip, 102);
       expect(tail.provisional, ['c', 'b']);
-      expect(strategy.positionOf('a'), 101);
+      expect(strategy.positionOf(const ClientMessageId('a')), 101);
     });
 
     test('with no rows waiting it reports nothing', () {
       final diagnostics = RecordingDiagnostics.install();
-      final strategy = LocalIds(chatId: 'c1', tail: tail, appendIncoming: true);
+      final strategy = LocalIds(
+        chatId: const ChatId('c1'),
+        tail: tail,
+        appendIncoming: true,
+      );
 
       expect(strategy.incoming([FakeTailMessage(101)]), isFalse);
 

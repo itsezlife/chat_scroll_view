@@ -44,15 +44,19 @@ void main() {
   });
 
   OutgoingMessage sendText(ChatOutbox<Note> outbox, String text) =>
-      outbox.sendText('c1', RichText.plain(text), payload: Note(text: text))!;
+      outbox.sendText(
+        const ChatId('c1'),
+        RichText.plain(text),
+        payload: Note(text: text),
+      )!;
 
   OutgoingMessage sendPhoto(ChatOutbox<Note> outbox, String id) => outbox.send(
-    'c1',
+    const ChatId('c1'),
     PlannedSend.single(photo(id), form: SendForm.media),
     payload: Note(text: id),
   )!;
 
-  PublishJobId jobOf(String clientMessageId) => transfers.jobs
+  PublishJobId jobOf(ClientMessageId clientMessageId) => transfers.jobs
       .singleWhere((job) => job.tag == 'chat:c1:$clientMessageId')
       .id;
 
@@ -65,7 +69,7 @@ void main() {
       final outbox = outboxWith();
       sendPhoto(outbox, 'a');
       await pumpEventQueue();
-      final job = jobOf('cm1');
+      final job = jobOf(const ClientMessageId('cm1'));
       transfers.setState(job, const PublishJobState.uploading());
       await pumpEventQueue();
 
@@ -73,7 +77,9 @@ void main() {
       await pumpEventQueue();
 
       expect(
-        outbox.byClientMessageId('c1', 'cm1')?.status,
+        outbox
+            .byClientMessageId(const ChatId('c1'), const ClientMessageId('cm1'))
+            ?.status,
         const OutgoingStatus.uploading(),
       );
       expect(transfers.cancelled, isEmpty);
@@ -109,7 +115,9 @@ void main() {
       await pumpEventQueue();
 
       expect(
-        outbox.byClientMessageId('c1', 'cm1')?.status,
+        outbox
+            .byClientMessageId(const ChatId('c1'), const ClientMessageId('cm1'))
+            ?.status,
         const OutgoingStatus.sent(),
       );
       expect(diagnostics.whereOp(OutboxOp.resumed), hasLength(1));
@@ -124,7 +132,10 @@ void main() {
       sendPhoto(outbox, 'b');
       sendText(outbox, 'stays');
       await pumpEventQueue();
-      final (a, b) = (jobOf('cm1'), jobOf('cm2'));
+      final (a, b) = (
+        jobOf(const ClientMessageId('cm1')),
+        jobOf(const ClientMessageId('cm2')),
+      );
       final rebasesBefore = tail.rebases.length;
 
       transfers
@@ -133,8 +144,20 @@ void main() {
       await pumpEventQueue();
 
       expect(transfers.cancelled, [a, b]);
-      expect(outbox.byClientMessageId('c1', 'cm1'), isNull);
-      expect(outbox.byClientMessageId('c1', 'cm2'), isNull);
+      expect(
+        outbox.byClientMessageId(
+          const ChatId('c1'),
+          const ClientMessageId('cm1'),
+        ),
+        isNull,
+      );
+      expect(
+        outbox.byClientMessageId(
+          const ChatId('c1'),
+          const ClientMessageId('cm2'),
+        ),
+        isNull,
+      );
       expect(tail.provisional, ['cm3']);
       expect(tail.rebases.length - rebasesBefore, 1);
       expect(
@@ -167,12 +190,18 @@ void main() {
       await pumpEventQueue();
 
       transfers.setState(
-        jobOf('cm1'),
+        jobOf(const ClientMessageId('cm1')),
         const PublishJobState.paused(PauseReason.user),
       );
       await pumpEventQueue();
 
-      expect(outbox.byClientMessageId('c1', 'cm1'), isNotNull);
+      expect(
+        outbox.byClientMessageId(
+          const ChatId('c1'),
+          const ClientMessageId('cm1'),
+        ),
+        isNotNull,
+      );
       expect(transfers.cancelled, isEmpty);
       expect(diagnostics.whereOp(OutboxOp.systemInterrupted), isEmpty);
     });
@@ -187,7 +216,10 @@ void main() {
       sendText(outbox, 'two');
       sendPhoto(outbox, 'c');
       await pumpEventQueue();
-      final (a, c) = (jobOf('cm1'), jobOf('cm3'));
+      final (a, c) = (
+        jobOf(const ClientMessageId('cm1')),
+        jobOf(const ClientMessageId('cm3')),
+      );
       final rebasesBefore = tail.rebases.length;
 
       // The engine cancels every job of the envelope, one snapshot each.
@@ -196,9 +228,27 @@ void main() {
         ..remove(c);
       await pumpEventQueue();
 
-      expect(outbox.byClientMessageId('c1', 'cm1'), isNull);
-      expect(outbox.byClientMessageId('c1', 'cm3'), isNull);
-      expect(outbox.byClientMessageId('c1', 'cm2'), isNotNull);
+      expect(
+        outbox.byClientMessageId(
+          const ChatId('c1'),
+          const ClientMessageId('cm1'),
+        ),
+        isNull,
+      );
+      expect(
+        outbox.byClientMessageId(
+          const ChatId('c1'),
+          const ClientMessageId('cm3'),
+        ),
+        isNull,
+      );
+      expect(
+        outbox.byClientMessageId(
+          const ChatId('c1'),
+          const ClientMessageId('cm2'),
+        ),
+        isNotNull,
+      );
       expect(tail.provisional, ['cm2']);
       expect(tail.rebases.length - rebasesBefore, 1);
       // The owner did not cancel them: the engine had.
@@ -207,7 +257,7 @@ void main() {
         [for (final c in cancelled) c.message.clientMessageId],
         ['cm1', 'cm3'],
       );
-      expect(outbox.debugSnapshot('c1').counters.cancels, 2);
+      expect(outbox.debugSnapshot(const ChatId('c1')).counters.cancels, 2);
       expect(
         diagnostics.whereOp(OutboxOp.cancelled).map((e) => e.fields),
         everyElement({'trigger': 'notificationCancelAll', 'stage': 'prepare'}),
@@ -229,11 +279,11 @@ void main() {
         sendPhoto(outbox, 'a');
         await pumpEventQueue();
 
-        outbox.cancel('c1', 'cm1');
+        outbox.cancel(const ChatId('c1'), const ClientMessageId('cm1'));
         await pumpEventQueue();
 
         expect(cancelled, hasLength(1));
-        expect(outbox.debugSnapshot('c1').counters.cancels, 1);
+        expect(outbox.debugSnapshot(const ChatId('c1')).counters.cancels, 1);
         expect(diagnostics.whereOp(OutboxOp.cancelled).map((e) => e.fields), [
           {'trigger': 'menu', 'stage': 'prepare'},
         ]);
@@ -245,7 +295,7 @@ void main() {
       final outbox = outboxWith();
       sendText(outbox, 'one');
       await pumpEventQueue();
-      final job = jobOf('cm1');
+      final job = jobOf(const ClientMessageId('cm1'));
       transfers.setState(job, const PublishJobState.completed(null));
       await pumpEventQueue();
 
@@ -253,7 +303,9 @@ void main() {
       await pumpEventQueue();
 
       expect(
-        outbox.byClientMessageId('c1', 'cm1')?.status,
+        outbox
+            .byClientMessageId(const ChatId('c1'), const ClientMessageId('cm1'))
+            ?.status,
         const OutgoingStatus.sent(),
       );
       expect(cancelled, isEmpty);
@@ -277,22 +329,32 @@ void main() {
       expect(sender.requests, hasLength(2));
 
       transfers
-        ..remove(jobOf('cm1'))
-        ..remove(jobOf('cm2'));
+        ..remove(jobOf(const ClientMessageId('cm1')))
+        ..remove(jobOf(const ClientMessageId('cm2')));
       await pumpEventQueue();
 
       expect(diagnostics.whereOp(OutboxOp.envelopeCancelAll), [
         isChatEvent(fields: {'deleted': 0, 'pending': 2}),
       ]);
       accept.complete(const OutgoingSendAnswer.sent(serverMessageId: 101));
-      reject.complete(OutgoingSendAnswer.rejected('spam', retryable: true));
+      reject.complete(
+        const OutgoingSendAnswer.rejected('spam', retryable: true),
+      );
       await pumpEventQueue();
 
       expect(
-        outbox.byClientMessageId('c1', 'cm1')?.status,
+        outbox
+            .byClientMessageId(const ChatId('c1'), const ClientMessageId('cm1'))
+            ?.status,
         const OutgoingStatus.sent(),
       );
-      expect(outbox.byClientMessageId('c1', 'cm2'), isNull);
+      expect(
+        outbox.byClientMessageId(
+          const ChatId('c1'),
+          const ClientMessageId('cm2'),
+        ),
+        isNull,
+      );
       expect([for (final c in cancelled) c.message.clientMessageId], ['cm2']);
     });
   });
@@ -302,7 +364,7 @@ void main() {
     final outbox = outboxWith();
     transfers.seed(
       PublishRequest(
-        tag: ChatOutbox.tagOf('c1', 'a'),
+        tag: ChatOutbox.tagOf(const ChatId('c1'), const ClientMessageId('a')),
         items: const [],
         payload: const NotePayloadCodec().encode(const Note(text: 'hello')),
         publisher: ChatOutbox.publisherId,
@@ -312,14 +374,16 @@ void main() {
       state: const PublishJobState.awaitingPublisher(),
     );
 
-    final [pending] = await outbox.pendingFor('c1');
+    final [pending] = await outbox.pendingFor(const ChatId('c1'));
     expect(pending.status, const OutgoingStatus.publishing());
 
     outbox.registerSender(RecordingOutgoingSender<Note>());
     await pumpEventQueue();
 
     expect(
-      outbox.byClientMessageId('c1', 'a')?.status,
+      outbox
+          .byClientMessageId(const ChatId('c1'), const ClientMessageId('a'))
+          ?.status,
       const OutgoingStatus.sent(),
     );
     expect(cancelled, isEmpty);

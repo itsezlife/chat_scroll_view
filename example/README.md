@@ -198,7 +198,7 @@ journaled by the transfer engine, a fake accept-if-next server answering. The
 host wiring is under `lib/src/features/chat/outbox/`; the package's
 [README](../packages/chat_outbox/README.md) says what each duty is.
 
-The fake server scripts its next answer per chat from the script sheet in the
+The demo server scripts its next answer per chat from the script sheet in the
 chat's debug chrome: a peer message during an upload, a conflict, a rejection,
 a denial, a re-upload, a replay.
 

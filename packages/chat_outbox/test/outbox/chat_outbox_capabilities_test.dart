@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:attach_model/attach_model.dart';
 import 'package:chat_capabilities/chat_capabilities.dart';
 import 'package:chat_capabilities/testing.dart';
@@ -29,20 +31,100 @@ void main() {
       codec: const NotePayloadCodec(),
       itemOf: sendItemOf,
       idStrategyOf: fakeIdStrategyOf,
+      onSent: (_) {},
       rowOf: fakeRowOf,
       capabilitiesOf: (chatId) => chatId == 'c1' ? capabilities : null,
-      feedback: feedback,
+      feedbackOf: (_) => feedback,
       clientMessageIds: clientMessageIdsFrom(),
       now: () => now,
     );
     addTearDown(outbox.dispose);
   });
 
-  OutgoingMessage? sendText(String text, {String chatId = 'c1'}) =>
+  group("each chat's denials reach that chat's feedback", () {
+    late Map<ChatId, RecordingCapabilityFeedback> feedbacks;
+    late RecordingOutgoingSender<Note> sender;
+    late ChatOutbox<Note> perChat;
+
+    setUp(() {
+      feedbacks = {
+        const ChatId('c1'): RecordingCapabilityFeedback(),
+        const ChatId('c2'): RecordingCapabilityFeedback(),
+      };
+      sender = RecordingOutgoingSender();
+      final slowMode = ValueNotifier(
+        ChatCapabilities(
+          slowMode: SlowMode.active(
+            interval: const Duration(seconds: 30),
+            nextSendAt: now.add(const Duration(seconds: 12)),
+          ),
+        ),
+      );
+      perChat = ChatOutbox(
+        transfers: transfers,
+        codec: const NotePayloadCodec(),
+        itemOf: sendItemOf,
+        idStrategyOf: fakeIdStrategyOf,
+        onSent: (_) {},
+        rowOf: fakeRowOf,
+        capabilitiesOf: (chatId) => chatId == 'c2' ? slowMode : null,
+        feedbackOf: (chatId) => feedbacks[chatId]!,
+        clientMessageIds: clientMessageIdsFrom(),
+        now: () => now,
+      );
+      addTearDown(perChat.dispose);
+    });
+
+    test('a refusal before the job', () {
+      perChat.sendText(
+        const ChatId('c2'),
+        const RichText.plain('hi'),
+        payload: const Note(text: 'hi'),
+      );
+
+      expect(feedbacks[const ChatId('c2')]!.denials, hasLength(1));
+      expect(feedbacks[const ChatId('c1')]!.denials, isEmpty);
+    });
+
+    test("a server's denial, with the sender's answer in flight while the "
+        'other chat is focused', () async {
+      final answer = Completer<OutgoingSendAnswer<Note>>();
+      sender.answerBy((_) => answer.future);
+      perChat
+        ..registerSender(sender)
+        ..sendText(
+          const ChatId('c1'),
+          const RichText.plain('hi'),
+          payload: const Note(text: 'hi'),
+        );
+      await pumpEventQueue();
+
+      answer.complete(
+        const OutgoingSendAnswer.denied(
+          CapabilityAction.sendText,
+          DenialReason.everyone(),
+        ),
+      );
+      await pumpEventQueue();
+
+      expect(feedbacks[const ChatId('c1')]!.denials, [
+        (
+          action: CapabilityAction.sendText,
+          reason: const DenialReason.everyone(),
+        ),
+      ]);
+      expect(feedbacks[const ChatId('c2')]!.denials, isEmpty);
+    });
+  });
+
+  OutgoingMessage? sendText(
+    String text, {
+    ChatId chatId = const ChatId('c1'),
+  }) =>
       outbox.sendText(chatId, RichText.plain(text), payload: Note(text: text));
 
   OutgoingMessage? sendAlbum(List<AttachItem> items) => outbox.send(
-    'c1',
+    const ChatId('c1'),
     PlannedSend.group(items, form: SendForm.media),
     payload: const Note(text: 'album'),
   );
@@ -68,7 +150,99 @@ void main() {
           ),
         ),
       ]);
-      expect(outbox.byClientMessageId('c1', 'cm1'), isNull);
+      expect(
+        outbox.byClientMessageId(
+          const ChatId('c1'),
+          const ClientMessageId('cm1'),
+        ),
+        isNull,
+      );
+    });
+
+    group('a retry', () {
+      const failed = PublishJobState.failed(
+        stage: PublishStage.publish,
+        reason: PublishFailureReason('network'),
+        retryable: true,
+      );
+
+      Future<void> failFirst() async {
+        sendText('one');
+        await pumpEventQueue();
+        transfers.setState(transfers.jobs.first.id, failed);
+        await pumpEventQueue();
+        expect(
+          outbox
+              .byClientMessageId(
+                const ChatId('c1'),
+                const ClientMessageId('cm1'),
+              )
+              ?.status,
+          isA<OutgoingStatus$Failed>(),
+        );
+      }
+
+      test('during the countdown is refused as a send is, nothing '
+          'repeats', () async {
+        await failFirst();
+        capabilities.value = ChatCapabilities(
+          slowMode: SlowMode.active(
+            interval: const Duration(seconds: 30),
+            nextSendAt: now.add(const Duration(seconds: 12)),
+          ),
+        );
+
+        expect(
+          outbox.retry(const ChatId('c1'), const ClientMessageId('cm1')),
+          OutgoingRetryOutcome.refused,
+        );
+        expect(transfers.retried, isEmpty);
+        expect(feedback.denials, [
+          (
+            action: CapabilityAction.sendNow,
+            reason: DenialReason.restricted(
+              until: now.add(const Duration(seconds: 12)),
+            ),
+          ),
+        ]);
+        expect(
+          outbox
+              .byClientMessageId(
+                const ChatId('c1'),
+                const ClientMessageId('cm1'),
+              )
+              ?.status,
+          isA<OutgoingStatus$Failed>(),
+        );
+      });
+
+      test('while another message is in flight is refused', () async {
+        await failFirst();
+        // Sent before slow mode came on: still publishing.
+        sendText('two');
+        capabilities.value = const ChatCapabilities(
+          slowMode: SlowMode.active(interval: Duration(seconds: 30)),
+        );
+
+        expect(
+          outbox.retry(const ChatId('c1'), const ClientMessageId('cm1')),
+          OutgoingRetryOutcome.refused,
+        );
+        expect(
+          feedback.denials.single.reason,
+          const DenialReason.sendPending(),
+        );
+        expect(transfers.retried, isEmpty);
+      });
+
+      test('with slow mode off goes', () async {
+        await failFirst();
+        expect(
+          outbox.retry(const ChatId('c1'), const ClientMessageId('cm1')),
+          OutgoingRetryOutcome.retried,
+        );
+        expect(feedback.denials, isEmpty);
+      });
     });
 
     test('while the host marks a send pending refuses sendNow', () {
@@ -120,8 +294,8 @@ void main() {
     });
 
     test('a chat without capabilities is unrestricted', () {
-      expect(sendText('hi', chatId: 'c2'), isNotNull);
-      expect(sendText('again', chatId: 'c2'), isNotNull);
+      expect(sendText('hi', chatId: const ChatId('c2')), isNotNull);
+      expect(sendText('again', chatId: const ChatId('c2')), isNotNull);
     });
   });
 
@@ -166,7 +340,7 @@ void main() {
       );
 
       final message = outbox.send(
-        'c1',
+        const ChatId('c1'),
         PlannedSend.single(
           video('a'),
           form: SendForm.media,
@@ -190,7 +364,7 @@ void main() {
       );
 
       final message = outbox.send(
-        'c1',
+        const ChatId('c1'),
         PlannedSend.single(photo('a', byteSize: 101), form: SendForm.file),
         payload: const Note(text: 'file'),
       );
@@ -246,7 +420,7 @@ void main() {
 
   group('send in flight', () {
     test('is on while a job runs and off once it settles', () async {
-      final inFlight = outbox.sendInFlight('c1');
+      final inFlight = outbox.sendInFlight(const ChatId('c1'));
       final seen = <bool>[];
       inFlight.addListener(() => seen.add(inFlight.value));
       expect(inFlight.value, isFalse);
@@ -277,16 +451,19 @@ void main() {
       );
       await pumpEventQueue();
 
-      expect(outbox.sendInFlight('c1').value, isFalse);
+      expect(outbox.sendInFlight(const ChatId('c1')).value, isFalse);
     });
 
     test('is per chat and the same listenable on each call', () {
-      sendText('hi', chatId: 'c2');
+      sendText('hi', chatId: const ChatId('c2'));
 
-      expect(outbox.sendInFlight('c1').value, isFalse);
-      expect(outbox.sendInFlight('c2').value, isTrue);
+      expect(outbox.sendInFlight(const ChatId('c1')).value, isFalse);
+      expect(outbox.sendInFlight(const ChatId('c2')).value, isTrue);
       expect(
-        identical(outbox.sendInFlight('c2'), outbox.sendInFlight('c2')),
+        identical(
+          outbox.sendInFlight(const ChatId('c2')),
+          outbox.sendInFlight(const ChatId('c2')),
+        ),
         isTrue,
       );
     });

@@ -1,6 +1,7 @@
 import 'dart:ui' show Rect;
 
 import 'package:chat_outbox/src/diagnostics/outbox_op.dart';
+import 'package:chat_outbox/src/message/outgoing_ids.dart';
 import 'package:content_model/content_model.dart';
 import 'package:meta/meta.dart';
 
@@ -42,8 +43,8 @@ final class OutboxSendOrigins {
   /// Holds [origins] of the message [clientMessageId] of [chatId], accepted
   /// [at], until [expiresAt]; an item's earlier origin is replaced.
   void store(
-    String chatId,
-    String clientMessageId,
+    ChatId chatId,
+    ClientMessageId clientMessageId,
     Map<MediaItemId, Rect> origins, {
     required DateTime at,
     required DateTime expiresAt,
@@ -72,12 +73,14 @@ final class OutboxSendOrigins {
 
   /// Drops every origin of the message [clientMessageId] of [chatId], for
   /// [why].
-  void dropMessage(String chatId, String clientMessageId, SendOriginDrop why) =>
-      _dropWhere(
-        (held) =>
-            held.chatId == chatId && held.clientMessageId == clientMessageId,
-        why,
-      );
+  void dropMessage(
+    ChatId chatId,
+    ClientMessageId clientMessageId,
+    SendOriginDrop why,
+  ) => _dropWhere(
+    (held) => held.chatId == chatId && held.clientMessageId == clientMessageId,
+    why,
+  );
 
   /// Drops every origin past its expiry at [now].
   void expire(DateTime now) {
@@ -118,8 +121,8 @@ final class _HeldOrigin {
   });
 
   final Rect rect;
-  final String chatId;
-  final String clientMessageId;
+  final ChatId chatId;
+  final ClientMessageId clientMessageId;
   final DateTime acceptedAt;
   final DateTime expiresAt;
 }

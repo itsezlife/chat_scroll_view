@@ -1989,12 +1989,12 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
         // Relayout is already requested via [notifyDataChanged]; this branch
         // is the reserved seam for future viewport-owned extent springs.
         markNeedsLayout();
-      case InsertMutation(:final messageId):
+      case InsertMutation(:final messageId, :final followSelf):
         // [insertMessage] notifies mutations *before* writeMessageSilent —
         // defer so [getMessage] can resolve for [isSelfMessage].
-        _scheduleSelfInsertFollow([messageId]);
-      case InsertBatchMutation(:final ids):
-        _scheduleSelfInsertFollow(ids);
+        if (followSelf) _scheduleSelfInsertFollow([messageId]);
+      case InsertBatchMutation(:final ids, :final followSelf):
+        if (followSelf) _scheduleSelfInsertFollow(ids);
       case RemoveBatchMutation(:final ids):
         _cancelAnimateIfPresencePinnedRemoved(ids);
       case final RebaseTailMutation rebase:

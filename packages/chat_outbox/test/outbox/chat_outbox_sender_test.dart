@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:attach_model/attach_model.dart';
 import 'package:chat_capabilities/chat_capabilities.dart';
 import 'package:chat_capabilities/testing.dart';
@@ -20,7 +22,7 @@ void main() {
   late ChatOutbox<Note> outbox;
 
   ChatOutbox<Note> outboxWith(
-    OutgoingIdStrategy Function(String chatId) idStrategyOf,
+    OutgoingIdStrategy Function(ChatId chatId) idStrategyOf,
   ) {
     final outbox = ChatOutbox<Note>(
       transfers: transfers,
@@ -29,12 +31,21 @@ void main() {
       idStrategyOf: idStrategyOf,
       rowOf: (message, payload) =>
           FakeTailMessage(message.position, message.clientMessageId),
-      feedback: feedback,
+      feedbackOf: (_) => feedback,
       // The host's duty: the confirmed message replaces the outbox's row.
       onSent: (message) {
         sent.add(message);
-        if (message.rowAt case final rowAt?) {
-          tail.update(FakeTailMessage(rowAt));
+        switch (message.rowAt) {
+          case final rowAt?:
+            tail.update(FakeTailMessage(rowAt));
+          // The row left: the host places the message at the server's id,
+          // unless the chat holds it there already (a fetch brought it).
+          case null
+              when message.position < tail.tailStart &&
+                  tail.at(message.position) == null:
+            tail.place(FakeTailMessage(message.position));
+          case null:
+            break;
         }
       },
       clientMessageIds: clientMessageIdsFrom(),
@@ -54,11 +65,14 @@ void main() {
     );
   });
 
-  OutgoingMessage sendText(String text) =>
-      outbox.sendText('c1', RichText.plain(text), payload: Note(text: text))!;
+  OutgoingMessage sendText(String text) => outbox.sendText(
+    const ChatId('c1'),
+    RichText.plain(text),
+    payload: Note(text: text),
+  )!;
 
-  OutgoingStatus statusOf(String clientMessageId) =>
-      outbox.byClientMessageId('c1', clientMessageId)!.status;
+  OutgoingStatus statusOf(ClientMessageId clientMessageId) =>
+      outbox.byClientMessageId(const ChatId('c1'), clientMessageId)!.status;
 
   PublishJobState jobStateOf(int index) => transfers.jobs[index].state;
 
@@ -66,13 +80,19 @@ void main() {
     sendText('one');
     await pumpEventQueue();
     expect(sender.requests, isEmpty);
-    expect(outbox.debugSnapshot('c1').publisherRegistered, isFalse);
+    expect(
+      outbox.debugSnapshot(const ChatId('c1')).publisherRegistered,
+      isFalse,
+    );
 
     outbox.registerSender(sender);
     await pumpEventQueue();
 
     expect(transfers.publisherOf(ChatOutbox.publisherId), isNotNull);
-    expect(outbox.debugSnapshot('c1').publisherRegistered, isTrue);
+    expect(
+      outbox.debugSnapshot(const ChatId('c1')).publisherRegistered,
+      isTrue,
+    );
     final request = sender.requests.single;
     expect(request.chatId, 'c1');
     expect(request.clientMessageId, 'cm1');
@@ -91,9 +111,14 @@ void main() {
     await pumpEventQueue();
 
     expect([for (final r in sender.requests) r.proposedId], [101, 102]);
-    expect(statusOf('cm1'), const OutgoingStatus.sent());
-    expect(statusOf('cm2'), const OutgoingStatus.sent());
-    expect(outbox.byClientMessageId('c1', 'cm2')!.position, 102);
+    expect(statusOf(const ClientMessageId('cm1')), const OutgoingStatus.sent());
+    expect(statusOf(const ClientMessageId('cm2')), const OutgoingStatus.sent());
+    expect(
+      outbox
+          .byClientMessageId(const ChatId('c1'), const ClientMessageId('cm2'))!
+          .position,
+      102,
+    );
     expect(
       [for (final s in sent) (s.clientMessageId, s.position, s.rowAt)],
       [('cm1', 101, 101), ('cm2', 102, 102)],
@@ -104,11 +129,85 @@ void main() {
     expect(jobStateOf(0), isA<PublishJobState$Completed>());
   });
 
+  group('an answer accepted at the proposal while the call was out', () {
+    late Completer<OutgoingSendAnswer<Note>> answer;
+
+    setUp(() {
+      answer = Completer();
+      sender.answerBy((_) => answer.future);
+      outbox.registerSender(sender);
+    });
+
+    test('a peer delivered meanwhile keeps its id and the message lands at '
+        'the server id, not where the peer pushed the row', () async {
+      sendText('one');
+      // Still uploading behind it.
+      outbox.send(
+        const ChatId('c1'),
+        PlannedSend.single(photo('a'), form: SendForm.media),
+        payload: const Note(text: 'photo'),
+      );
+      await pumpEventQueue();
+      expect(sender.requests.single.proposedId, 101);
+
+      // The server gave 101 to the message and 102 to a peer, whose
+      // delivery comes first: the rows move up past it.
+      outbox.idStrategy(const ChatId('c1')).incoming([FakeTailMessage(102)]);
+      expect(tail.provisional, ['cm1', 'cm2']);
+      expect(tail.tailStart, 103);
+
+      answer.complete(const OutgoingSendAnswer.sent(serverMessageId: 101));
+      await pumpEventQueue();
+
+      expect(sent.first.clientMessageId, 'cm1');
+      expect((sent.first.position, sent.first.rowAt), (101, null));
+      expect(tail.identityAt(101), 'confirmed');
+      expect(tail.identityAt(102), 'confirmed');
+      expect(
+        statusOf(const ClientMessageId('cm1')),
+        const OutgoingStatus.sent(),
+      );
+      // The row behind it moves down into the freed position, after the
+      // peer, and proposes it next; nothing sits twice.
+      expect(tail.provisional, ['cm2']);
+      expect(tail.identityAt(103), 'cm2');
+      expect(tail.identityAt(104), isNull);
+      expect(outbox.idStrategy(const ChatId('c1')).proposedId, 103);
+    });
+
+    test('a fetch that brought the message meanwhile holds it: the row '
+        'leaves and no twin stays', () async {
+      sendText('one');
+      await pumpEventQueue();
+
+      // The data source routes a fetch's rows inside the tail through a
+      // move: the server's copy of the message takes 101.
+      tail.rebaseTail(order: ['cm1'], insert: [FakeTailMessage(101)]);
+      expect(tail.identityAt(102), 'cm1');
+
+      answer.complete(const OutgoingSendAnswer.sent(serverMessageId: 101));
+      await pumpEventQueue();
+
+      expect((sent.single.position, sent.single.rowAt), (101, null));
+      expect(tail.provisional, isEmpty);
+      expect(tail.identityAt(102), isNull);
+      expect(
+        outbox
+            .byClientMessageId(
+              const ChatId('c1'),
+              const ClientMessageId('cm1'),
+            )!
+            .position,
+        101,
+      );
+    });
+  });
+
   test('a row publishing moves to tip+1 first: a later row sent while an '
       'earlier one uploads proposes tip+1', () async {
     outbox.registerSender(sender);
     final photoSend = outbox.send(
-      'c1',
+      const ChatId('c1'),
       PlannedSend.single(photo('a'), form: SendForm.media),
       payload: const Note(text: 'photo'),
     )!;
@@ -118,13 +217,18 @@ void main() {
     expect(photoSend.position, 101);
     expect(sender.requests.single.proposedId, 101);
     expect(sent.single.clientMessageId, 'cm2');
-    expect(outbox.byClientMessageId('c1', 'cm1')!.position, 102);
+    expect(
+      outbox
+          .byClientMessageId(const ChatId('c1'), const ClientMessageId('cm1'))!
+          .position,
+      102,
+    );
     expect(tail.provisional, ['cm1']);
   });
 
   test('proposedId is tip+1 after an incoming message', () async {
     sendText('one');
-    outbox.idStrategy('c1').incoming([FakeTailMessage(101)]);
+    outbox.idStrategy(const ChatId('c1')).incoming([FakeTailMessage(101)]);
 
     outbox.registerSender(sender);
     await pumpEventQueue();
@@ -145,7 +249,9 @@ void main() {
 
     expect(sender.requests.single.proposedId, 102);
     expect(sent.single.position, 102);
-    expect(outbox.debugSnapshot('c1').counters.rebases, {'fetch': 1});
+    expect(outbox.debugSnapshot(const ChatId('c1')).counters.rebases, {
+      'fetch': 1,
+    });
     expect(
       diagnostics.whereOp(OutboxOp.tailRebased).first,
       isChatEvent(
@@ -177,10 +283,10 @@ void main() {
     expect([for (final r in sender.requests) r.attempt], [1, 2]);
     expect({for (final r in sender.requests) r.clientMessageId}, {'cm1'});
     expect(transfers.attemptsOf(transfers.jobs.single.id), 1);
-    expect(statusOf('cm1'), const OutgoingStatus.sent());
+    expect(statusOf(const ClientMessageId('cm1')), const OutgoingStatus.sent());
     expect(sent.single.position, 103);
     expect(tail.identityAt(101), 'confirmed');
-    expect(outbox.debugSnapshot('c1').counters.conflicts, 1);
+    expect(outbox.debugSnapshot(const ChatId('c1')).counters.conflicts, 1);
     expect(diagnostics.whereOp(OutboxOp.publishConflict), [
       isChatEvent(
         level: ChatEventLevel.warning,
@@ -216,11 +322,11 @@ void main() {
       ),
     );
     expect(
-      statusOf('cm1'),
+      statusOf(const ClientMessageId('cm1')),
       const OutgoingStatus.failed(OutgoingFailure.rejected('chat.conflict')),
     );
-    expect(outbox.debugSnapshot('c1').counters.conflicts, 3);
-    expect(outbox.debugSnapshot('c1').tail.single.attempts, 3);
+    expect(outbox.debugSnapshot(const ChatId('c1')).counters.conflicts, 3);
+    expect(outbox.debugSnapshot(const ChatId('c1')).tail.single.attempts, 3);
     expect(
       [
         for (final event in diagnostics.whereOp(OutboxOp.publishConflict))
@@ -250,7 +356,12 @@ void main() {
     expect([for (final s in sent) (s.position, s.rowAt)], [(102, 102)]);
     expect(tail.identityAt(101), 'confirmed');
     expect(tail.identityAt(102), 'confirmed');
-    expect(outbox.byClientMessageId('c1', 'cm1')!.position, 102);
+    expect(
+      outbox
+          .byClientMessageId(const ChatId('c1'), const ClientMessageId('cm1'))!
+          .position,
+      102,
+    );
     expect(diagnostics.whereOp(OutboxOp.replayRebased), [
       isChatEvent(
         level: ChatEventLevel.warning,
@@ -274,7 +385,7 @@ void main() {
 
     expect([for (final s in sent) (s.position, s.rowAt)], [(90, null)]);
     expect(tail.provisional, isEmpty);
-    expect(statusOf('cm1'), const OutgoingStatus.sent());
+    expect(statusOf(const ClientMessageId('cm1')), const OutgoingStatus.sent());
   });
 
   test(
@@ -293,7 +404,7 @@ void main() {
       await pumpEventQueue();
 
       expect(
-        statusOf('cm1'),
+        statusOf(const ClientMessageId('cm1')),
         const OutgoingStatus.failed(
           OutgoingFailure.denied(CapabilityAction.sendText),
         ),
@@ -316,14 +427,16 @@ void main() {
   test('a rejection fails the message with its reason, kept out of the '
       'events', () async {
     final diagnostics = RecordingDiagnostics.install();
-    sender.answerWith(OutgoingSendAnswer.rejected('flood', retryable: true));
+    sender.answerWith(
+      const OutgoingSendAnswer.rejected('flood', retryable: true),
+    );
     outbox.registerSender(sender);
 
     sendText('one');
     await pumpEventQueue();
 
     expect(
-      statusOf('cm1'),
+      statusOf(const ClientMessageId('cm1')),
       const OutgoingStatus.failed(OutgoingFailure.rejected('flood')),
     );
     expect(diagnostics.whereOp(OutboxOp.rejected), [
@@ -335,11 +448,29 @@ void main() {
     );
   });
 
-  test("a sender reason in the outbox's own codes is refused", () {
-    expect(
-      () => OutgoingSendAnswer<Note>.rejected('chat.denied:sendText'),
-      throwsArgumentError,
-    );
+  group("a server's rejection code stays its own, whatever it spells", () {
+    for (final code in [
+      'network',
+      'tooLarge',
+      'sourceLost',
+      PublishFailureReason.cancelled,
+      PublishFailureReason.publisherError,
+      'chat.conflict',
+      'chat.denied:sendText',
+    ]) {
+      test(code, () async {
+        sender.answerWith(OutgoingSendAnswer.rejected(code));
+        outbox.registerSender(sender);
+
+        sendText('one');
+        await pumpEventQueue();
+
+        expect(
+          statusOf(const ClientMessageId('cm1')),
+          OutgoingStatus.failed(OutgoingFailure.rejected(code)),
+        );
+      });
+    }
   });
 
   test('a denial journaled for an action this build does not know reads as '
@@ -357,7 +488,7 @@ void main() {
     await pumpEventQueue();
 
     expect(
-      statusOf('cm1'),
+      statusOf(const ClientMessageId('cm1')),
       const OutgoingStatus.failed(OutgoingFailure.unknown()),
     );
   });
@@ -367,7 +498,7 @@ void main() {
     final diagnostics = RecordingDiagnostics.install();
     final job = transfers.publish(
       PublishRequest(
-        tag: ChatOutbox.tagOf('c1', 'old'),
+        tag: ChatOutbox.tagOf(const ChatId('c1'), const ClientMessageId('old')),
         items: const [],
         payload: const NotePayloadCodec().encode(const Note(text: 'x')),
         publisher: ChatOutbox.publisherId,
@@ -412,7 +543,7 @@ void main() {
     await pumpEventQueue();
 
     expect(
-      statusOf('cm1'),
+      statusOf(const ClientMessageId('cm1')),
       const OutgoingStatus.failed(OutgoingFailure.unknown()),
     );
     expect(diagnostics.whereOp(OutboxOp.senderFailed), [
@@ -431,7 +562,7 @@ void main() {
     );
     outbox.registerSender(sender);
     outbox.send(
-      'c1',
+      const ChatId('c1'),
       PlannedSend.single(photo('a'), form: SendForm.media),
       payload: const Note(text: 'photo'),
     );
@@ -449,7 +580,7 @@ void main() {
     ]);
     expect(sender.requests, hasLength(2));
     expect(sender.requests.first.items.keys, [const MediaItemId('cm1:0')]);
-    expect(statusOf('cm1'), const OutgoingStatus.sent());
+    expect(statusOf(const ClientMessageId('cm1')), const OutgoingStatus.sent());
     expect(diagnostics.whereOp(OutboxOp.reuploadRequested), [
       isChatEvent(
         correlation: isA<ChatCorrelation>().having(
@@ -536,7 +667,7 @@ void main() {
     local.registerSender(sender);
 
     local.sendText(
-      'c1',
+      const ChatId('c1'),
       const RichText.plain('one'),
       payload: const Note(text: 'x'),
     );
@@ -545,7 +676,9 @@ void main() {
     expect(sender.requests.single.proposedId, isNull);
     expect([for (final s in sent) (s.position, s.rowAt)], [(101, 101)]);
     expect(
-      local.byClientMessageId('c1', 'cm1')!.status,
+      local
+          .byClientMessageId(const ChatId('c1'), const ClientMessageId('cm1'))!
+          .status,
       const OutgoingStatus.sent(),
     );
   });

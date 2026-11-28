@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:collection/collection.dart' show DeepCollectionEquality;
+
 import 'package:content_model/content_model.dart';
 import 'package:flutter/foundation.dart';
 
 /// The operation of the `outbox` diagnostics event the demo's fake server
 /// emits.
-enum FakeServerOp implements DiagnosticOp {
+enum DemoServerOp implements DiagnosticOp {
   /// The server played a scripted event (debug): `event` is `peer`,
   /// `conflict`, `reject`, `deny`, `reupload` or `replay`, with the chat and
   /// the client message id of the send it acted on (none for a peer posted
@@ -15,8 +17,8 @@ enum FakeServerOp implements DiagnosticOp {
 }
 
 /// What the demo's fake server does to a chat's next send, armed by
-/// [FakeChatServer.script] and played once.
-enum FakeServerScript {
+/// [DemoChatServer.script] and played once.
+enum DemoServerScript {
   /// A peer posts a message while the next send uploads: the outgoing row
   /// moves up by one under it.
   peer,
@@ -41,9 +43,9 @@ enum FakeServerScript {
 
 /// One message as the fake server stores it.
 @immutable
-final class FakeServerMessage {
+final class DemoServerMessage {
   /// A message stored at [id].
-  const FakeServerMessage({
+  const DemoServerMessage({
     required this.id,
     required this.sender,
     required this.body,
@@ -73,13 +75,13 @@ final class FakeServerMessage {
 
   @override
   bool operator ==(Object other) =>
-      other is FakeServerMessage &&
+      other is DemoServerMessage &&
       other.id == id &&
       other.sender == sender &&
       other.body == body &&
       other.clientMessageId == clientMessageId &&
       other.sentAt == sentAt &&
-      jsonEncode(other.extras) == jsonEncode(extras);
+      _$extrasEquality.equals(other.extras, extras);
 
   @override
   int get hashCode => Object.hash(
@@ -88,15 +90,20 @@ final class FakeServerMessage {
     body,
     clientMessageId,
     sentAt,
-    jsonEncode(extras),
+    _$extrasEquality.hash(extras),
   );
+
+  // The extras are JSON values: nested maps and lists compare by value,
+  // whatever order their keys were written in.
+  static const DeepCollectionEquality _$extrasEquality =
+      DeepCollectionEquality();
 
   // The body is user content: it stays out of logs.
   @override
-  String toString() => 'FakeServerMessage($id, $clientMessageId)';
+  String toString() => 'DemoServerMessage($id, $clientMessageId)';
 }
 
-/// [FakeServerMessage] to the row the fake server stores, and back.
+/// [DemoServerMessage] to the row the fake server stores, and back.
 ///
 /// ## Format
 ///
@@ -104,26 +111,26 @@ final class FakeServerMessage {
 ///
 /// | Key | Value |
 /// |---|---|
-/// | `id` | [FakeServerMessage.id], an int |
-/// | `sender` | [FakeServerMessage.sender], a string |
-/// | `body` | [FakeServerMessage.body], a string |
-/// | `sentAt` | [FakeServerMessage.sentAt], microseconds since the epoch, UTC |
-/// | `extras` | [FakeServerMessage.extras], a map; left out when empty |
-/// | `clientMessageId` | [FakeServerMessage.clientMessageId]; left out when null |
+/// | `id` | [DemoServerMessage.id], an int |
+/// | `sender` | [DemoServerMessage.sender], a string |
+/// | `body` | [DemoServerMessage.body], a string |
+/// | `sentAt` | [DemoServerMessage.sentAt], microseconds since the epoch, UTC |
+/// | `extras` | [DemoServerMessage.extras], a map; left out when empty |
+/// | `clientMessageId` | [DemoServerMessage.clientMessageId]; left out when null |
 ///
 /// A row missing a field, or holding a value of the wrong type, throws a
 /// [FormatException] naming the field.
-final class FakeServerMessageCodec
-    extends Codec<FakeServerMessage, Map<String, Object?>> {
+final class DemoServerMessageCodec
+    extends Codec<DemoServerMessage, Map<String, Object?>> {
   /// The codec.
-  const FakeServerMessageCodec();
+  const DemoServerMessageCodec();
 
   @override
-  Converter<FakeServerMessage, Map<String, Object?>> get encoder =>
+  Converter<DemoServerMessage, Map<String, Object?>> get encoder =>
       const _RowEncoder();
 
   @override
-  Converter<Map<String, Object?>, FakeServerMessage> get decoder =>
+  Converter<Map<String, Object?>, DemoServerMessage> get decoder =>
       const _RowDecoder();
 }
 
@@ -137,11 +144,11 @@ abstract final class _Key {
 }
 
 final class _RowEncoder
-    extends Converter<FakeServerMessage, Map<String, Object?>> {
+    extends Converter<DemoServerMessage, Map<String, Object?>> {
   const _RowEncoder();
 
   @override
-  Map<String, Object?> convert(FakeServerMessage input) => {
+  Map<String, Object?> convert(DemoServerMessage input) => {
     _Key.id: input.id,
     _Key.sender: input.sender,
     _Key.body: input.body,
@@ -152,11 +159,11 @@ final class _RowEncoder
 }
 
 final class _RowDecoder
-    extends Converter<Map<String, Object?>, FakeServerMessage> {
+    extends Converter<Map<String, Object?>, DemoServerMessage> {
   const _RowDecoder();
 
   @override
-  FakeServerMessage convert(Map<String, Object?> input) => FakeServerMessage(
+  DemoServerMessage convert(Map<String, Object?> input) => DemoServerMessage(
     id: _read<int>(input, _Key.id),
     sender: _read<String>(input, _Key.sender),
     body: _read<String>(input, _Key.body),
@@ -189,9 +196,9 @@ final class _RowDecoder
 
 /// One send as a client hands it to the fake server.
 @immutable
-final class FakeServerSend {
+final class DemoServerSend {
   /// A send of [body] from [sender] to [chatId].
-  const FakeServerSend({
+  const DemoServerSend({
     required this.chatId,
     required this.clientMessageId,
     required this.sender,
@@ -225,54 +232,54 @@ final class FakeServerSend {
 
 /// What the fake server answers a send.
 @immutable
-sealed class FakeServerAnswer {
-  const FakeServerAnswer();
+sealed class DemoServerAnswer {
+  const DemoServerAnswer();
 }
 
 /// The send is stored as [message]; [missing] are the messages before it
 /// that the client's proposal shows it lacks.
-final class FakeServerAccepted extends FakeServerAnswer {
-  /// See [FakeServerAccepted].
-  const FakeServerAccepted(this.message, {this.missing = const []});
+final class DemoServerAccepted extends DemoServerAnswer {
+  /// See [DemoServerAccepted].
+  const DemoServerAccepted(this.message, {this.missing = const []});
 
   /// The message as stored.
-  final FakeServerMessage message;
+  final DemoServerMessage message;
 
   /// The messages between the client's proposal and [message].
-  final List<FakeServerMessage> missing;
+  final List<DemoServerMessage> missing;
 }
 
 /// The proposal is not the next id: [nextId] is, after [missing].
-final class FakeServerConflict extends FakeServerAnswer {
-  /// See [FakeServerConflict].
-  const FakeServerConflict({required this.nextId, this.missing = const []});
+final class DemoServerConflict extends DemoServerAnswer {
+  /// See [DemoServerConflict].
+  const DemoServerConflict({required this.nextId, this.missing = const []});
 
   /// The server's next id.
   final int nextId;
 
   /// The messages from the proposal up to [nextId].
-  final List<FakeServerMessage> missing;
+  final List<DemoServerMessage> missing;
 }
 
 /// The send is rejected with [code]; a try again may pass.
-final class FakeServerRejected extends FakeServerAnswer {
-  /// See [FakeServerRejected].
-  const FakeServerRejected(this.code);
+final class DemoServerRejected extends DemoServerAnswer {
+  /// See [DemoServerRejected].
+  const DemoServerRejected(this.code);
 
   /// The server's code.
   final String code;
 }
 
 /// The server refuses the send as not allowed in the chat.
-final class FakeServerDenied extends FakeServerAnswer {
-  /// See [FakeServerDenied].
-  const FakeServerDenied();
+final class DemoServerDenied extends DemoServerAnswer {
+  /// See [DemoServerDenied].
+  const DemoServerDenied();
 }
 
 /// The server asks for [itemIds] again: their references expired.
-final class FakeServerReupload extends FakeServerAnswer {
-  /// See [FakeServerReupload].
-  const FakeServerReupload(this.itemIds);
+final class DemoServerReupload extends DemoServerAnswer {
+  /// See [DemoServerReupload].
+  const DemoServerReupload(this.itemIds);
 
   /// The items to upload again.
   final Set<String> itemIds;
@@ -287,16 +294,16 @@ final class FakeServerReupload extends FakeServerAnswer {
 /// The same client message id sent again answers the stored message: the
 /// server is idempotent by it.
 ///
-/// [script] arms one event for the chat's next send ([FakeServerScript]);
+/// [script] arms one event for the chat's next send ([DemoServerScript]);
 /// each played event reports `outbox` / `fakeServer`. A peer reads what the
 /// user sent [readDelay] after it is stored ([readUpTo], the second check);
 /// null leaves it unread until [markRead].
 ///
 /// Example only: it keeps its rows in memory, in their stored form
-/// ([FakeServerMessageCodec]), for the app's run.
-final class FakeChatServer {
+/// ([DemoServerMessageCodec]), for the app's run.
+final class DemoChatServer {
   /// A server with no chats.
-  FakeChatServer({
+  DemoChatServer({
     this.deliveryDelay = Duration.zero,
     this.peerDelay = const Duration(milliseconds: 400),
     this.readDelay,
@@ -317,7 +324,7 @@ final class FakeChatServer {
 
   static const String _rejectedCode = 'demo.rejected';
 
-  static const FakeServerMessageCodec _$codec = FakeServerMessageCodec();
+  static const DemoServerMessageCodec _$codec = DemoServerMessageCodec();
 
   final DateTime Function() _now;
   final Map<String, _ChatLog> _$chats = {};
@@ -338,7 +345,7 @@ final class FakeChatServer {
 
   /// Every message stored in [chatId] from now on, as its clients receive
   /// them.
-  Stream<FakeServerMessage> deliveries(String chatId) =>
+  Stream<DemoServerMessage> deliveries(String chatId) =>
       _chat(chatId).deliveries.stream;
 
   /// The id up to which a peer has read the chat, or null before any read.
@@ -351,21 +358,21 @@ final class FakeChatServer {
   }
 
   /// Arms [script] for the chat's next send; a later arm replaces it.
-  void script(String chatId, FakeServerScript script) =>
+  void script(String chatId, DemoServerScript script) =>
       _chat(chatId).armed = script;
 
   /// The script armed for [chatId], if any.
-  FakeServerScript? armedOf(String chatId) => _chat(chatId).armed;
+  DemoServerScript? armedOf(String chatId) => _chat(chatId).armed;
 
   /// A peer posts a message to [chatId] now; it is delivered as any other.
   ///
   /// Reports `fakeServer` (`peer`) with the chat alone.
-  FakeServerMessage postPeer(String chatId, {String body = 'A peer replies'}) {
-    _report(chatId, FakeServerScript.peer, null);
+  DemoServerMessage postPeer(String chatId, {String body = 'A peer replies'}) {
+    _report(chatId, DemoServerScript.peer, null);
     return _postPeer(chatId, body);
   }
 
-  FakeServerMessage _postPeer(String chatId, String body) {
+  DemoServerMessage _postPeer(String chatId, String body) {
     final message = _store(_chat(chatId), sender: peerName, body: body);
     _deliver(chatId, message);
     return message;
@@ -376,9 +383,9 @@ final class FakeChatServer {
   /// armed peer posts [peerDelay] later.
   void sendStarted(String chatId, String clientMessageId) {
     final chat = _chat(chatId);
-    if (chat.armed != FakeServerScript.peer) return;
+    if (chat.armed != DemoServerScript.peer) return;
     chat.armed = null;
-    _report(chatId, FakeServerScript.peer, clientMessageId);
+    _report(chatId, DemoServerScript.peer, clientMessageId);
     Timer(peerDelay, () {
       if (_$disposed) return;
       _postPeer(chatId, 'A peer replies');
@@ -386,54 +393,54 @@ final class FakeChatServer {
   }
 
   /// Answers [send].
-  Future<FakeServerAnswer> send(FakeServerSend send) async {
+  Future<DemoServerAnswer> send(DemoServerSend send) async {
     final chat = _chat(send.chatId);
     final cmid = send.clientMessageId;
     // Idempotent by the client message id: an earlier attempt's message is
     // the answer again.
     if (chat.byClientId[cmid] case final id?) {
-      return FakeServerAccepted(
+      return DemoServerAccepted(
         chat.message(id),
         missing: chat.between(send.proposedId, id),
       );
     }
-    final delivered = <FakeServerMessage>[];
+    final delivered = <DemoServerMessage>[];
     switch (chat.armed) {
-      case FakeServerScript.reject:
+      case DemoServerScript.reject:
         chat.armed = null;
-        _report(send.chatId, FakeServerScript.reject, cmid);
-        return const FakeServerRejected(_rejectedCode);
-      case FakeServerScript.deny:
+        _report(send.chatId, DemoServerScript.reject, cmid);
+        return const DemoServerRejected(_rejectedCode);
+      case DemoServerScript.deny:
         chat.armed = null;
-        _report(send.chatId, FakeServerScript.deny, cmid);
-        return const FakeServerDenied();
-      case FakeServerScript.reupload when send.itemIds.isNotEmpty:
+        _report(send.chatId, DemoServerScript.deny, cmid);
+        return const DemoServerDenied();
+      case DemoServerScript.reupload when send.itemIds.isNotEmpty:
         chat.armed = null;
-        _report(send.chatId, FakeServerScript.reupload, cmid);
-        return FakeServerReupload(send.itemIds.toSet());
-      case FakeServerScript.conflict:
+        _report(send.chatId, DemoServerScript.reupload, cmid);
+        return DemoServerReupload(send.itemIds.toSet());
+      case DemoServerScript.conflict:
         chat.armed = null;
-        _report(send.chatId, FakeServerScript.conflict, cmid);
+        _report(send.chatId, DemoServerScript.conflict, cmid);
         // Delivered after the answer: the client learns of it from the
         // conflict first.
         delivered.add(_store(chat, sender: peerName, body: 'A peer was first'));
-      case FakeServerScript.replay:
+      case DemoServerScript.replay:
         chat.armed = null;
-        _report(send.chatId, FakeServerScript.replay, cmid);
+        _report(send.chatId, DemoServerScript.replay, cmid);
         delivered.add(_store(chat, sender: peerName, body: 'A peer was first'));
         final message = _storeSend(chat, send);
         delivered.add(message);
         _later(send.chatId, delivered);
-        return FakeServerAccepted(
+        return DemoServerAccepted(
           message,
           missing: chat.between(send.proposedId, message.id),
         );
-      case FakeServerScript.peer || FakeServerScript.reupload || null:
+      case DemoServerScript.peer || DemoServerScript.reupload || null:
         break;
     }
     if (send.proposedId case final proposed? when proposed != chat.nextId) {
       _later(send.chatId, delivered);
-      return FakeServerConflict(
+      return DemoServerConflict(
         nextId: chat.nextId,
         missing: chat.between(proposed, chat.nextId),
       );
@@ -441,10 +448,10 @@ final class FakeChatServer {
     final message = _storeSend(chat, send);
     delivered.add(message);
     _later(send.chatId, delivered);
-    return FakeServerAccepted(message);
+    return DemoServerAccepted(message);
   }
 
-  FakeServerMessage _storeSend(_ChatLog chat, FakeServerSend send) {
+  DemoServerMessage _storeSend(_ChatLog chat, DemoServerSend send) {
     final message = _store(
       chat,
       sender: send.sender,
@@ -462,14 +469,14 @@ final class FakeChatServer {
     return message;
   }
 
-  FakeServerMessage _store(
+  DemoServerMessage _store(
     _ChatLog chat, {
     required String sender,
     required String body,
     Map<String, Object?> extras = const {},
     String? clientMessageId,
   }) {
-    final message = FakeServerMessage(
+    final message = DemoServerMessage(
       id: chat.nextId,
       sender: sender,
       body: body,
@@ -483,7 +490,7 @@ final class FakeChatServer {
     return message;
   }
 
-  void _later(String chatId, List<FakeServerMessage> messages) {
+  void _later(String chatId, List<DemoServerMessage> messages) {
     if (messages.isEmpty) return;
     Timer(deliveryDelay, () {
       if (_$disposed) return;
@@ -493,19 +500,19 @@ final class FakeChatServer {
     });
   }
 
-  void _deliver(String chatId, FakeServerMessage message) {
+  void _deliver(String chatId, DemoServerMessage message) {
     final chat = _chat(chatId);
     if (!chat.deliveries.isClosed) chat.deliveries.add(message);
   }
 
   static void _report(
     String chatId,
-    FakeServerScript script,
+    DemoServerScript script,
     String? clientMessageId,
   ) => ChatDiagnostics.current.emit(
     ChatEventLevel.debug,
     ChatEventCategory.outbox,
-    FakeServerOp.fakeServer,
+    DemoServerOp.fakeServer,
     correlation: ChatCorrelation(
       chatId: chatId,
       clientMessageId: clientMessageId,
@@ -530,21 +537,21 @@ final class _ChatLog {
   int nextId;
   final Map<int, Map<String, Object?>> rows = {};
   final Map<String, int> byClientId = {};
-  final StreamController<FakeServerMessage> deliveries =
+  final StreamController<DemoServerMessage> deliveries =
       StreamController.broadcast();
   final ValueNotifier<int?> readUpTo = ValueNotifier(null);
-  FakeServerScript? armed;
+  DemoServerScript? armed;
 
   void close() {
     unawaited(deliveries.close());
     readUpTo.dispose();
   }
 
-  FakeServerMessage message(int id) => FakeChatServer._$codec.decode(rows[id]!);
+  DemoServerMessage message(int id) => DemoChatServer._$codec.decode(rows[id]!);
 
   /// The stored messages from [from] up to, not including, [to]; none
   /// without a [from].
-  List<FakeServerMessage> between(int? from, int to) => [
+  List<DemoServerMessage> between(int? from, int to) => [
     if (from != null)
       for (var id = from; id < to; id++)
         if (rows.containsKey(id)) message(id),

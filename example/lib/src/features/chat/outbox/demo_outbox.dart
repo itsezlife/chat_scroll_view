@@ -7,10 +7,10 @@ import 'package:chat_outbox/chat_outbox.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/app/demo_chrome_strings.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_chat_server.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_delivery.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outgoing_media.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outgoing_payload.dart';
-import 'package:chat_scroll_view_example/src/features/chat/outbox/fake_chat_server.dart';
 import 'package:content_assets/content_assets.dart'
     show ContentKeyMedia, MediaKeyContent;
 import 'package:content_model/content_model.dart';
@@ -36,11 +36,11 @@ final class DemoOutbox {
   /// says, the running platform's preset unless given.
   DemoOutbox({
     required OutboxTransfers transfers,
-    FakeChatServer? server,
+    DemoChatServer? server,
     DemoOutgoingMedia? media,
     OutgoingAppearancePolicy? appearance,
     this.sender = 'Hixie',
-  }) : server = server ?? FakeChatServer(),
+  }) : server = server ?? DemoChatServer(),
        media = media ?? DemoOutgoingMedia() {
     outbox = ChatOutbox<DemoOutgoingPayload>(
       transfers: transfers,
@@ -53,12 +53,7 @@ final class DemoOutbox {
       rowOf: (message, payload) =>
           chat(message.chatId)._rowOf(message, payload),
       capabilitiesOf: (chatId) => _$chats[chatId]?._capabilities,
-      feedback: CapabilityFeedback(
-        denialText: (action, reason) =>
-            _$focused?._denialText?.call(action, reason),
-        onDenied: (action, reason) =>
-            _$focused?._onDenied?.call(action, reason),
-      ),
+      feedbackOf: (chatId) => chat(chatId)._feedback,
       onSent: (sent) => chat(sent.chatId)._onSent(sent),
       onCancelled: (cancelled) =>
           chat(cancelled.message.chatId)._onCancelled(cancelled),
@@ -74,7 +69,7 @@ final class DemoOutbox {
   }
 
   /// The server every chat sends to.
-  final FakeChatServer server;
+  final DemoChatServer server;
 
   /// The outgoing items' keys and where their pictures come from.
   final DemoOutgoingMedia media;
@@ -87,15 +82,11 @@ final class DemoOutbox {
 
   final Map<String, DemoOutboxChat> _$chats = {};
 
-  /// The chat whose screen is open: the denial feedback goes to it, since
-  /// the outbox's hook does not name the chat.
-  DemoOutboxChat? _$focused;
-
   bool _$disposed = false;
 
   /// The binding of [chatId], made on first use and kept for the app's run.
   DemoOutboxChat chat(String chatId) =>
-      _$chats.putIfAbsent(chatId, () => DemoOutboxChat._(this, chatId));
+      _$chats.putIfAbsent(chatId, () => DemoOutboxChat._(this, ChatId(chatId)));
 
   /// The local content key a send item's [mediaKey] is cached under: the
   /// content key the media key names (`content_assets`' mapping), so a
@@ -108,24 +99,22 @@ final class DemoOutbox {
 
   static const String _legacyLocalPrefix = 'local:';
 
-  // The prepared files of the send being accepted, by attach item: `send`
-  // calls [_itemOf] synchronously, item by item.
-  Map<AttachItemId, PreparedMedia> _$prepared = const {};
-
-  // The keys minted for the send being accepted, by attach item: its
-  // payload names them before the outbox asks [_itemOf].
-  Map<AttachItemId, MediaKey> _$minted = const {};
-
-  // An item is uploaded from its prepared file, under a key the chat can
-  // name ([DemoOutgoingMedia]). One the host could not prepare (no work
-  // folder, as on the web) has no file the engine can read: the demo sends
-  // it by its key alone, as content the server holds.
-  OutgoingSendItem _itemOf(AttachItem item, SendForm form) {
-    final mediaKey = _$minted[item.id] ?? media.mint();
+  // An item is uploaded from its prepared file ([prepared], the send's),
+  // under a key the chat can name ([DemoOutgoingMedia]; [minted], the one
+  // the send's payload names, else a new one). One the host could not
+  // prepare (no work folder, as on the web) has no file the engine can
+  // read: the demo sends it by its key alone, as content the server holds.
+  OutgoingSendItem _itemOf(
+    AttachItem item,
+    SendForm form, {
+    Map<AttachItemId, PreparedMedia> prepared = const {},
+    Map<AttachItemId, MediaKey> minted = const {},
+  }) {
+    final mediaKey = minted[item.id] ?? media.mint();
     return OutgoingSendItem(
       localKey: localKeyOf(mediaKey),
       mediaKey: mediaKey,
-      source: switch (_$prepared[item.id]) {
+      source: switch (prepared[item.id]) {
         final prepared? => PublishSource.prepared(prepared),
         null => const PublishSource.remote(),
       },
@@ -134,7 +123,7 @@ final class DemoOutbox {
   }
 
   /// [message] as the chat's row.
-  static UserChatMessage rowOfServer(FakeServerMessage message) {
+  static UserChatMessage rowOfServer(DemoServerMessage message) {
     final at = message.sentAt.toLocal();
     return UserChatMessage(
       id: message.id,
@@ -174,10 +163,10 @@ final class DemoOutboxChat {
   final DemoOutbox _owner;
 
   /// The chat.
-  final String chatId;
+  final ChatId chatId;
 
   ChatDataSource? _$source;
-  StreamSubscription<FakeServerMessage>? _$deliveries;
+  StreamSubscription<DemoServerMessage>? _$deliveries;
   listen.ValueListenable<ChatCapabilities>? _capabilities;
   CapabilityDenialText? _denialText;
   CapabilityDeniedHandler? _onDenied;
@@ -205,13 +194,20 @@ final class DemoOutboxChat {
 
   /// Which client message id each sent row had, by its server id: "logs of
   /// this message" follows a sent message by it.
-  final Map<int, String> _$sentClientIds = {};
+  final Map<int, ClientMessageId> _$sentClientIds = {};
 
   /// The outgoing rows, by the row objects the outbox built: a moved row
   /// keeps its object, so its identity follows it.
-  final Expando<String> _$identities = Expando('clientMessageId');
+  final Expando<ClientMessageId> _$identities = Expando('clientMessageId');
 
   ChatOutbox<DemoOutgoingPayload> get _outbox => _owner.outbox;
+
+  /// The chat's denial feedback: its screen's while one is up, silent
+  /// otherwise.
+  late final CapabilityFeedback _feedback = CapabilityFeedback(
+    denialText: (action, reason) => _denialText?.call(action, reason),
+    onDenied: (action, reason) => _onDenied?.call(action, reason),
+  );
 
   /// The chat's message source, once attached.
   ChatDataSource? get source => _$source;
@@ -252,7 +248,6 @@ final class DemoOutboxChat {
     _announce = announce;
     _askForSource = askForSource;
     _atBottom = atBottom;
-    _owner._$focused = this;
     if (_$source == null) {
       _$source = source;
       source.identityOf = (message) => _$identities[message];
@@ -280,7 +275,6 @@ final class DemoOutboxChat {
     _announce = null;
     _askForSource = null;
     _atBottom = null;
-    if (identical(_owner._$focused, this)) _owner._$focused = null;
   }
 
   /// Whether a send of the chat is in flight; see [ChatOutbox.sendInFlight].
@@ -312,17 +306,10 @@ final class DemoOutboxChat {
     if (bodies.length != sends.length) {
       throw ArgumentError.value(bodies.length, 'bodies', 'One per send.');
     }
-    _owner._$prepared = prepared;
-    try {
-      return [
-        for (final (index, send) in sends.indexed)
-          _sendOne(send, bodies[index], origins?[index], prepared),
-      ];
-    } finally {
-      _owner
-        .._$prepared = const {}
-        .._$minted = const {};
-    }
+    return [
+      for (final (index, send) in sends.indexed)
+        _sendOne(send, bodies[index], origins?[index], prepared),
+    ];
   }
 
   OutgoingMessage? _sendOne(
@@ -345,12 +332,13 @@ final class DemoOutboxChat {
     for (final item in items) {
       if (item.source case final source?) media.know(item.mediaKey, source);
     }
-    _owner._$minted = minted;
     final message = _outbox.send(
       chatId,
       send,
       payload: _payloadOf(body, const {}, items: items),
       origins: origins,
+      itemOf: (item, form) =>
+          _owner._itemOf(item, form, prepared: prepared, minted: minted),
     );
     _accepted(message);
     // The server shows the chat's peers that media is on its way.
@@ -376,7 +364,7 @@ final class DemoOutboxChat {
     String body,
     Map<String, Object?> extras, {
     List<DemoOutgoingItem> items = const [],
-  }) => DemoOutgoingPayload(
+  }) => DemoOutgoingPayload.fromWire(
     sender: _owner.sender,
     body: body,
     extras: extras,
@@ -432,7 +420,7 @@ final class DemoOutboxChat {
   /// accepted retry as well. A retry the outbox accepts announces the
   /// send's start again.
   Future<OutgoingRetryOutcome?> retry(
-    String clientMessageId, {
+    ClientMessageId clientMessageId, {
     Future<SourceBytes?> Function(MediaItemId item)? askForSource,
   }) async {
     if (!_$retrying.add(clientMessageId)) return OutgoingRetryOutcome.dropped;
@@ -519,33 +507,39 @@ final class DemoOutboxChat {
   /// Whether the list was at its bottom is read as it was when the message
   /// was sent, when [attach] took a reader; else [atBottom], as the row is
   /// built. A row the list builds only once it scrolled to it may already
-  /// be sent: it is found by the client message id it had.
+  /// be sent: it is found by the client message id it had. [policy] is the
+  /// app platform's at the row ([DemoOutgoingMotion.appearanceOf]: the
+  /// web's by the window and input as they are now), the outbox's own
+  /// unless given.
   OutgoingAppearance? appearanceAt(
     int id, {
     required bool atBottom,
     required bool reduceMotion,
+    OutgoingAppearancePolicy? policy,
   }) => switch (clientMessageIdAt(id)) {
     final clientMessageId? => _outbox.appearanceOf(
       chatId,
       clientMessageId,
       atBottom: _$atBottomAtSend.remove(clientMessageId) ?? atBottom,
       reduceMotion: reduceMotion,
+      policy: policy,
     ),
     null => null,
   };
 
   /// The client message id of the outgoing row at [id], or null.
-  String? _outgoingAt(int id) => switch (_$source?.getMessage(id)) {
+  ClientMessageId? _outgoingAt(int id) => switch (_$source?.getMessage(id)) {
     final row? => _$identities[row],
     null => null,
   };
 
   /// The client message id of the row at [id]: an outgoing row's, or a
   /// sent one's; null for any other message.
-  String? clientMessageIdAt(int id) => switch (_$source?.getMessage(id)) {
-    final message? => _$identities[message] ?? _$sentClientIds[id],
-    null => null,
-  };
+  ClientMessageId? clientMessageIdAt(int id) =>
+      switch (_$source?.getMessage(id)) {
+        final message? => _$identities[message] ?? _$sentClientIds[id],
+        null => null,
+      };
 
   // --- The outbox's hooks ---------------------------------------------------
 
@@ -623,10 +617,21 @@ final class DemoOutboxChat {
     switch (sent.rowAt) {
       case _?:
         source.updateMessage(confirmed, reason: 'outbox-sent');
-      // The row left the tail (a replay at an id it could not reach): the
-      // message goes in once the chat's history reaches its id.
-      case null when sent.position == source.nextInsertId:
-        source.insertMessage(confirmed, reason: 'outbox-sent');
+      // The row left the tail, since it could not sit at the server's id: a
+      // peer's message delivered while the send was out took the tail past
+      // it (the move left the id's slot unloaded), or a replay at an id the
+      // chat reaches next. The message was on screen already, so the reader
+      // is not pulled down to it.
+      case null
+          when sent.position <= source.nextInsertId &&
+              source.getMessage(sent.position) == null:
+        source.insertMessage(
+          confirmed,
+          reason: 'outbox-sent',
+          followSelf: false,
+        );
+      // A fetch brought it already, or the chat does not reach its id yet:
+      // the history places it.
       case null:
         break;
     }
@@ -683,12 +688,16 @@ final class DemoOutboxChat {
 
   // --- The server's deliveries -----------------------------------------------
 
-  void _onDelivery(FakeServerMessage message) {
+  void _onDelivery(DemoServerMessage message) {
     final source = _$source;
     if (source == null) return;
     // The echo of the user's own message: the outgoing row is its one row.
     if (message.clientMessageId case final clientMessageId?
-        when _outbox.byClientMessageId(chatId, clientMessageId) != null) {
+        when _outbox.byClientMessageId(
+              chatId,
+              ClientMessageId(clientMessageId),
+            ) !=
+            null) {
       return;
     }
     // Already placed: a conflict's or a replay's missing messages go in
@@ -726,7 +735,7 @@ final class _ServerSender
   ) async {
     final payload = request.payload;
     final answer = await _owner.server.send(
-      FakeServerSend(
+      DemoServerSend(
         chatId: request.chatId,
         clientMessageId: request.clientMessageId,
         proposedId: request.proposedId,
@@ -736,33 +745,33 @@ final class _ServerSender
         itemIds: [for (final id in request.items.keys) '$id'],
       ),
     );
-    List<IChatMessage> rows(List<FakeServerMessage> messages) => [
+    List<IChatMessage> rows(List<DemoServerMessage> messages) => [
       for (final message in messages) DemoOutbox.rowOfServer(message),
     ];
     return switch (answer) {
-      FakeServerAccepted(:final message, :final missing) =>
+      DemoServerAccepted(:final message, :final missing) =>
         OutgoingSendAnswer.sent(
           serverMessageId: message.id,
-          payloadAsStored: DemoOutgoingPayload(
+          payloadAsStored: DemoOutgoingPayload.fromWire(
             sender: message.sender,
             body: message.body,
             extras: message.extras,
           ),
           missing: rows(missing),
         ),
-      FakeServerConflict(:final nextId, :final missing) =>
+      DemoServerConflict(:final nextId, :final missing) =>
         OutgoingSendAnswer.conflict(nextId: nextId, missing: rows(missing)),
-      FakeServerRejected(:final code) => OutgoingSendAnswer.rejected(
+      DemoServerRejected(:final code) => OutgoingSendAnswer.rejected(
         code,
         retryable: true,
       ),
-      FakeServerDenied() => OutgoingSendAnswer.denied(
+      DemoServerDenied() => OutgoingSendAnswer.denied(
         request.items.isEmpty
             ? CapabilityAction.sendText
             : CapabilityAction.sendPhoto,
         const DenialReason.everyone(),
       ),
-      FakeServerReupload(:final itemIds) => OutgoingSendAnswer.reuploadItems([
+      DemoServerReupload(:final itemIds) => OutgoingSendAnswer.reuploadItems([
         for (final id in itemIds) MediaItemId.parse(id),
       ]),
     };

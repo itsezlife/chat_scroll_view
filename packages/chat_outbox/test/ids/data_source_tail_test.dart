@@ -11,7 +11,7 @@ final class _Row implements IChatMessage {
   @override
   final int id;
 
-  final String? clientMessageId;
+  final ClientMessageId? clientMessageId;
 
   String get label => clientMessageId ?? 'server-$id';
 
@@ -88,12 +88,17 @@ void main() {
   for (final (name, create) in <(String, OutgoingIdStrategy Function(_Chat))>[
     (
       'SequentialServerIds',
-      (chat) =>
-          SequentialServerIds(chatId: 'c1', tail: OutgoingTailTarget.of(chat)),
+      (chat) => SequentialServerIds(
+        chatId: const ChatId('c1'),
+        tail: OutgoingTailTarget.of(chat),
+      ),
     ),
     (
       'LocalIds',
-      (chat) => LocalIds(chatId: 'c1', tail: OutgoingTailTarget.of(chat)),
+      (chat) => LocalIds(
+        chatId: const ChatId('c1'),
+        tail: OutgoingTailTarget.of(chat),
+      ),
     ),
   ]) {
     group('$name over a ChatDataSource', () {
@@ -107,7 +112,10 @@ void main() {
 
       tearDown(() => chat.dispose());
 
-      void allocate(String id) => strategy.allocate(id, (p) => _Row(p, id));
+      void allocate(String id) => strategy.allocate(
+        ClientMessageId(id),
+        (p) => _Row(p, ClientMessageId(id)),
+      );
 
       test('rows a range fetch routes before the tail move the strategy '
           'with them', () {
@@ -117,10 +125,11 @@ void main() {
         // What the data source does with rows a fetch returns inside the
         // tail.
         chat.rebaseTail(order: ['a', 'b'], insert: [_Row(20)]);
+        strategy.sync();
 
         expect(chat.labels(20, 22), ['server-20', 'a', 'b']);
         expect(strategy.tip, 20);
-        expect(strategy.positionOf('a'), 21);
+        expect(strategy.positionOf(const ClientMessageId('a')), 21);
         allocate('c');
         expect(chat.labels(21, 23), ['a', 'b', 'c']);
       });
@@ -136,22 +145,22 @@ void main() {
         expect(chat.newestKnownId, 23);
 
         strategy
-          ..fail('a')
-          ..publishStart('c');
+          ..fail(const ClientMessageId('a'))
+          ..publishStart(const ClientMessageId('c'));
         expect(chat.labels(21, 23), ['c', 'b', 'a']);
         for (final id in ['c', 'b', 'a']) {
-          expect(chat.labelAt(strategy.positionOf(id)!), id);
+          expect(chat.labelAt(strategy.positionOf(ClientMessageId(id))!), id);
         }
 
-        final confirmed = strategy.confirm('c')!;
+        final confirmed = strategy.confirm(const ClientMessageId('c'))!;
         chat.updateMessage(_Row(confirmed));
         expect(confirmed, 21);
         expect(strategy.tip, 21);
 
-        strategy.remove('b');
+        strategy.remove(const ClientMessageId('b'));
         expect(chat.labels(21, 23), ['server-21', 'a', null]);
         expect(chat.newestKnownId, 22);
-        expect(strategy.positionOf('a'), 22);
+        expect(strategy.positionOf(const ClientMessageId('a')), 22);
         allocate('d');
         expect(chat.labels(22, 24), ['d', 'a', null]);
       });
@@ -172,13 +181,13 @@ void main() {
         allocate('a');
         allocate('b');
         strategy
-          ..fail('a')
+          ..fail(const ClientMessageId('a'))
           ..incoming([_Row(20), _Row(21)])
-          ..retry('a')
-          ..publishStart('a')
-          ..remove('b');
+          ..retry(const ClientMessageId('a'))
+          ..publishStart(const ClientMessageId('a'))
+          ..remove(const ClientMessageId('b'));
         allocate('c');
-        strategy.confirm('a');
+        strategy.confirm(const ClientMessageId('a'));
 
         expect(diagnostics.whereOp(ChatRebaseOp.orderRejected), isEmpty);
       });
@@ -190,7 +199,7 @@ void main() {
         'row appears above it', (tester) async {
       final chat = _Chat(20);
       final strategy = SequentialServerIds(
-        chatId: 'c1',
+        chatId: const ChatId('c1'),
         tail: OutgoingTailTarget.of(chat),
       );
       final controller = ChatScrollController()..jumpTo(19);
@@ -198,7 +207,10 @@ void main() {
       addTearDown(chat.dispose);
       await tester.pumpWidget(_view(chat, controller));
       await tester.pump();
-      strategy.allocate('out', (position) => _Row(position, 'out'));
+      strategy.allocate(
+        const ClientMessageId('out'),
+        (position) => _Row(position, const ClientMessageId('out')),
+      );
       await tester.pumpAndSettle();
       expect(controller.isAtTail.value, isTrue);
       final outTop = tester.getTopLeft(find.text('out')).dy;
@@ -209,13 +221,13 @@ void main() {
       expect(tester.getTopLeft(find.text('out')).dy, outTop);
       expect(tester.getTopLeft(find.text('server-20')).dy, outTop - _rowHeight);
       expect(controller.isAtTail.value, isTrue);
-      expect(strategy.positionOf('out'), 21);
+      expect(strategy.positionOf(const ClientMessageId('out')), 21);
     });
 
     testWidgets('scrolled up: the reader stays where they are', (tester) async {
       final chat = _Chat(60);
       final strategy = SequentialServerIds(
-        chatId: 'c1',
+        chatId: const ChatId('c1'),
         tail: OutgoingTailTarget.of(chat),
       );
       final controller = ChatScrollController()..jumpTo(59);
@@ -223,7 +235,10 @@ void main() {
       addTearDown(chat.dispose);
       await tester.pumpWidget(_view(chat, controller));
       await tester.pump();
-      strategy.allocate('out', (position) => _Row(position, 'out'));
+      strategy.allocate(
+        const ClientMessageId('out'),
+        (position) => _Row(position, const ClientMessageId('out')),
+      );
       await tester.pumpAndSettle();
       await tester.drag(find.byType(ChatScrollView), const Offset(0, 900));
       await tester.pumpAndSettle();
@@ -240,7 +255,7 @@ void main() {
       expect(controller.isAnimating, isFalse);
       expect(controller.isAtTail.value, isFalse);
       expect(tester.getTopLeft(find.text(label)).dy, probeTop);
-      expect(strategy.positionOf('out'), 61);
+      expect(strategy.positionOf(const ClientMessageId('out')), 61);
     });
   });
 }

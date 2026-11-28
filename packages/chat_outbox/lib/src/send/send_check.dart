@@ -43,6 +43,15 @@ abstract final class SendCheck {
       _slowMode(capabilities.slowMode, now: now, inFlight: inFlight) ??
       _limits(send, capabilities.limits);
 
+  /// The refusal of a retry under [capabilities] at [now], or null when it
+  /// may go: slow mode alone, since a retried message passed the limits
+  /// when it was sent, and a retry is one more send unit.
+  static SendRefusal? ofRetry(
+    ChatCapabilities capabilities, {
+    required DateTime now,
+    required bool inFlight,
+  }) => _slowMode(capabilities.slowMode, now: now, inFlight: inFlight);
+
   static SendRefusal? _slowMode(
     SlowMode slowMode, {
     required DateTime now,

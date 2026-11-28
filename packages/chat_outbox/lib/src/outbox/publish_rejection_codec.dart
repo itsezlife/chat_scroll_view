@@ -2,17 +2,18 @@
 /// a message, and the failure the message reads back from it.
 ///
 /// The engine keeps a publish-stage failure as an opaque string code, in
-/// its journal, so the code is what a restart reads too. Format:
+/// its journal, so the code is what a restart reads too. The engine's own
+/// reasons (`network`, `cancelled`, `publisherError`, …) share that space,
+/// so every code of the chat's publisher carries the `chat.` prefix: a
+/// server's rejection code reads back as that rejection whatever it spells,
+/// never as an engine reason of the same name.
 ///
 /// | Failure | Code |
 /// | --- | --- |
-/// | `rejected(reason)` | `reason`, the host sender's code as given (never starting with `chat.`) |
-/// | `tooLarge` | `tooLarge` |
+/// | `rejected(reason)` | `chat.rejected:<reason>`, the host sender's code as given |
 /// | `denied(action)` | `chat.denied:<action>`, the `CapabilityAction`'s name |
 /// | the conflict loop ran out | `chat.conflict`, read as `rejected(chat.conflict)` |
-///
-/// Codes starting with `chat.` are the outbox's own; a sender cannot give
-/// one (`OutgoingSendAnswer.rejected`).
+/// | `tooLarge` | `tooLarge`, the code a preparer or publisher gives for content over the server's size |
 library;
 
 import 'dart:convert';
@@ -31,6 +32,10 @@ final class PublishRejectionCodec extends Codec<OutgoingFailure, String> {
   /// The code of a message whose conflict loop ran out.
   static const String conflictCode = '${_Key.prefix}conflict';
 
+  /// Whether [code] is one of the chat publisher's, which [decoder] reads.
+  static bool owns(String code) =>
+      code.startsWith(_Key.prefix) || code == _Key.tooLarge;
+
   @override
   Converter<OutgoingFailure, String> get encoder => const _Encoder();
 
@@ -40,6 +45,7 @@ final class PublishRejectionCodec extends Codec<OutgoingFailure, String> {
 
 abstract final class _Key {
   static const prefix = 'chat.';
+  static const rejected = '${prefix}rejected:';
   static const denied = '${prefix}denied:';
   static const tooLarge = 'tooLarge';
 }
@@ -49,7 +55,7 @@ final class _Encoder extends Converter<OutgoingFailure, String> {
 
   @override
   String convert(OutgoingFailure input) => switch (input) {
-    OutgoingFailure$Rejected(:final reason) => reason,
+    OutgoingFailure$Rejected(:final reason) => '${_Key.rejected}$reason',
     OutgoingFailure$Denied(:final action) => '${_Key.denied}${action.name}',
     OutgoingFailure$TooLarge() => _Key.tooLarge,
     OutgoingFailure$Network() ||
@@ -65,16 +71,24 @@ final class _Encoder extends Converter<OutgoingFailure, String> {
 final class _Decoder extends Converter<String, OutgoingFailure> {
   const _Decoder();
 
-  /// Throws a [FormatException] naming the action for a denial whose action
-  /// this build does not know.
+  /// Throws a [FormatException] for a code that is not the chat
+  /// publisher's, or a denial whose action this build does not know.
   @override
   OutgoingFailure convert(String input) {
     if (input == _Key.tooLarge) return const OutgoingFailure.tooLarge();
-    if (!input.startsWith(_Key.denied)) return OutgoingFailure.rejected(input);
-    final name = input.substring(_Key.denied.length);
-    for (final action in CapabilityAction.values) {
-      if (action.name == name) return OutgoingFailure.denied(action);
+    if (input == PublishRejectionCodec.conflictCode) {
+      return const OutgoingFailure.rejected(PublishRejectionCodec.conflictCode);
     }
-    throw FormatException('A denial names an unknown "action".', input);
+    if (input.startsWith(_Key.rejected)) {
+      return OutgoingFailure.rejected(input.substring(_Key.rejected.length));
+    }
+    if (input.startsWith(_Key.denied)) {
+      final name = input.substring(_Key.denied.length);
+      for (final action in CapabilityAction.values) {
+        if (action.name == name) return OutgoingFailure.denied(action);
+      }
+      throw FormatException('A denial names an unknown "action".', input);
+    }
+    throw FormatException('Not a code of the chat publisher.', input);
   }
 }

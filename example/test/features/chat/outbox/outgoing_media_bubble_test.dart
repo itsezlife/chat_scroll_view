@@ -16,10 +16,10 @@ import 'package:chat_outbox/testing.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/app/demo_chrome_strings.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_chat_server.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_delivery.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outbox.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_status_motion.dart';
-import 'package:chat_scroll_view_example/src/features/chat/outbox/fake_chat_server.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_media_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/large_emoji_policy.dart';
@@ -44,7 +44,7 @@ void main() {
   late ValueNotifier<LargeEmojiPolicy> emoji;
   late MessageMediaState state;
   late FakeOutboxTransfers transfers;
-  late FakeChatServer server;
+  late DemoChatServer server;
   late DemoOutbox demo;
   late GeneratedChatDataSource source;
   late DemoOutboxChat bound;
@@ -55,7 +55,7 @@ void main() {
     emoji = ValueNotifier(const LargeEmojiPolicy(enabled: true));
     state = MessageMediaState();
     transfers = FakeOutboxTransfers();
-    server = FakeChatServer(peerDelay: Duration.zero);
+    server = DemoChatServer(peerDelay: Duration.zero);
     demo = DemoOutbox(transfers: transfers, server: server);
     source = GeneratedChatDataSource(messageCount: history);
     addTearDown(scope.dispose);
@@ -186,7 +186,7 @@ void main() {
   testWidgets("a failed one's badge sits over the media and answers in its "
       'hit order, ahead of the cell under it', (tester) async {
     await pump(tester);
-    server.script(chat, FakeServerScript.reject);
+    server.script(chat, DemoServerScript.reject);
     final sent = sendAlbum();
     await settle(tester);
     transfers.setState(

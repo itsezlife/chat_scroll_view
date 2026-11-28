@@ -21,6 +21,7 @@ void main() {
       codec: const NotePayloadCodec(),
       itemOf: sendItemOf,
       idStrategyOf: fakeIdStrategyOf,
+      onSent: (_) {},
       rowOf: fakeRowOf,
       clientMessageIds: clientMessageIdsFrom(),
     );
@@ -30,7 +31,7 @@ void main() {
   /// Sends an album of two photos to `c1` and lets the outbox see its job.
   Future<PublishJobId> sendAlbum() async {
     outbox.send(
-      'c1',
+      const ChatId('c1'),
       PlannedSend.group([photo('a'), photo('b')], form: SendForm.media),
       payload: const Note(text: 'two'),
     );
@@ -46,7 +47,9 @@ void main() {
     final job = await sendAlbum();
     transfers.setState(job, state, items: items);
     await pumpEventQueue();
-    return outbox.byClientMessageId('c1', 'cm1')?.status;
+    return outbox
+        .byClientMessageId(const ChatId('c1'), const ClientMessageId('cm1'))
+        ?.status;
   }
 
   const uploaded = PublishItemState.uploaded();
@@ -124,7 +127,9 @@ void main() {
       await pumpEventQueue();
 
       expect(
-        outbox.byClientMessageId('c1', 'cm1')?.status,
+        outbox
+            .byClientMessageId(const ChatId('c1'), const ClientMessageId('cm1'))
+            ?.status,
         const OutgoingStatus.uploading(),
       );
     });
@@ -166,7 +171,7 @@ void main() {
 
     test("the publisher's rejection keeps its code", () async {
       expect(
-        await failedAt(PublishStage.publish, 'chatClosed'),
+        await failedAt(PublishStage.publish, 'chat.rejected:chatClosed'),
         const OutgoingStatus.failed(OutgoingFailure.rejected('chatClosed')),
       );
     });
@@ -183,6 +188,16 @@ void main() {
         );
       });
     }
+
+    test(
+      "a code at publish that is not the chat publisher's is unknown",
+      () async {
+        expect(
+          await failedAt(PublishStage.publish, 'chatClosed'),
+          const OutgoingStatus.failed(OutgoingFailure.unknown()),
+        );
+      },
+    );
 
     test('an unknown code before publish is unknown', () async {
       expect(
@@ -208,7 +223,9 @@ void main() {
     await pumpEventQueue();
 
     expect(
-      outbox.byClientMessageId('c1', 'cm1')?.status,
+      outbox
+          .byClientMessageId(const ChatId('c1'), const ClientMessageId('cm1'))
+          ?.status,
       const OutgoingStatus.preparing(),
     );
     expect(job, isNot(other));
@@ -217,7 +234,7 @@ void main() {
   test('a job of another chat is not watched under this one', () async {
     await sendAlbum();
     outbox.sendText(
-      'c2',
+      const ChatId('c2'),
       const RichText.plain('hi'),
       payload: const Note(text: 'hi'),
     );
@@ -229,11 +246,15 @@ void main() {
     await pumpEventQueue();
 
     expect(
-      outbox.byClientMessageId('c1', 'cm1')?.status,
+      outbox
+          .byClientMessageId(const ChatId('c1'), const ClientMessageId('cm1'))
+          ?.status,
       const OutgoingStatus.preparing(),
     );
     expect(
-      outbox.byClientMessageId('c2', 'cm2')?.status,
+      outbox
+          .byClientMessageId(const ChatId('c2'), const ClientMessageId('cm2'))
+          ?.status,
       const OutgoingStatus.sent(),
     );
   });
@@ -253,7 +274,10 @@ void main() {
     transfers.setState(job, const PublishJobState.uploading());
     await pumpEventQueue();
 
-    expect(outbox.isFreshOutgoing('c1', 'cm1'), isTrue);
+    expect(
+      outbox.isFreshOutgoing(const ChatId('c1'), const ClientMessageId('cm1')),
+      isTrue,
+    );
   });
 
   group('diagnostics', () {
@@ -262,7 +286,7 @@ void main() {
       final diagnostics = RecordingDiagnostics.install();
 
       outbox.send(
-        'c1',
+        const ChatId('c1'),
         PlannedSend.group([
           photo('a'),
           photo('remote-b'),
@@ -316,7 +340,7 @@ void main() {
       final diagnostics = RecordingDiagnostics.install();
 
       outbox.send(
-        'c1',
+        const ChatId('c1'),
         PlannedSend.single(photo('a'), form: SendForm.media),
         payload: const Note(text: 'a'),
         itemIds: const [MediaItemId('h-a')],
@@ -390,7 +414,7 @@ void main() {
       );
       await pumpEventQueue();
 
-      final row = outbox.debugSnapshot('c1').tail.single;
+      final row = outbox.debugSnapshot(const ChatId('c1')).tail.single;
       expect(row.jobId, 'job-1');
       expect(row.jobState, 'paused');
       expect(row.stage, 'upload');
@@ -399,12 +423,12 @@ void main() {
 
     test('a job not seen yet has its id only', () {
       outbox.sendText(
-        'c1',
+        const ChatId('c1'),
         const RichText.plain('hi'),
         payload: const Note(text: 'hi'),
       );
 
-      final row = outbox.debugSnapshot('c1').tail.single;
+      final row = outbox.debugSnapshot(const ChatId('c1')).tail.single;
       expect((row.jobId, row.jobState, row.stage), ('job-1', null, null));
     });
 
@@ -414,7 +438,7 @@ void main() {
       transfers.setState(job, const PublishJobState.completed(null));
       await pumpEventQueue();
 
-      final snapshot = outbox.debugSnapshot('c1');
+      final snapshot = outbox.debugSnapshot(const ChatId('c1'));
       expect(snapshot.sendInFlight, isTrue);
       expect(snapshot.counters.accepted, 2);
       expect(snapshot.tail.first.stage, isNull);

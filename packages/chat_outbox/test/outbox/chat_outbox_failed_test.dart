@@ -27,6 +27,7 @@ void main() {
       codec: const NotePayloadCodec(),
       itemOf: sendItemOf,
       idStrategyOf: (chatId) => SequentialServerIds(chatId: chatId, tail: tail),
+      onSent: (_) {},
       rowOf: (message, payload) =>
           FakeTailMessage(message.position, message.clientMessageId),
       undecodableRowOf: (message) =>
@@ -36,23 +37,26 @@ void main() {
     addTearDown(outbox.dispose);
   });
 
-  OutgoingMessage sendText(String text) =>
-      outbox.sendText('c1', RichText.plain(text), payload: Note(text: text))!;
+  OutgoingMessage sendText(String text) => outbox.sendText(
+    const ChatId('c1'),
+    RichText.plain(text),
+    payload: Note(text: text),
+  )!;
 
   OutgoingMessage sendPhoto(String id) => outbox.send(
-    'c1',
+    const ChatId('c1'),
     PlannedSend.single(photo(id), form: SendForm.media),
     payload: const Note(text: ''),
   )!;
 
-  PublishJobId jobOf(String clientMessageId) => transfers.jobs
+  PublishJobId jobOf(ClientMessageId clientMessageId) => transfers.jobs
       .singleWhere((job) => job.tag == 'chat:c1:$clientMessageId')
       .id;
 
   /// Fails message [clientMessageId]'s job at [stage] for [reason], its
   /// item [itemId] (when given) failed too.
   Future<void> fail(
-    String clientMessageId, {
+    ClientMessageId clientMessageId, {
     PublishStage stage = PublishStage.upload,
     String reason = 'network',
     bool retryable = true,
@@ -86,11 +90,13 @@ void main() {
       await pumpEventQueue();
       expect(tail.provisional, ['cm1', 'cm2']);
 
-      await fail('cm1', itemId: 'item:cm1:0');
+      await fail(const ClientMessageId('cm1'), itemId: 'item:cm1:0');
 
       expect(tail.provisional, ['cm2', 'cm1']);
       expect(
-        outbox.byClientMessageId('c1', 'cm1')?.status,
+        outbox
+            .byClientMessageId(const ChatId('c1'), const ClientMessageId('cm1'))
+            ?.status,
         const OutgoingStatus.failed(OutgoingFailure.network()),
       );
       expect(diagnostics.whereOp(OutboxOp.failed), [
@@ -99,7 +105,7 @@ void main() {
           correlation: ChatCorrelation(
             chatId: 'c1',
             clientMessageId: 'cm1',
-            jobId: jobOf('cm1'),
+            jobId: jobOf(const ClientMessageId('cm1')),
           ),
           fields: {'reason': 'network', 'stage': 'upload', 'itemsFailed': 1},
         ),
@@ -113,8 +119,8 @@ void main() {
       sendText('three');
       await pumpEventQueue();
 
-      await fail('cm2');
-      await fail('cm1');
+      await fail(const ClientMessageId('cm2'));
+      await fail(const ClientMessageId('cm1'));
 
       expect(tail.provisional, ['cm3', 'cm1', 'cm2']);
     });
@@ -125,7 +131,7 @@ void main() {
       final answer = Completer<OutgoingSendAnswer<Note>>();
       addTearDown(() {
         if (!answer.isCompleted) {
-          answer.complete(OutgoingSendAnswer.rejected('x'));
+          answer.complete(const OutgoingSendAnswer.rejected('x'));
         }
       });
       sender.answerBy((_) => answer.future);
@@ -133,12 +139,15 @@ void main() {
       sendPhoto('a');
       sendPhoto('b');
       await pumpEventQueue();
-      await fail('cm2');
+      await fail(const ClientMessageId('cm2'));
       sendPhoto('c');
       await pumpEventQueue();
       expect(tail.provisional, ['cm1', 'cm3', 'cm2']);
 
-      transfers.setState(jobOf('cm3'), const PublishJobState.publishing());
+      transfers.setState(
+        jobOf(const ClientMessageId('cm3')),
+        const PublishJobState.publishing(),
+      );
       await pumpEventQueue();
 
       expect(tail.provisional, ['cm3', 'cm1', 'cm2']);
@@ -149,7 +158,11 @@ void main() {
     group('reads its job failure as a closed reason', () {
       final cases = <String, (PublishStage, String, String)>{
         'the network': (PublishStage.upload, 'network', 'network'),
-        'a rejection': (PublishStage.publish, 'chatClosed', 'rejected'),
+        'a rejection': (
+          PublishStage.publish,
+          'chat.rejected:chatClosed',
+          'rejected',
+        ),
         'a server denial': (
           PublishStage.publish,
           'chat.denied:${CapabilityAction.sendPhoto.name}',
@@ -170,9 +183,18 @@ void main() {
           sendPhoto('a');
           await pumpEventQueue();
 
-          await fail('cm1', stage: stage, reason: code);
+          await fail(const ClientMessageId('cm1'), stage: stage, reason: code);
 
-          expect(outbox.byClientMessageId('c1', 'cm1')?.status.name, 'failed');
+          expect(
+            outbox
+                .byClientMessageId(
+                  const ChatId('c1'),
+                  const ClientMessageId('cm1'),
+                )
+                ?.status
+                .name,
+            'failed',
+          );
           final event = diagnostics.whereOp(OutboxOp.failed).single;
           expect(event.fields['reason'], reason);
           expect(event.fields['stage'], stage.name);
@@ -191,29 +213,34 @@ void main() {
       sendPhoto('b');
       sendText('three');
       await pumpEventQueue();
-      await fail('cm1', itemId: 'item:cm1:0');
-      await fail('cm2', itemId: 'item:cm2:0');
+      await fail(const ClientMessageId('cm1'), itemId: 'item:cm1:0');
+      await fail(const ClientMessageId('cm2'), itemId: 'item:cm2:0');
       expect(tail.provisional, ['cm3', 'cm1', 'cm2']);
 
-      expect(outbox.retry('c1', 'cm2'), OutgoingRetryOutcome.retried);
+      expect(
+        outbox.retry(const ChatId('c1'), const ClientMessageId('cm2')),
+        OutgoingRetryOutcome.retried,
+      );
       await pumpEventQueue();
 
-      expect(transfers.retried, [jobOf('cm2')]);
+      expect(transfers.retried, [jobOf(const ClientMessageId('cm2'))]);
       // The same job: nothing is sent again from the start.
       expect(transfers.requests, hasLength(3));
       expect(tail.provisional, ['cm3', 'cm2', 'cm1']);
       expect(
-        outbox.byClientMessageId('c1', 'cm2')?.status,
+        outbox
+            .byClientMessageId(const ChatId('c1'), const ClientMessageId('cm2'))
+            ?.status,
         const OutgoingStatus.uploading(),
       );
-      expect(outbox.debugSnapshot('c1').counters.retries, 1);
+      expect(outbox.debugSnapshot(const ChatId('c1')).counters.retries, 1);
       expect(diagnostics.whereOp(OutboxOp.retried), [
         isChatEvent(
           level: ChatEventLevel.info,
           correlation: ChatCorrelation(
             chatId: 'c1',
             clientMessageId: 'cm2',
-            jobId: jobOf('cm2'),
+            jobId: jobOf(const ClientMessageId('cm2')),
           ),
           fields: {'stage': 'upload', 'uploadsKept': true, 'newSources': 0},
         ),
@@ -230,21 +257,34 @@ void main() {
         'message id', () async {
       final diagnostics = RecordingDiagnostics.install();
       final sender = RecordingOutgoingSender<Note>()
-        ..answerWith(OutgoingSendAnswer.rejected('busy', retryable: true));
+        ..answerWith(
+          const OutgoingSendAnswer.rejected('busy', retryable: true),
+        );
       outbox.registerSender(sender);
       sendPhoto('remote-a');
       await pumpEventQueue();
-      expect(outbox.byClientMessageId('c1', 'cm1')?.status.name, 'failed');
+      expect(
+        outbox
+            .byClientMessageId(const ChatId('c1'), const ClientMessageId('cm1'))
+            ?.status
+            .name,
+        'failed',
+      );
 
-      expect(outbox.retry('c1', 'cm1'), OutgoingRetryOutcome.retried);
+      expect(
+        outbox.retry(const ChatId('c1'), const ClientMessageId('cm1')),
+        OutgoingRetryOutcome.retried,
+      );
       await pumpEventQueue();
 
       expect(sender.requests, hasLength(2));
       expect(sender.requests.last.clientMessageId, 'cm1');
       expect(transfers.requests, hasLength(1));
-      expect(transfers.attemptsOf(jobOf('cm1')), 2);
+      expect(transfers.attemptsOf(jobOf(const ClientMessageId('cm1'))), 2);
       expect(
-        outbox.byClientMessageId('c1', 'cm1')?.status,
+        outbox
+            .byClientMessageId(const ChatId('c1'), const ClientMessageId('cm1'))
+            ?.status,
         const OutgoingStatus.sent(),
       );
       expect(
@@ -258,9 +298,12 @@ void main() {
       final diagnostics = RecordingDiagnostics.install();
       sendPhoto('a');
       await pumpEventQueue();
-      await fail('cm1');
+      await fail(const ClientMessageId('cm1'));
 
-      final outcomes = [for (var i = 0; i < 10; i++) outbox.retry('c1', 'cm1')];
+      final outcomes = [
+        for (var i = 0; i < 10; i++)
+          outbox.retry(const ChatId('c1'), const ClientMessageId('cm1')),
+      ];
       await pumpEventQueue();
 
       expect(outcomes.first, OutgoingRetryOutcome.retried);
@@ -280,8 +323,11 @@ void main() {
         ),
       );
 
-      await fail('cm1');
-      expect(outbox.retry('c1', 'cm1'), OutgoingRetryOutcome.retried);
+      await fail(const ClientMessageId('cm1'));
+      expect(
+        outbox.retry(const ChatId('c1'), const ClientMessageId('cm1')),
+        OutgoingRetryOutcome.retried,
+      );
       expect(transfers.retried, hasLength(2));
     });
 
@@ -299,13 +345,21 @@ void main() {
         sendPhoto('remote-a');
         await pumpEventQueue();
         expect(
-          outbox.byClientMessageId('c1', 'cm1')?.status,
+          outbox
+              .byClientMessageId(
+                const ChatId('c1'),
+                const ClientMessageId('cm1'),
+              )
+              ?.status,
           const OutgoingStatus.failed(
             OutgoingFailure.denied(CapabilityAction.sendPhoto),
           ),
         );
 
-        expect(outbox.retry('c1', 'cm1'), OutgoingRetryOutcome.retried);
+        expect(
+          outbox.retry(const ChatId('c1'), const ClientMessageId('cm1')),
+          OutgoingRetryOutcome.retried,
+        );
         await pumpEventQueue();
 
         expect(sender.requests, hasLength(2));
@@ -317,15 +371,25 @@ void main() {
       final diagnostics = RecordingDiagnostics.install();
       final message = sendPhoto('a');
       await pumpEventQueue();
-      await fail('cm1', reason: 'sourceLost', itemId: 'item:cm1:0');
+      await fail(
+        const ClientMessageId('cm1'),
+        reason: 'sourceLost',
+        itemId: 'item:cm1:0',
+      );
       final source = SourceBytes.memory(Uint8List.fromList([1, 2]));
 
       expect(
-        outbox.retry('c1', 'cm1', sources: {message.items.single.id: source}),
+        outbox.retry(
+          const ChatId('c1'),
+          const ClientMessageId('cm1'),
+          sources: {message.items.single.id: source},
+        ),
         OutgoingRetryOutcome.retried,
       );
 
-      expect(transfers.retriedItems, [(jobOf('cm1'), 'item:cm1:0', source)]);
+      expect(transfers.retriedItems, [
+        (jobOf(const ClientMessageId('cm1')), 'item:cm1:0', source),
+      ]);
       expect(diagnostics.whereOp(OutboxOp.retried).single.fields, {
         'stage': 'upload',
         'uploadsKept': false,
@@ -339,8 +403,14 @@ void main() {
         sendPhoto('a');
         await pumpEventQueue();
 
-        expect(outbox.retry('c1', 'cm1'), OutgoingRetryOutcome.notFailed);
-        expect(outbox.retry('c1', 'nope'), OutgoingRetryOutcome.unknown);
+        expect(
+          outbox.retry(const ChatId('c1'), const ClientMessageId('cm1')),
+          OutgoingRetryOutcome.notFailed,
+        );
+        expect(
+          outbox.retry(const ChatId('c1'), const ClientMessageId('nope')),
+          OutgoingRetryOutcome.unknown,
+        );
         expect(transfers.retried, isEmpty);
       },
     );
@@ -349,7 +419,10 @@ void main() {
         'Delete helps it', () async {
       transfers.seed(
         PublishRequest(
-          tag: ChatOutbox.tagOf('c1', 'old'),
+          tag: ChatOutbox.tagOf(
+            const ChatId('c1'),
+            const ClientMessageId('old'),
+          ),
           items: const [],
           payload: Uint8List.fromList(utf8.encode('not json')),
           publisher: ChatOutbox.publisherId,
@@ -358,9 +431,12 @@ void main() {
         ),
         state: const PublishJobState.publishing(),
       );
-      await outbox.pendingFor('c1');
+      await outbox.pendingFor(const ChatId('c1'));
 
-      expect(outbox.retry('c1', 'old'), OutgoingRetryOutcome.undecodable);
+      expect(
+        outbox.retry(const ChatId('c1'), const ClientMessageId('old')),
+        OutgoingRetryOutcome.undecodable,
+      );
       expect(transfers.retried, isEmpty);
     });
   });
@@ -372,14 +448,23 @@ void main() {
       sendPhoto('a');
       sendText('two');
       await pumpEventQueue();
-      await fail('cm1');
-      final job = jobOf('cm1');
+      await fail(const ClientMessageId('cm1'));
+      final job = jobOf(const ClientMessageId('cm1'));
       expect(tail.provisional, ['cm2', 'cm1']);
 
-      expect(outbox.delete('c1', 'cm1'), OutgoingCancelOutcome.cancelled);
+      expect(
+        outbox.delete(const ChatId('c1'), const ClientMessageId('cm1')),
+        OutgoingCancelOutcome.cancelled,
+      );
 
       expect(transfers.cancelled, [job]);
-      expect(outbox.byClientMessageId('c1', 'cm1'), isNull);
+      expect(
+        outbox.byClientMessageId(
+          const ChatId('c1'),
+          const ClientMessageId('cm1'),
+        ),
+        isNull,
+      );
       expect(tail.provisional, ['cm2']);
       final correlation = ChatCorrelation(
         chatId: 'c1',
@@ -406,10 +491,11 @@ void main() {
       final diagnostics = RecordingDiagnostics.install();
       sendPhoto('a');
       await pumpEventQueue();
-      await fail('cm1');
+      await fail(const ClientMessageId('cm1'));
 
       final outcomes = [
-        for (var i = 0; i < 10; i++) outbox.delete('c1', 'cm1'),
+        for (var i = 0; i < 10; i++)
+          outbox.delete(const ChatId('c1'), const ClientMessageId('cm1')),
       ];
 
       expect(outcomes.first, OutgoingCancelOutcome.cancelled);
@@ -424,7 +510,10 @@ void main() {
     test('helps a message whose payload did not decode', () async {
       final job = transfers.seed(
         PublishRequest(
-          tag: ChatOutbox.tagOf('c1', 'old'),
+          tag: ChatOutbox.tagOf(
+            const ChatId('c1'),
+            const ClientMessageId('old'),
+          ),
           items: const [],
           payload: Uint8List.fromList(utf8.encode('not json')),
           publisher: ChatOutbox.publisherId,
@@ -433,9 +522,12 @@ void main() {
         ),
         state: const PublishJobState.publishing(),
       );
-      await outbox.pendingFor('c1');
+      await outbox.pendingFor(const ChatId('c1'));
 
-      expect(outbox.delete('c1', 'old'), OutgoingCancelOutcome.cancelled);
+      expect(
+        outbox.delete(const ChatId('c1'), const ClientMessageId('old')),
+        OutgoingCancelOutcome.cancelled,
+      );
 
       expect(transfers.cancelled, [job]);
       expect(tail.provisional, isEmpty);
@@ -446,7 +538,10 @@ void main() {
       sendText('one');
       await pumpEventQueue();
 
-      expect(outbox.delete('c1', 'cm1'), OutgoingCancelOutcome.tooLate);
+      expect(
+        outbox.delete(const ChatId('c1'), const ClientMessageId('cm1')),
+        OutgoingCancelOutcome.tooLate,
+      );
       expect(transfers.cancelled, isEmpty);
     });
   });

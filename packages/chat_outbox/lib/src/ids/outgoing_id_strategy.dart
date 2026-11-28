@@ -1,3 +1,4 @@
+import 'package:chat_outbox/src/message/outgoing_ids.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 
 /// Where the outgoing rows of one chat take their ids and move: the
@@ -32,7 +33,7 @@ abstract interface class OutgoingIdStrategy {
 
   /// The client message ids of the provisional tail in order, lowest
   /// position first.
-  List<String> get tail;
+  List<ClientMessageId> get tail;
 
   /// The moves of the tail so far by reason (`incoming`, `publishStart`,
   /// `failedSink`, `retry`, `restart`, `removed`, `fetch`), for the debug
@@ -44,8 +45,18 @@ abstract interface class OutgoingIdStrategy {
   ///
   /// A provisional row's position moves with the tail; the host addresses
   /// the row by it (an `updateMessage` passes a message whose id is this
-  /// position).
-  int? positionOf(String clientMessageId);
+  /// position). As of the last [sync] or move: reading it changes nothing.
+  int? positionOf(ClientMessageId clientMessageId);
+
+  /// Brings the strategy up to the rows: the data source may have put
+  /// confirmed messages before the tail on its own (a range fetch's rows
+  /// inside it), which moves the tail's first position, and with it [tip],
+  /// [proposedId] and every [positionOf]. Reports such a move as `fetch`.
+  ///
+  /// Every move here does it first. A reader of the getters calls it before
+  /// reading (the outbox does at each of its entry points), so no getter has
+  /// a side effect.
+  void sync();
 
   /// Places a new outgoing row [clientMessageId] and returns its position.
   ///
@@ -57,7 +68,7 @@ abstract interface class OutgoingIdStrategy {
   /// takes a fresh position like a new one: the caller allocates the sending
   /// rows first, then the failed ones, each in creation order.
   int allocate(
-    String clientMessageId,
+    ClientMessageId clientMessageId,
     IChatMessage Function(int position) row, {
     bool failed = false,
     bool restored = false,
@@ -77,15 +88,15 @@ abstract interface class OutgoingIdStrategy {
   /// The row [clientMessageId] starts publishing: it moves to `tip+1`,
   /// above every other row, so the message the server accepts sits right
   /// after the tip.
-  void publishStart(String clientMessageId);
+  void publishStart(ClientMessageId clientMessageId);
 
   /// The row [clientMessageId] failed: it sinks below every sending row,
   /// among the failed rows in creation order.
-  void fail(String clientMessageId);
+  void fail(ClientMessageId clientMessageId);
 
   /// The failed row [clientMessageId] is retried: it joins the end of the
   /// sending rows, above the rows still failed.
-  void retry(String clientMessageId);
+  void retry(ClientMessageId clientMessageId);
 
   /// The row [clientMessageId] leaves (cancelled or deleted): the rows after
   /// it move down and its last position becomes Absent, in one
@@ -94,7 +105,7 @@ abstract interface class OutgoingIdStrategy {
   /// Answers whether the row was in the tail. False for a row the strategy
   /// no longer moves (no such row, or one an appended message settled): the
   /// host removes that row itself.
-  bool remove(String clientMessageId);
+  bool remove(ClientMessageId clientMessageId);
 
   /// The rows [clientMessageIds] leave together (a cancel of every job in
   /// the system's transfer envelope): as [remove], with every row gone in
@@ -103,7 +114,7 @@ abstract interface class OutgoingIdStrategy {
   /// Answers the ids whose rows were in the tail; the host removes any
   /// other row itself, as after [remove]. Moves nothing when it answers
   /// none.
-  Set<String> removeAll(List<String> clientMessageIds);
+  Set<ClientMessageId> removeAll(List<ClientMessageId> clientMessageIds);
 
   /// The row [clientMessageId] is confirmed and leaves the tail; answers the
   /// position it was confirmed at, or null when the strategy holds no such
@@ -113,7 +124,7 @@ abstract interface class OutgoingIdStrategy {
   /// message sits right after the tip. The host then replaces the row at
   /// that position with the confirmed message (for which `identityOf`
   /// answers null).
-  int? confirm(String clientMessageId);
+  int? confirm(ClientMessageId clientMessageId);
 }
 
 /// The one chat's rows an [OutgoingIdStrategy] writes: the narrow part of
@@ -135,8 +146,10 @@ abstract interface class OutgoingTailTarget {
   /// range fetch put before the tail) may have changed.
   int? positionOf(Object identity);
 
-  /// Inserts a new row (`ChatDataSource.insertMessage`).
-  void insertMessage(IChatMessage message);
+  /// Inserts a new row (`ChatDataSource.insertMessage`). [followSelf] false
+  /// is a row placed again after a restart: the viewport does not pull a
+  /// reader scrolled up to it, as it does for the user's new message.
+  void insertMessage(IChatMessage message, {bool followSelf = true});
 
   /// Moves the provisional tail in one atomic step
   /// (`ChatDataSource.rebaseTail`).
@@ -171,7 +184,8 @@ final class _DataSourceTail implements OutgoingTailTarget {
   }
 
   @override
-  void insertMessage(IChatMessage message) => _source.insertMessage(message);
+  void insertMessage(IChatMessage message, {bool followSelf = true}) =>
+      _source.insertMessage(message, followSelf: followSelf);
 
   @override
   void rebaseTail({

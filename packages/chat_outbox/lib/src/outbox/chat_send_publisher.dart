@@ -4,6 +4,7 @@ import 'package:chat_capabilities/chat_capabilities.dart';
 import 'package:chat_outbox/src/diagnostics/outbox_op.dart';
 import 'package:chat_outbox/src/diagnostics/outbox_trace.dart';
 import 'package:chat_outbox/src/ids/outgoing_id_strategy.dart';
+import 'package:chat_outbox/src/message/outgoing_ids.dart';
 import 'package:chat_outbox/src/message/outgoing_message.dart';
 import 'package:chat_outbox/src/message/outgoing_payload_codec.dart';
 import 'package:chat_outbox/src/message/outgoing_status.dart';
@@ -12,6 +13,7 @@ import 'package:chat_outbox/src/outbox/publish_rejection_codec.dart';
 import 'package:chat_outbox/src/send/outgoing_message_sender.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:content_model/content_model.dart';
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:meta/meta.dart';
 import 'package:mpx_transfer/mpx_transfer.dart';
 
@@ -19,7 +21,7 @@ import 'package:mpx_transfer/mpx_transfer.dart';
 /// snapshot: kept by the outbox, so a sender registered again counts on.
 @internal
 final class PublishCounters {
-  final Map<(String, String), int> _$attempts = {};
+  final Map<OutgoingRef, int> _$attempts = {};
 
   /// Conflicts answered, every chat.
   int conflicts = 0;
@@ -28,14 +30,15 @@ final class PublishCounters {
   int cancelsTooLate = 0;
 
   /// The sender calls for message [clientMessageId] of [chatId] so far.
-  int? attemptsOf(String chatId, String clientMessageId) =>
+  int? attemptsOf(ChatId chatId, ClientMessageId clientMessageId) =>
       _$attempts[(chatId, clientMessageId)];
 
-  void _attempted(String chatId, String clientMessageId) => _$attempts.update(
-    (chatId, clientMessageId),
-    (count) => count + 1,
-    ifAbsent: () => 1,
-  );
+  void _attempted(ChatId chatId, ClientMessageId clientMessageId) =>
+      _$attempts.update(
+        (chatId, clientMessageId),
+        (count) => count + 1,
+        ifAbsent: () => 1,
+      );
 }
 
 /// The publisher `chat.send`: the engine calls it once a message's uploads
@@ -56,14 +59,14 @@ final class ChatSendPublisher<M> implements Publisher {
   /// The publisher over [projection], running [sender].
   ChatSendPublisher({
     required OutboxProjection projection,
-    required OutgoingIdStrategy Function(String chatId) strategyOf,
+    required OutgoingIdStrategy Function(ChatId chatId) strategyOf,
     required OutgoingPayloadCodec<M> codec,
     required OutgoingMessageSender<M> sender,
-    required CapabilityFeedback feedback,
-    required void Function(OutgoingSent<M> sent)? onSent,
+    required CapabilityFeedback Function(ChatId chatId) feedbackOf,
+    required void Function(OutgoingSent<M> sent) onSent,
     required PublishCounters counters,
     required DateTime Function() now,
-    required Future<OutgoingMessage?> Function(String clientMessageId)
+    required Future<OutgoingMessage?> Function(ClientMessageId clientMessageId)
     restoredMessage,
     void Function(OutgoingMessage message)? onStatusChanged,
   }) : _projection = projection,
@@ -71,7 +74,7 @@ final class ChatSendPublisher<M> implements Publisher {
        _strategyOf = strategyOf,
        _codec = codec,
        _sender = sender,
-       _feedback = feedback,
+       _feedbackOf = feedbackOf,
        _onSent = onSent,
        _onStatusChanged = onStatusChanged,
        _counters = counters,
@@ -82,18 +85,18 @@ final class ChatSendPublisher<M> implements Publisher {
   static const int maxConflicts = 3;
 
   final OutboxProjection _projection;
-  final OutgoingIdStrategy Function(String chatId) _strategyOf;
+  final OutgoingIdStrategy Function(ChatId chatId) _strategyOf;
   final OutgoingPayloadCodec<M> _codec;
   final OutgoingMessageSender<M> _sender;
-  final CapabilityFeedback _feedback;
-  final void Function(OutgoingSent<M> sent)? _onSent;
+  final CapabilityFeedback Function(ChatId chatId) _feedbackOf;
+  final void Function(OutgoingSent<M> sent) _onSent;
   final void Function(OutgoingMessage message)? _onStatusChanged;
   final PublishCounters _counters;
   final DateTime Function() _now;
 
   /// The message [clientMessageId] once its chat is restored; null when it
   /// never will be in this run.
-  final Future<OutgoingMessage?> Function(String clientMessageId)
+  final Future<OutgoingMessage?> Function(ClientMessageId clientMessageId)
   _restoredMessage;
 
   @override
@@ -102,13 +105,13 @@ final class ChatSendPublisher<M> implements Publisher {
     Map<String, PublishItemRefs> items,
     String idempotencyKey,
   ) => OutboxTrace.publish.runAsync(
-    () => _publish(payload, items, idempotencyKey),
+    () => _publish(payload, items, ClientMessageId(idempotencyKey)),
   );
 
   Future<PublishOutcome> _publish(
     Uint8List payload,
     Map<String, PublishItemRefs> items,
-    String clientMessageId,
+    ClientMessageId clientMessageId,
   ) async {
     final started = _now();
     // A job of an earlier run publishes as soon as the sender registers,
@@ -172,11 +175,10 @@ final class ChatSendPublisher<M> implements Publisher {
         'proposedId': ?proposedId,
         'remoteRefs': refs.length,
       });
-      final key = (chatId, clientMessageId);
       final OutgoingSendAnswer<M> answer;
       // While the call is out, a cancel waits for its answer: the server
       // may be accepting the message, and an accepted message stays sent.
-      _projection.sending.add(key);
+      _projection.beginSend(chatId, clientMessageId);
       try {
         answer = await _sender.send(
           OutgoingSendRequest(
@@ -193,12 +195,15 @@ final class ChatSendPublisher<M> implements Publisher {
         _report(ChatEventLevel.error, OutboxOp.senderFailed, correlation(), {
           'errorType': '${error.runtimeType}',
         });
-        _projection.sending.remove(key);
-        _projection.cancelRequests.remove(key)?.call();
+        _projection.endSend(chatId, clientMessageId, accepted: false)?.call();
         Error.throwWithStackTrace(error, stackTrace);
       }
-      _projection.sending.remove(key);
-      if (_projection.cancelRequests.remove(key) case final cancel?) {
+      final waiting = _projection.endSend(
+        chatId,
+        clientMessageId,
+        accepted: answer is OutgoingSendResult<M>,
+      );
+      if (waiting case final cancel?) {
         if (answer case OutgoingSendResult<M>()) {
           _report(ChatEventLevel.info, OutboxOp.cancelTooLate, correlation(), {
             'stage': PublishStage.publish.name,
@@ -276,7 +281,7 @@ final class ChatSendPublisher<M> implements Publisher {
             'action': action,
             'reason': reason.diagnosticForm,
           });
-          _feedback.onDenied(
+          _feedbackOf(chatId).onDenied(
             action,
             reason,
             consumer: CapabilityConsumer.outbox,
@@ -329,29 +334,36 @@ final class ChatSendPublisher<M> implements Publisher {
   }) {
     final OutgoingMessage(:chatId, :clientMessageId) = message;
     // From here a cancel is too late, before the job's completion is seen.
-    _projection.accepted.add((chatId, clientMessageId));
+    _projection.accept(chatId, clientMessageId);
     final serverId = result.serverMessageId ?? proposedId;
+    // A fetch may have moved the tail while the call was out.
+    strategy.sync();
     int? rowAt;
-    if (proposedId != null && serverId != null && serverId != proposedId) {
-      // An idempotent replay: the server has the message at another id.
-      _report(
-        ChatEventLevel.warning,
-        OutboxOp.replayRebased,
-        ChatCorrelation(
-          chatId: chatId,
-          clientMessageId: clientMessageId,
-          jobId: jobId,
-          scrollId: '$serverId',
-        ),
-        {'distance': serverId - proposedId},
-      );
-      if (serverId > proposedId) _placeBefore(strategy, result.missing);
+    if (proposedId != null && serverId != null) {
+      if (serverId != proposedId) {
+        // An idempotent replay: the server has the message at another id.
+        _report(
+          ChatEventLevel.warning,
+          OutboxOp.replayRebased,
+          ChatCorrelation(
+            chatId: chatId,
+            clientMessageId: clientMessageId,
+            jobId: jobId,
+            scrollId: '$serverId',
+          ),
+          {'distance': serverId - proposedId},
+        );
+        if (serverId > proposedId) _placeBefore(strategy, result.missing);
+      }
+      // The row may not sit at the server's id even for an accept at the
+      // proposal: a peer's message delivered, or a fetch's rows, while the
+      // call was out moved the tail past it. Confirming the row where it
+      // sits would settle the message at an id the server gave another
+      // message. The row leaves instead (as for a replay at an id it cannot
+      // reach), and the host places the message at the server's id.
       if (strategy.positionOf(clientMessageId) == serverId) {
         rowAt = strategy.confirm(clientMessageId);
       } else {
-        // The server's id is one the row cannot sit at: below the tip, or
-        // past positions the chat does not hold. The row leaves, and the
-        // host places the confirmed message where it learns of it.
         strategy.remove(clientMessageId);
       }
     } else {
@@ -366,7 +378,7 @@ final class ChatSendPublisher<M> implements Publisher {
       null => null,
     };
     try {
-      _onSent?.call(
+      _onSent(
         OutgoingSent(
           chatId: chatId,
           clientMessageId: clientMessageId,
@@ -406,7 +418,7 @@ final class ChatSendPublisher<M> implements Publisher {
         'durationMs': _now().difference(started).inMilliseconds,
         'serverKeys': result.serverKeys.length,
         'payloadAsStoredDiffers':
-            stored != null && !_sameBytes(stored, message.payload),
+            stored != null && !listEquals(stored, message.payload),
       },
     );
     return PublishOutcome.published(
@@ -431,14 +443,6 @@ final class ChatSendPublisher<M> implements Publisher {
         if (message.id >= start) message,
     ];
     if (inside.isNotEmpty) strategy.incoming(inside);
-  }
-
-  static bool _sameBytes(Uint8List a, Uint8List b) {
-    if (a.length != b.length) return false;
-    for (var i = 0; i < a.length; i++) {
-      if (a[i] != b[i]) return false;
-    }
-    return true;
   }
 
   static void _report(

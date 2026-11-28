@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:chat_outbox/chat_outbox.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outbox.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_server_script_sheet.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_transfers.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_upload_transport.dart';
-import 'package:chat_scroll_view_example/src/features/chat/outbox/fake_server_script_sheet.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/outbox_debug_actions.dart';
 import 'package:chat_scroll_view_example/src/features/logs/data/diagnostics_journal.dart';
 import 'package:chat_scroll_view_example/src/features/logs/model/journal_view.dart';
@@ -124,7 +124,7 @@ class _OutboxDebugPanelState extends State<OutboxDebugPanel> {
   static const List<int> _latencies = [0, 300, 1000, 3000];
 
   OutboxDebugSnapshot _readOutbox() =>
-      widget.outbox.outbox.debugSnapshot(widget.chatId);
+      widget.outbox.outbox.debugSnapshot(ChatId(widget.chatId));
 
   @override
   void initState() {
@@ -244,9 +244,9 @@ class _OutboxDebugPanelState extends State<OutboxDebugPanel> {
                 child: Text('Simulate system interruption', style: base),
               ),
               FilledButton.tonal(
-                key: FakeServerScriptSheet.openKey,
+                key: DemoServerScriptSheet.openKey,
                 onPressed: () => unawaited(
-                  FakeServerScriptSheet.show(
+                  DemoServerScriptSheet.show(
                     context,
                     server: widget.outbox.server,
                     chatId: chatId,

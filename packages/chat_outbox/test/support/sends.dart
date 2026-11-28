@@ -56,7 +56,7 @@ OutgoingSendItem sendItemOf(AttachItem item, SendForm form) => OutgoingSendItem(
 );
 
 /// Client message ids `cm1`, `cm2`, … in order.
-String Function() clientMessageIdsFrom([int first = 1]) {
+ClientMessageId Function() clientMessageIdsFrom([int first = 1]) {
   var next = first;
-  return () => 'cm${next++}';
+  return () => ClientMessageId('cm${next++}');
 }

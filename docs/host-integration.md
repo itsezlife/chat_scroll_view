@@ -1220,10 +1220,14 @@ the package README has every duty). In order:
    provisional row's client message id), `await pendingFor(chatId)` before
    the chat's first send of the run, hand incoming messages to
    `idStrategy(chatId).incoming`, skip a server echo that `byClientMessageId`
-   holds, and fold `sendInFlight(chatId)` into the capabilities' `slowMode.pending`.
-4. In the chat's rows: settle a published row in `onSent`, follow
+   holds, hand fetched history it holds to `settleFromHistory`, give the
+   chat its own denial feedback (`feedbackOf`), and fold
+   `sendInFlight(chatId)` into the capabilities' `slowMode.pending`.
+4. In the chat's rows: settle a published row in `onSent` (required, and in
+   the call; a row that left the tail is placed at the server's id), follow
    `onCancelled` and `onItemDropped`, draw the time pill and the error badge
-   from `onStatusChanged`, animate a fresh row with `appearanceOf`, close an
+   from `onStatusChanged`, animate a fresh row with `appearanceOf` (on the
+   web with the policy the live width and input class pick), close an
    open message menu through `ChatDataSource.rowPresence`, and wire
    `MessageMediaState(sendOrigin: outbox.takeSendOrigin)`.
 
@@ -1466,5 +1470,5 @@ not use the hover-open toggle region.
 | Popup anchor, composer view, apply-formatting toast | `example/lib/src/features/chat/widgets/chat_composer.dart` |
 | Link prompt dialog, notes field with lists | `example/lib/src/features/chat/widgets/link_url_dialog.dart`, `example/lib/src/features/chat/widgets/notes_dialog.dart` |
 | Suggestion panels, link preview, apply-formatting offer | `example/lib/src/features/chat/widgets/chat_suggestion_bar.dart`, `example/lib/src/features/chat/input/chat_link_preview.dart`, `example/lib/src/features/chat/input/chat_format_offer.dart` |
-| Outgoing messages: the engine, the outbox, the fake accept-if-next server, the time pill and its motion, the error badge, the debug panel | `example/lib/src/features/chat/outbox/` (`demo_transfers.dart`, `demo_outbox.dart`, `fake_chat_server.dart`, `demo_delivery.dart`, `demo_status_motion.dart`, `outbox_debug_panel.dart`); launch flags in `example/README.md` |
+| Outgoing messages: the engine, the outbox, the fake accept-if-next server, the time pill and its motion, the error badge, the debug panel | `example/lib/src/features/chat/outbox/` (`demo_transfers.dart`, `demo_outbox.dart`, `demo_chat_server.dart`, `demo_delivery.dart`, `demo_status_motion.dart`, `outbox_debug_panel.dart`); launch flags in `example/README.md` |
 | Panel box and shortcuts | `example/lib/src/features/chat/widgets/chat_bottom_chrome.dart` |

@@ -620,6 +620,26 @@ void main() {
       expect(highlightOf(tester, '$_last-a'), 0);
     });
 
+    testWidgets('one pointer position asks the host chrome once, for its '
+        'hover and its hit alike', (tester) async {
+      final asked = <Offset>[];
+      await pump(
+        tester,
+        policy: const MessageMediaPolicy.desktop(),
+        selectionPolicy: const ChatSelectionPolicy.desktop(),
+        chromeHitAt: (global) {
+          asked.add(global);
+          return null;
+        },
+      );
+      final at = contentAt(tester, '$_last-a');
+
+      await hover(tester, at);
+      hitAt(tester, _last, at);
+
+      expect(asked.where((offset) => offset == at), hasLength(1));
+    });
+
     testWidgets('web: a mouse gets the click cursor and the highlight', (
       tester,
     ) async {

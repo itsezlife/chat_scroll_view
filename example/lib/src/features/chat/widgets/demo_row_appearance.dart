@@ -1,5 +1,6 @@
 import 'package:chat_outbox/chat_outbox.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outbox.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_status_motion.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
@@ -288,6 +289,7 @@ class _DemoOutgoingRowAppearanceState extends State<DemoOutgoingRowAppearance>
       widget.messageId,
       atBottom: scope.widget.atBottom(),
       reduceMotion: MediaQuery.maybeDisableAnimationsOf(context) ?? false,
+      policy: DemoOutgoingMotion.appearanceOf(context),
     );
     _appearance = appearance;
     switch (appearance) {
