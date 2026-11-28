@@ -1873,4 +1873,118 @@ void main() {
     expect(preview.assetOf!(_key(0)), FakeMediaLibrary.assetAt(0));
     expect(rig.selection.length, 2);
   });
+
+  group('send origins', () {
+    ScrollPosition grid(WidgetTester tester) => tester
+        .state<ScrollableState>(
+          find.descendant(
+            of: find.byType(LibraryGrid),
+            matching: find.byType(Scrollable),
+          ),
+        )
+        .position;
+
+    Future<AttachOutcome$Send> send(WidgetTester tester, PagesRig rig) async {
+      await tester.tap(find.byKey(const ValueKey('attach-send')).last);
+      await tester.pumpAndSettle();
+      return rig.outcome! as AttachOutcome$Send;
+    }
+
+    AttachItemId idOf(int index) =>
+        AttachPickerSelection.idOf(FakeMediaLibrary.assetAt(index).id);
+
+    testWidgets('each picked thumbnail on screen hands its global rect', (
+      tester,
+    ) async {
+      final rig = await open(
+        tester,
+        policy: const AttachSheetPolicy.ios(),
+        attachPolicy: const AttachPolicy.ios(),
+      );
+      await tapCheck(tester, 1);
+      await tapCheck(tester, 4);
+      final rects = [tester.getRect(cell(1)), tester.getRect(cell(4))];
+
+      final outcome = await send(tester, rig);
+
+      expect(outcome.origins, {idOf(1): rects[0], idOf(4): rects[1]});
+    });
+
+    testWidgets('a picture drawn smaller while picked hands the smaller '
+        'rect', (tester) async {
+      final rig = await open(tester);
+      await tapCheck(tester, 1);
+      final cellRect = tester.getRect(cell(1));
+
+      final outcome = await send(tester, rig);
+
+      // Android draws a picked picture at 0.787 of its cell, centred.
+      final origin = outcome.origins[idOf(1)]!;
+      expect(origin.center, cellRect.center);
+      expect(origin.width, moreOrLessEquals(cellRect.width * 0.787));
+      expect(origin.height, moreOrLessEquals(cellRect.height * 0.787));
+    });
+
+    testWidgets('a thumbnail scrolled off hands none, nor does an item '
+        'the grid does not show', (tester) async {
+      final rig = await open(
+        tester,
+        policy: const AttachSheetPolicy.ios(),
+        attachPolicy: const AttachPolicy.ios(),
+      );
+      await tapCheck(tester, 1);
+      rig.selection.toggle(AttachItems.file('f'));
+      final sheet = AttachSheetController.of(
+        tester.element(find.byType(LibraryGrid)),
+      );
+      unawaited(sheet.expand());
+      await tester.pumpAndSettle();
+      // The first row just past the top: still built, not on screen.
+      grid(tester).jumpTo(grid(tester).pixels + 200);
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(ValueKey<MediaKey>(_key(1)), skipOffstage: false),
+        findsOneWidget,
+      );
+      await tapCheck(tester, 10);
+      final shown = tester.getRect(cell(10));
+
+      final outcome = await send(tester, rig);
+
+      expect(outcome.origins, {idOf(10): shown});
+    });
+
+    test("are read by the planned send's item order", () {
+      const a = Rect.fromLTWH(0, 0, 10, 10);
+      const c = Rect.fromLTWH(20, 0, 10, 10);
+      final items = [
+        AttachItems.photo('a'),
+        AttachItems.photo('b'),
+        AttachItems.photo('c'),
+      ];
+      final outcome = AttachOutcome$Send(
+        SendRequest(items: items, caption: content.RichText.empty),
+        origins: {items[0].id: a, items[2].id: c},
+      );
+
+      expect(
+        outcome.originsOf(
+          PlannedSend.group([
+            items[2],
+            items[1],
+            items[0],
+          ], form: SendForm.media),
+        ),
+        [c, null, a],
+      );
+      expect(
+        outcome.originsOf(PlannedSend.single(items[1], form: SendForm.media)),
+        [null],
+      );
+      expect(
+        outcome.originsOf(const PlannedSend.text(content.RichText.empty)),
+        isEmpty,
+      );
+    });
+  });
 }
