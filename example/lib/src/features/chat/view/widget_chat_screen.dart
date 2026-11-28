@@ -757,6 +757,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       return;
     }
     final message = _dataSource?.getMessage(request.messageId);
+    final saves = _saves.forViewer(request.messageId);
     unawaited(
       ChatMediaViewer.open(
         context,
@@ -765,6 +766,9 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
         downloadContext: widget.kind.downloadContext,
         players: widget.services.libraryPlayers,
         state: _mediaState,
+        // Save, Share and Forward leave the open viewer when protection
+        // turns on.
+        changes: _rights.capabilities.select((c) => c.protection),
         details: ChatViewerDetails(
           title: message?.sender ?? '',
           subtitle: switch (message) {
@@ -775,10 +779,10 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
           actionsOf: (item) => ChatMediaViewer.actionsFor(
             item,
             allowed: _itemActionsOf(request.messageId, item),
+            saveLabel: saves.entryOf(item)?.label,
             canForward: !_forwardDeniedOf(request.messageId),
             canDelete: true,
-            onAction: (item, action) =>
-                _onViewerAction(request.messageId, item, action),
+            onAction: (item, action) => _onViewerAction(saves, item, action),
           ),
         ),
       ),
@@ -794,20 +798,19 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       )
       .contains(ProtectionFlags.forward);
 
-  /// A viewer action on [item] of the message [messageId]: save goes through
-  /// the chat's saves with the entry of the item's kind, share where the
-  /// menu's does; forward and delete are stubs that say what they would do.
-  void _onViewerAction(int messageId, MediaItem item, ChatViewerAction action) {
+  /// A viewer action on [item] of the viewer's message ([saves]'): save goes
+  /// through the viewer's saves, share where the menu's does; forward and
+  /// delete are stubs that say what they would do.
+  void _onViewerAction(
+    ChatViewerSaves saves,
+    MediaItem item,
+    ChatViewerAction action,
+  ) {
     switch (action) {
-      case ChatViewerAction.saveToGallery:
-        _saves.save(
-          messageId,
-          [item],
-          _saves.entries.entryOf(item.kind),
-          source: ChatSaveSource.viewer,
-        );
+      case ChatViewerAction.save:
+        saves.save(item);
       case ChatViewerAction.share:
-        _onMediaAction(messageId, item, MediaItemAction.share);
+        _onMediaAction(saves.messageId, item, MediaItemAction.share);
       case ChatViewerAction.forward:
         _showNotice('Would forward the message');
       case ChatViewerAction.delete:

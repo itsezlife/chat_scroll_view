@@ -17,6 +17,7 @@ import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:listen/listen.dart' as listen;
 import 'package:message_media/message_media.dart';
 import 'package:mpx_core/mpx_core.dart' show AssetCacheProvider;
 import 'package:mpx_core/testing.dart';
@@ -87,17 +88,19 @@ void main() {
       for (final action in actions) action.label,
     ];
 
-    test('save follows what protection allows, forward and delete what the '
-        'chat allows; each reaches the host with its item', () {
+    test('save says its entry\'s label where it has one, share follows what '
+        'protection allows, forward and delete what the chat allows; each '
+        'reaches the host with its item', () {
       final chosen = <(MediaItem, ChatViewerAction)>[];
       final open = ChatMediaViewer.actionsFor(
         photo,
         allowed: const {MediaItemAction.saveToGallery, MediaItemAction.share},
+        saveLabel: 'Save Image As…',
         canForward: true,
         canDelete: true,
         onAction: (item, action) => chosen.add((item, action)),
       );
-      expect(labelsOf(open), ['Forward', 'Delete', 'Save to Gallery', 'Share']);
+      expect(labelsOf(open), ['Forward', 'Delete', 'Save Image As…', 'Share']);
       expect([for (final a in open) a.inBar], [true, true, false, false]);
 
       open.first.onSelected(
@@ -109,6 +112,15 @@ void main() {
         ),
       );
       expect(chosen, [(photo, ChatViewerAction.forward)]);
+      open[2].onSelected(
+        ViewerActionRequest(
+          index: 0,
+          item: GalleryItem(photo.descriptor.key.mediaKey),
+          openFile: () async => null,
+          captureFrame: () async => null,
+        ),
+      );
+      expect(chosen.last, (photo, ChatViewerAction.save));
 
       final protectedActions = ChatMediaViewer.actionsFor(
         photo,
@@ -167,6 +179,7 @@ void main() {
             actionsOf: (item) => ChatMediaViewer.actionsFor(
               item,
               allowed: const {MediaItemAction.saveToGallery},
+              saveLabel: 'Save to Gallery',
               canForward: true,
               canDelete: false,
               onAction: (_, _) {},
@@ -193,6 +206,78 @@ void main() {
         [for (final a in chrome.actions!(1, gallery)) a.label],
         ['Forward', 'Save to Gallery'],
       );
+    });
+
+    testWidgets('the open viewer reads its actions again when the host says '
+        'they changed: a save protection takes away leaves its menu live', (
+      tester,
+    ) async {
+      late BuildContext context;
+      await tester.pumpWidget(
+        MaterialApp(
+          builder: (context, child) => ChromeThemeScope(
+            palette: const ChromePalette.dark(),
+            child: child!,
+          ),
+          home: AssetCacheProvider(
+            scope: scope.media,
+            child: Builder(
+              builder: (c) {
+                context = c;
+                return const SizedBox.expand();
+              },
+            ),
+          ),
+        ),
+      );
+      final changes = listen.ValueNotifier(0);
+      addTearDown(changes.dispose);
+      var saveAllowed = true;
+      final items = [photo];
+      unawaited(
+        ChatMediaViewer.open(
+          context,
+          requestOf(items, 0),
+          items,
+          players: players,
+          changes: changes,
+          details: ChatViewerDetails(
+            title: 'Ada',
+            actionsOf: (item) => ChatMediaViewer.actionsFor(
+              item,
+              allowed: const {},
+              saveLabel: saveAllowed ? 'Save to Gallery' : null,
+              canForward: false,
+              canDelete: false,
+              onAction: (_, _) {},
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      for (var frame = 0; frame < 30; frame++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      final viewer = tester.widget<MediaViewer>(find.byType(MediaViewer));
+      final source = viewer.source;
+      final bridge = viewer.bridge;
+
+      await tester.tap(find.byKey(const ValueKey('mpx-viewer-more')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('Save to Gallery'), findsOneWidget);
+
+      saveAllowed = false;
+      changes.value++;
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('Save to Gallery'), findsNothing);
+
+      // The same gallery and bridge: the viewer kept its page and its hold
+      // on the chat's cell.
+      final rebuilt = tester.widget<MediaViewer>(find.byType(MediaViewer));
+      expect(rebuilt.source, same(source));
+      expect(rebuilt.bridge, same(bridge));
     });
   });
 }
