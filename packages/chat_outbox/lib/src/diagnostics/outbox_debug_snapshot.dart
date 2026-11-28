@@ -1,5 +1,6 @@
 import 'package:chat_outbox/src/message/outgoing_message.dart';
 import 'package:chat_outbox/src/message/outgoing_status.dart';
+import 'package:chat_outbox/src/outbox/outbox_projection.dart';
 import 'package:content_model/content_model.dart';
 import 'package:meta/meta.dart';
 
@@ -65,12 +66,12 @@ final class OutboxDebugSnapshot {
 final class OutboxDebugRow {
   /// A row; [items] is copied.
   OutboxDebugRow({
-    required this.position,
     required this.clientMessageId,
     required this.status,
     required this.payloadBytes,
     required this.fresh,
     List<OutboxDebugItem> items = const [],
+    this.position,
     this.failure,
     this.jobId,
     this.jobState,
@@ -78,24 +79,31 @@ final class OutboxDebugRow {
     this.attempts,
   }) : items = List.unmodifiable(items);
 
-  /// The row of [message]; [fresh] tells whether its fresh flag is unread.
+  /// The row of [message]; [fresh] tells whether its fresh flag is unread,
+  /// and [job] is its publish job as the outbox last saw it.
   @internal
-  factory OutboxDebugRow.of(OutgoingMessage message, {required bool fresh}) =>
-      OutboxDebugRow(
-        position: message.position,
-        clientMessageId: message.clientMessageId,
-        status: message.status.name,
-        failure: switch (message.status) {
-          OutgoingStatus$Failed(:final failure) => failure.name,
-          _ => null,
-        },
-        payloadBytes: message.payload.length,
-        fresh: fresh,
-        items: [for (final item in message.items) OutboxDebugItem.of(item)],
-      );
+  factory OutboxDebugRow.of(
+    OutgoingMessage message, {
+    required bool fresh,
+    OutboxJobView? job,
+  }) => OutboxDebugRow(
+    position: message.position,
+    clientMessageId: message.clientMessageId,
+    status: message.status.name,
+    failure: switch (message.status) {
+      OutgoingStatus$Failed(:final failure) => failure.name,
+      _ => null,
+    },
+    payloadBytes: message.payload.length,
+    fresh: fresh,
+    items: [for (final item in message.items) OutboxDebugItem.of(item)],
+    jobId: job?.id,
+    jobState: job?.state,
+    stage: job?.stage?.name,
+  );
 
-  /// The row's id in the tail.
-  final int position;
+  /// The row's id in the tail; null while no id strategy has placed it.
+  final int? position;
 
   /// The message's identity.
   final String clientMessageId;
@@ -121,7 +129,8 @@ final class OutboxDebugRow {
   /// The publish job's state name; null when unknown.
   final String? jobState;
 
-  /// The publish job's stage; null when unknown.
+  /// The stage the publish job is in (`prepare`, `upload`, `publish`); null
+  /// when unknown, or once the job completed.
   final String? stage;
 
   /// Publish attempts so far; null when unknown.

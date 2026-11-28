@@ -1,7 +1,22 @@
 import 'package:chat_outbox/chat_outbox.dart';
+import 'package:chat_outbox/src/outbox/outbox_projection.dart';
+import 'package:chat_outbox/testing.dart';
 import 'package:content_model/content_model.dart';
 
 import 'note_payload_codec.dart';
+import 'sends.dart';
+
+/// An outbox over [projection], for tests that set its rows up directly;
+/// its jobs go to [transfers] (a new fake unless given).
+ChatOutbox<Note> outboxOver(
+  OutboxProjection projection, {
+  FakeOutboxTransfers? transfers,
+}) => ChatOutbox.over(
+  projection,
+  transfers: transfers ?? FakeOutboxTransfers(),
+  codec: const NotePayloadCodec(),
+  itemOf: sendItemOf,
+);
 
 /// An outgoing message of chat `c1` for the tests, its payload the [Note]
 /// [text] through [NotePayloadCodec].

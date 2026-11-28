@@ -21,4 +21,27 @@ this package is pre-1.0.
   declared (strategy, tip, tail rows with their items, publisher, send in
   flight, counters) and a JSON-encodable `toMap()`. Sections the outbox does
   not know yet are null.
-- `testing.dart`, the home of the package's fakes (none yet).
+- `ChatOutbox<M>.send` and `sendText`: one publish job per planned send or
+  text (tag `chat:<chatId>:<clientMessageId>`, publisher `chat.send`, the
+  client message id as the idempotency key, the chat as the ordering group,
+  `system` durability, `wholeJob`), the media item ids issued from the
+  client message id and the item index unless the host gives its own.
+  Slow mode and the chat's limits are checked first; a refusal reaches the
+  host's `onDenied` (consumer `outbox`) and makes no job.
+- `sendInFlight(chatId)`, for the host to fold into `slowMode.pending`.
+- The status projected from the chat's jobs (`watchJobs` by the chat's tag
+  prefix); the snapshot's jobs section (job id, state, stage) and its send
+  in flight and accepted count.
+- `OutgoingSendItem`, the host's keys and source for an attach item.
+- `OutboxTransfers`, the seam over mpx's `Transfers`, and
+  `FakeOutboxTransfers` in `testing.dart`.
+- `OutboxOp`: `accepted`, `refusedBeforeJob`, `jobCreated`,
+  `statusChanged`, `sendInFlight`.
+- The package now depends on `attach_model`, `listen`, `mpx_core` and
+  `mpx_transfer`.
+
+### Changed
+
+- `OutgoingMessage.position` (and the snapshot row's) is null until an id
+  strategy places the row; `ChatOutbox` takes the transfer seam, the
+  payload codec and the item resolver.
