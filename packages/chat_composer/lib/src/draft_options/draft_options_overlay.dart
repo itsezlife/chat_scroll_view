@@ -41,8 +41,9 @@ import 'package:flutter/widgets.dart';
 /// remove row ends the hold with [ComposerKeyboardIntent.hide]. The host
 /// carries the intent out.
 ///
-/// The web's [DraftOptionsPolicy$Web] has no overlay; its menu is a
-/// different surface, and [open] asserts it is not asked for one.
+/// The web's [DraftOptionsPolicy$Web] has no overlay; its menu is
+/// [DraftOptionsWebMenuController], and [open] asserts it is not asked for
+/// one.
 final class DraftOptionsController {
   /// A controller of [policy] reporting to [host], drawing the preview with
   /// [bubbleBuilder].

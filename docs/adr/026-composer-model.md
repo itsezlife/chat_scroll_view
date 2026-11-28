@@ -83,3 +83,21 @@ link preview options in the composer's menu).
 | Text | The overlay's entry puts a `ChromeTextRoot` at its root; its text styles start from `ChromeTypography.of(context)`. |
 
 Nothing was left open at acceptance.
+
+## Amendment (2026-11-28): the draft options overlay as built
+
+Recorded from the `## Decisions` of the draft-options-overlay issues 06 to 15. These are differences from the amendment above, not new policy; the maintainer accepts them with the rest.
+
+| Area | As built |
+| ---- | -------- |
+| Shape | `DraftOptionsController` (one per composer) opens a `DraftOptionsOverlay` over a `ChromeScrimController` with the policy's preset. `DraftOptionsSession` holds one open headlessly; `DraftOptionsHost` is the host's seam. The web's menu is `DraftOptionsWebMenuController`, a separate controller over the same session and link page. |
+| Input guard | A press within `openGuard` (400 ms) of an accepted open passes through the scrim, so a tap burst on the strip opens one overlay and does not close it; after the window an open while one is up is refused (06). |
+| Apply | `apply()` closes under `liveApply` and saves under `commitOnSave`. Remove also reports the copy under `commitOnSave`. Choosing a link is an edit like the others: under `commitOnSave` it stays in the copy until save. The host's `chooseLink` is a lookup that writes no draft (06, 07, 08, 15). |
+| Link page | The size facts (kind, shrinkable, large by default) come from the host through `DraftLinkMediaReader`, because `chat_composer` may not import `message_media`. Android's fall back to the next link follows the shared dismissal: under its default policy the cross turns the whole field off, so no link remains. Whether the next link or the next header strip is meant is the maintainer's to confirm (07). |
+| Link choice | `linkTapIgnored` also takes `current` (the link already previewed) and `notInText`. Desktop keeps the chosen link selected after it loads (08). |
+| Presentation | The 80 % rule on Android's card is a floor: the visible card plus the menu never drop under 80 % of the display less 8 (09). iOS centres the content and its actions together and moves the content vertically only (10). The desktop box focuses into itself on open and returns focus to the composer's field when the close starts; Enter on a focused row or button presses it (11). |
+| Web | `ComposerHeader.linkPreview` gains `onHover(Rect?)`, reported for a mouse or trackpad only, because the host cannot wrap the strip. A click opens the menu at once as hover does. The leave grace is 200 ms. The placement reading of "top end, 8 inset" is unverified (12). |
+| Keyboard | The reopen goes through the composer (`reopenKeyboard`), not the host, because it comes 50 ms into the close and the hold lasts until 15 ms after the full close. While the intent is `hold`, `requestKeyboard` does nothing. `hide` stays the published intent after a remove until the next open (13). |
+| Semantics | The dismiss node closes through the session, so a screen reader's tap reports `closed` (trigger `outside`) without `scrimDismissed`. Announcements are decided by the session and spoken by the skin (14). |
+| Example | The preview bubble is the chat's own outgoing bubble behind `IgnorePointer`, reading links through its own selection controller. Desktop Save asks the resolver once more for a chosen link (15). |
+

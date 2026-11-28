@@ -6,6 +6,11 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Moved (overlay back listener)
+
+- `OverlayBackButtonListener` comes from here, not from `chat_composer`: a
+  root overlay has no `Router`, and the scrim handles back through it.
+
 ### Added (draft options semantics, breaking)
 
 - `DraftOptionsStrings.dismiss` (the spoken label of the area outside the

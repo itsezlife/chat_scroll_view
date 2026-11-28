@@ -20,7 +20,8 @@ compact window, 420 on a wider one, a resize across 600 re-laying them out
 at once), the card's media in the web's preview box, and the hover by the
 pointer's input class. The host passes the window in the layout input
 (`displaySize`, and `widthClass: ChromeWidthClass.of(context)`) and mounts
-one `ChromeInputClassScope` near its root. A host replaces
+one `ChromeInputClassScope` near its root; a change of either class is
+reported once as a `media` / `webClassChanged` event. A host replaces
 the layout step whole (`copyWith(layoutStep:)`, any `MediaLayoutStep`), or
 keeps the default `MediaLayoutPolicy` and replaces one part:
 
