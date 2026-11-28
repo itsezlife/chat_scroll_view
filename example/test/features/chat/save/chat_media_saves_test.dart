@@ -354,6 +354,10 @@ void main() {
       expect(started.first.$2, [photo, video]);
       expect(started.last.$2, [report, notes]);
       expect(started.last.$3, ChatSaveEntries.android.file);
+
+      final viewerJob = saves.forViewer(1).save(video);
+      expect(started.last.$1, viewerJob);
+      expect(started.last.$2, [video]);
     });
 
     test('a burst of taps on one entry starts one job', () {
