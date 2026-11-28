@@ -1,5 +1,11 @@
 ## Unreleased
 
+### Caption links
+- **FIXED**: a link in the caption of a media message activates as a link.
+  `resolveInlineHit` asks the message's non-text body first and its text body
+  where the non-text body answers null; before, a registered non-text body
+  answered every point of the message, null included.
+
 ### Body part hit
 - **ADDED** (breaking for exhaustive switches): `ChatInlineHit.bodyPart`
   (`ChatInlineHit$BodyPart`), a hit on a part of a body that paints no text,
