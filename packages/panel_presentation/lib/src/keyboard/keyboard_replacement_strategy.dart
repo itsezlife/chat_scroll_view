@@ -49,6 +49,13 @@ import 'package:panel_shell/panel_shell.dart';
 ///
 /// The occupancy follows the keyboard when the panel is not shown, so the
 /// host reads one number whatever is in the slot.
+///
+/// ## Occupancy hold
+///
+/// [holdOccupancy] keeps the occupancy at the keyboard's height while a
+/// surface over the composer has the keyboard hidden, so the composer does
+/// not drop under it; the host takes it to carry out the composer's `hold`
+/// intent and releases it when the intent changes.
 final class KeyboardReplacementStrategy implements PanelPresentationStrategy {
   /// A strategy fed by [ime], remembering keyboard heights in [heights] and
   /// sizing against [window].
@@ -67,9 +74,16 @@ final class KeyboardReplacementStrategy implements PanelPresentationStrategy {
          window: window,
          clock: clock,
          tuning: tuning,
-       );
+       ) {
+    _slot.holdAnimating.addListener(_onHoldAnimating);
+  }
 
   final KeyboardSlot _slot;
+
+  // The frames a released hold shrinks on. Its own ticker, since the panel's
+  // view (whose ticker moves the panel) is not mounted before a first show.
+  Ticker? _holdTicker;
+  var _holdLast = Duration.zero;
 
   @override
   PanelPresentation get kind => const KeyboardReplacement();
@@ -106,8 +120,40 @@ final class KeyboardReplacementStrategy implements PanelPresentationStrategy {
   listen.ValueListenable<double> get composerSafeInset =>
       _slot.composerSafeInset;
 
+  /// Keeps the occupancy at its current height, the keyboard's, with no
+  /// motion until the returned hold is released, while the keyboard is
+  /// hidden under a surface over the composer.
+  ///
+  /// Released, the slot follows the keyboard again: a keyboard that
+  /// reopened takes the held height over, one that stays down lets it shrink
+  /// over [shrink] (the host passes the `listTransition` role). Holds are
+  /// counted; see [KeyboardSlot.holdOccupancy].
+  KeyboardOccupancyHold holdOccupancy(MotionSpec shrink) =>
+      _slot.holdOccupancy(shrink);
+
   /// Releases the slot and its listeners. Idempotent.
-  void dispose() => _slot.dispose();
+  void dispose() {
+    _slot.holdAnimating.removeListener(_onHoldAnimating);
+    _holdTicker?.dispose();
+    _holdTicker = null;
+    _slot.dispose();
+  }
+
+  void _onHoldAnimating() {
+    if (_slot.holdAnimating.value) {
+      final ticker = _holdTicker ??= Ticker(_onHoldTick);
+      _holdLast = Duration.zero;
+      if (!ticker.isActive) unawaited(ticker.start());
+    } else if (_holdTicker case final ticker? when ticker.isActive) {
+      ticker.stop();
+    }
+  }
+
+  void _onHoldTick(Duration elapsed) {
+    final step = elapsed - _holdLast;
+    _holdLast = elapsed;
+    _slot.advanceHold(step);
+  }
 
   @override
   Widget build(BuildContext context, PanelStrategyContext view) =>

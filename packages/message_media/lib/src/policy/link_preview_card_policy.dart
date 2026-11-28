@@ -608,13 +608,17 @@ final class LinkPreviewMediaSizeRule {
       (page.title?.isNotEmpty ?? false) || page.description.plain.isNotEmpty;
 
   /// Whether the small / large switch is offered for [page]: it has a
-  /// photo or a video that can shrink.
+  /// photo or a video that can shrink and, on iOS and desktop, its media is
+  /// large by default (`hasLargeMedia`; a page that does not say is not).
   bool offersSwitch(LinkPreview page) =>
       _hasText(page) &&
-      (page.photo != null ||
-          (family != LinkPreviewRuleFamily.android &&
-              page.media != null &&
-              mediaOf(page) != null));
+      switch (family) {
+        LinkPreviewRuleFamily.android => page.photo != null,
+        LinkPreviewRuleFamily.ios || LinkPreviewRuleFamily.desktop =>
+          page.hasLargeMedia == true &&
+              (page.photo != null ||
+                  (page.media != null && mediaOf(page) != null)),
+      };
 
   /// The size [page]'s media shows at under [options]; null when the page
   /// has no media to show. [compact] is the host's compact layout.
@@ -1136,7 +1140,8 @@ final class LinkPreviewCardPolicy {
     // Large media's natural width, which the fitting rules read.
     final mediaNatural = switch (item) {
       final item? when large => switch (width) {
-        LinkPreviewCardWidth.fitMedia => box.single(item, input).size.width,
+        LinkPreviewCardWidth.fitMedia =>
+          box.linkPreviewMedia(item, input).size.width,
         _ => item.descriptor.size?.width ?? cardMax,
       },
       _ => 0.0,
@@ -1443,7 +1448,7 @@ final class LinkPreviewCardPolicy {
     final m = metrics;
     switch (this.width) {
       case LinkPreviewCardWidth.fitMedia:
-        final natural = box.single(item, input).size;
+        final natural = box.linkPreviewMedia(item, input).size;
         if (natural.isEmpty) return m.largeMediaZeroSide;
         return natural.height * math.min(1, width / natural.width);
       case LinkPreviewCardWidth.fillBudget || LinkPreviewCardWidth.fitContent:

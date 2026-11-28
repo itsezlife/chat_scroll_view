@@ -58,6 +58,7 @@ import 'widgets/chat_body_part_hit_test.dart' as chat_body_part_hit_test;
 import 'widgets/chat_bottom_padding_compensation_test.dart'
     as chat_bottom_padding_compensation_test;
 import 'widgets/chat_bubble_metrics_test.dart' as chat_bubble_metrics_test;
+import 'widgets/chat_caption_link_hit_test.dart' as chat_caption_link_hit_test;
 import 'widgets/chat_center_band_test.dart' as chat_center_band_test;
 import 'widgets/chat_code_block_painter_test.dart'
     as chat_code_block_painter_test;
@@ -365,6 +366,10 @@ void main() {
     chat_message_menu_request_test.main,
   );
   group('widgets/chat_body_part_hit_test.dart', chat_body_part_hit_test.main);
+  group(
+    'widgets/chat_caption_link_hit_test.dart',
+    chat_caption_link_hit_test.main,
+  );
   group('widgets/chat_message_menu_test.dart', chat_message_menu_test.main);
   group(
     'widgets/chat_message_surface_parts_test.dart',

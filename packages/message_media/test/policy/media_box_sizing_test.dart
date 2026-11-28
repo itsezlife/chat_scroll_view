@@ -4,6 +4,7 @@ library;
 
 import 'dart:ui';
 
+import 'package:chrome_foundation/chrome_foundation.dart' show ChromeWidthClass;
 import 'package:content_model/content_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:message_media/message_media.dart';
@@ -39,6 +40,7 @@ MediaLayoutInput _input({
   bool hasSideButton = false,
   bool inBubble = true,
   MediaLayoutChrome chrome = MediaLayoutChrome.none,
+  ChromeWidthClass? widthClass,
 }) => MediaLayoutInput(
   text: MediaScopes.text,
   items: const [],
@@ -53,6 +55,7 @@ MediaLayoutInput _input({
   hasSideButton: hasSideButton,
   inBubble: inBubble,
   chrome: chrome,
+  widthClass: widthClass,
 );
 
 void main() {
@@ -503,6 +506,183 @@ void main() {
     test('a block spans up to 430', () {
       expect(sizing.blockWidth(_input(availableWidth: 800)), 430);
       expect(sizing.blockWidth(_input(availableWidth: 300)), 300);
+    });
+  });
+
+  group('web', () {
+    const sizing = MediaBoxSizing$Web();
+    // A window of [width], the class the input names left to the size.
+    MediaLayoutInput window(
+      double width, {
+      MediaCaptionPosition captionPosition = MediaCaptionPosition.none,
+      double? captionWidth,
+      double? maxContentWidth,
+      ChromeWidthClass? widthClass,
+    }) => _input(
+      availableWidth: width,
+      displaySize: Size(width, 800),
+      maxContentWidth: maxContentWidth,
+      captionPosition: captionPosition,
+      captionWidth: captionWidth,
+      widthClass: widthClass,
+    );
+
+    test('pins every value', () {
+      expect(sizing.compactBox, const Size(340, 340));
+      expect(sizing.regularBox, const Size(420, 400));
+      expect(sizing.compactLinkPreviewBox, const Size(340, 200));
+      expect(sizing.regularLinkPreviewBox, const Size(420, 380));
+      expect(sizing.compactAlbumWidth, 340);
+      expect(sizing.regularAlbumWidth, 420);
+      expect(sizing.minSide, 200);
+      expect(sizing.minWidth, 120);
+      expect(sizing.textMinWidth, 320);
+      expect(sizing.noDimensionsSide, 100);
+      expect(sizing.noDimensionsPlayingSide, 512);
+    });
+
+    test('a compact window fits the picture into 340 x 340', () {
+      final landscape = _item(MediaItemKind.photo, width: 1280, height: 720);
+      final portrait = _item(MediaItemKind.video, width: 720, height: 1280);
+      expect(
+        sizing.single(landscape, window(400)),
+        MediaBoxResult(const Size(340, 191)),
+      );
+      expect(
+        sizing.single(portrait, window(400)),
+        MediaBoxResult(const Size(191, 340)),
+      );
+    });
+
+    test('a medium or expanded window fits it into 420 x 400', () {
+      final landscape = _item(MediaItemKind.photo, width: 1280, height: 720);
+      final portrait = _item(MediaItemKind.photo, width: 720, height: 1280);
+      expect(
+        sizing.single(landscape, window(800)),
+        MediaBoxResult(const Size(420, 236)),
+      );
+      expect(
+        sizing.single(portrait, window(1400)),
+        MediaBoxResult(const Size(225, 400)),
+      );
+    });
+
+    test('the class flips across 600', () {
+      final photo = _item(MediaItemKind.photo, width: 1280, height: 720);
+      expect(sizing.single(photo, window(600)).size, const Size(340, 191));
+      expect(sizing.single(photo, window(601)).size, const Size(420, 236));
+    });
+
+    test('the class the host read wins over the window size', () {
+      final photo = _item(MediaItemKind.photo, width: 1280, height: 720);
+      expect(
+        sizing
+            .single(photo, window(800, widthClass: ChromeWidthClass.compact))
+            .size,
+        const Size(340, 191),
+      );
+    });
+
+    test('a small picture is never zoomed, but grows to the 200 side', () {
+      final small = _item(MediaItemKind.photo, width: 300, height: 250);
+      final tiny = _item(MediaItemKind.photo, width: 150, height: 100);
+      expect(sizing.single(small, window(400)).size, const Size(300, 250));
+      expect(
+        sizing.single(tiny, window(400)),
+        MediaBoxResult(
+          const Size(200, 133),
+          fallbacks: const {MediaLayoutFallbackRule.minWidth},
+        ),
+      );
+    });
+
+    test('a narrow picture is widened to 120', () {
+      final narrow = _item(MediaItemKind.photo, width: 100, height: 1000);
+      expect(
+        sizing.single(narrow, window(400)),
+        MediaBoxResult(
+          const Size(120, 340),
+          fallbacks: const {MediaLayoutFallbackRule.minWidth},
+        ),
+      );
+    });
+
+    test('a caption widens the box to 320', () {
+      final portrait = _item(MediaItemKind.photo, width: 720, height: 1280);
+      expect(
+        sizing.single(
+          portrait,
+          window(
+            400,
+            captionPosition: MediaCaptionPosition.below,
+            captionWidth: 40,
+          ),
+        ),
+        MediaBoxResult(
+          const Size(320, 340),
+          fallbacks: const {MediaLayoutFallbackRule.captionWidening},
+        ),
+      );
+    });
+
+    test('without dimensions: a photo 100 grown to 200, a video 512', () {
+      expect(
+        sizing.single(_item(MediaItemKind.photo), window(400)),
+        MediaBoxResult(
+          const Size(200, 200),
+          fallbacks: const {
+            MediaLayoutFallbackRule.noDimensions,
+            MediaLayoutFallbackRule.minWidth,
+          },
+        ),
+      );
+      expect(
+        sizing.single(_item(MediaItemKind.video), window(400)),
+        MediaBoxResult(
+          const Size(340, 340),
+          fallbacks: const {MediaLayoutFallbackRule.noDimensions},
+        ),
+      );
+    });
+
+    test('the box is capped by the bubble content width', () {
+      final photo = _item(MediaItemKind.photo, width: 1280, height: 720);
+      expect(
+        sizing.single(photo, window(1400, maxContentWidth: 300)).size,
+        const Size(300, 168),
+      );
+    });
+
+    test('an album is 340 wide compact and 420 otherwise', () {
+      expect(sizing.blockWidth(window(400)), 340);
+      expect(sizing.blockWidth(window(800)), 420);
+      expect(sizing.blockWidth(window(1400, maxContentWidth: 300)), 300);
+    });
+
+    test('link preview media fits 340 x 200 compact, 420 x 380 otherwise', () {
+      final photo = _item(MediaItemKind.photo, width: 1280, height: 720);
+      final portrait = _item(MediaItemKind.photo, width: 720, height: 1280);
+      expect(
+        sizing.linkPreviewMedia(photo, window(400)).size,
+        const Size(340, 191),
+      );
+      expect(
+        sizing.linkPreviewMedia(portrait, window(400)).size,
+        const Size(112, 200),
+      );
+      expect(
+        sizing.linkPreviewMedia(photo, window(800)).size,
+        const Size(420, 236),
+      );
+    });
+
+    test('the other families size link preview media as a single box', () {
+      const desktop = MediaBoxSizing$Desktop();
+      final photo = _item(MediaItemKind.photo, width: 1280, height: 720);
+      expect(
+        desktop.linkPreviewMedia(photo, window(800)),
+        desktop.single(photo, window(800)),
+      );
     });
   });
 }
