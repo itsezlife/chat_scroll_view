@@ -66,6 +66,37 @@ void main() {
     expect(dark.shadow, const Color(0x04FFFFFF));
   });
 
+  test('a menu on a scrim: the menu geometry with a 4 dp shadow', () {
+    const material = GlassMaterial.scrimMenu;
+    expect(material.colorRole, GlassColorRole.menu);
+    expect(material.cornerRadius, 12);
+    expect(material.strokeWidth, closeTo(0.667, 1e-3));
+    expect(material.shadowBlur, 4);
+    expect(material.shadowOffset, Offset.zero);
+    expect(material.refracts, isFalse);
+  });
+
+  test('menu colours on a scrim: the submenu tint at 0.85 dark / 0.825 '
+      'light, white edges at 0x44 / 0x22 and a 0x26 shadow in light, none in '
+      'dark; the backdrop left as the glass source toned it', () {
+    const lightPalette = ChromePalette.light();
+    final light = GlassMaterialColors.scrimMenu(lightPalette);
+    expect(light.tint, lightPalette.surfaceRaised);
+    expect(light.tintOpacity, 0.825);
+    expect(light.strokeTop, const Color(0x44FFFFFF));
+    expect(light.strokeBottom, const Color(0x22FFFFFF));
+    expect(light.shadow, const Color(0x26000000));
+    expect(light.backdropSaturation, 1);
+    const darkPalette = ChromePalette.dark();
+    final dark = GlassMaterialColors.scrimMenu(darkPalette);
+    expect(dark.tint, darkPalette.surfaceRaised);
+    expect(dark.tintOpacity, 0.85);
+    expect(dark.strokeTop.a, 0);
+    expect(dark.strokeBottom.a, 0);
+    expect(dark.shadow.a, 0);
+    expect(dark.backdropSaturation, 1);
+  });
+
   test('a material is a value: copyWith, equality, lerp', () {
     final rounded = GlassMaterial.panel.copyWith(cornerRadius: 16);
     expect(rounded.cornerRadius, 16);

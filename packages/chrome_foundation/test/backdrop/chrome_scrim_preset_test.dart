@@ -40,6 +40,40 @@ void main() {
     expect(still.toneLight?.saturation, 2);
   });
 
+  group('a saturation scale on the tone matrix', () {
+    // Each red row of the matrix, worked by hand from the luminance weights
+    // 0.3086, 0.6094 and 0.0820 at x = scale.
+    test('at 2 (dark), brightness -0.2', () {
+      const tone = ChromeScrimTone.saturationScale(2, brightness: -0.2);
+      expect(tone.saturation, 1);
+      expect(tone.brightness, -0.2);
+      final m = tone.matrix;
+      expect(m[0], closeTo(1.6914, 1e-9));
+      expect(m[1], closeTo(-0.6094, 1e-9));
+      expect(m[2], closeTo(-0.0820, 1e-9));
+      expect(m[4], closeTo(-51, 1e-9));
+      // The rows sum to 1: a grey stays grey, only the brightness moves it.
+      expect(m[0] + m[1] + m[2], closeTo(1, 1e-9));
+    });
+
+    test('at 3 (light), brightness -0.07', () {
+      const tone = ChromeScrimTone.saturationScale(3, brightness: -0.07);
+      expect(tone.saturation, 2);
+      final m = tone.matrix;
+      expect(m[0], closeTo(2.3828, 1e-9));
+      expect(m[1], closeTo(-1.2188, 1e-9));
+      expect(m[2], closeTo(-0.1640, 1e-9));
+      expect(m[4], closeTo(-17.85, 1e-9));
+    });
+
+    test('at 1 it leaves the colour', () {
+      expect(
+        const ChromeScrimTone.saturationScale(1).matrix,
+        BackdropSnapshot.identityTone,
+      );
+    });
+  });
+
   test('ios: a still under a 20 % day / 60 % dark dim over 0.2 s, closing '
       'on contact', () {
     const preset = ChromeScrimPreset.ios;

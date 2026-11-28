@@ -11,8 +11,11 @@
 library;
 
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:chrome_foundation/chrome_foundation.dart';
+import 'package:chrome_foundation/src/glass/glass_source.dart';
+import 'package:chrome_foundation/src/glass/strategy/glass_backdrops.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -44,6 +47,19 @@ final class _Harness {
   ChromeScrimController? scrim;
   bool showSurface = false;
 
+  /// What the window paints under the scrim.
+  Color window = _red;
+
+  /// The surface over the scrim.
+  Widget surface = const Center(
+    child: SizedBox(
+      key: _surfaceKey,
+      width: 100,
+      height: 100,
+      child: ColoredBox(color: _green),
+    ),
+  );
+
   late StateSetter _setState;
 
   Future<void> pump() => tester.pumpWidget(
@@ -61,19 +77,12 @@ final class _Harness {
                 return Stack(
                   fit: StackFit.expand,
                   children: [
-                    const ColoredBox(color: _red),
+                    ColoredBox(color: window),
                     if (scrim case final scrim?)
                       ChromeScrim(
                         key: ObjectKey(scrim),
                         controller: scrim,
-                        child: const Center(
-                          child: SizedBox(
-                            key: _surfaceKey,
-                            width: 100,
-                            height: 100,
-                            child: ColoredBox(color: _green),
-                          ),
-                        ),
+                        child: surface,
                       ),
                   ],
                 );
@@ -105,8 +114,15 @@ final class _Harness {
   }
 
   /// Lets the still be made: real time for the engine and the blur.
-  Future<void> made() async {
-    final still = scrim!.still!;
+  Future<void> made() => _made(scrim!.still!);
+
+  /// Lets the glass source's still be made too.
+  Future<void> glassMade() async {
+    await made();
+    await _made(scrim!.glassSource!);
+  }
+
+  Future<void> _made(BackdropSnapshot still) async {
     var done = false;
     unawaited(still.ready.then((_) => done = true));
     for (var turn = 0; !done && turn < 200; turn++) {
@@ -131,6 +147,62 @@ final class _Harness {
     final at = (y.toInt() * image.width + x.toInt()) * 4;
     return Color.fromARGB(rgba[at + 3], rgba[at], rgba[at + 1], rgba[at + 2]);
   }
+}
+
+// The plain preset with a glass source: a sharp 1/10 still with its
+// saturation scaled by 3 and its brightness lowered by 0.07 in a light theme.
+const _glassy = ChromeScrimPreset(
+  name: 'glassy',
+  still: ChromeScrimStill(downscale: 10, blurRadius: 0),
+  dimDark: Color(0x80000000),
+  dimLight: Color(0x80000000),
+  dimFade: MotionSpec(Duration(milliseconds: 100), Curves.linear),
+  closeOn: ChromeScrimCloseOn.down,
+  glassSource: ChromeScrimStill(
+    downscale: 10,
+    blurRadius: 0,
+    toneLight: ChromeScrimTone.saturationScale(3, brightness: -0.07),
+  ),
+);
+
+// A muted red, and the same colour with its saturation tripled and its
+// brightness lowered by 0.07, worked by hand on the tone matrix.
+const _muted = Color(0xFFA06060);
+const _mutedToned = (231, 39, 39);
+
+const _glassKey = ValueKey('glass');
+
+// A menu-sized glass over the scrim, sampling whatever its scope offers.
+const _glassSurface = MediaQuery(
+  data: MediaQueryData(),
+  child: GlassQualityScope(
+    capabilities: GlassCapabilities.all,
+    child: Center(
+      child: SizedBox(
+        width: 200,
+        height: 100,
+        child: GlassSurface(
+          key: _glassKey,
+          material: GlassMaterial.menu,
+          child: SizedBox.expand(),
+        ),
+      ),
+    ),
+  ),
+);
+
+Future<Color> _pixelOf(
+  WidgetTester tester,
+  ui.Image image,
+  int x,
+  int y,
+) async {
+  final bytes = await tester.runAsync(
+    () => image.toByteData(format: ui.ImageByteFormat.rawStraightRgba),
+  );
+  final rgba = Uint8List.sublistView(bytes!);
+  final at = (y * image.width + x) * 4;
+  return Color.fromARGB(rgba[at + 3], rgba[at], rgba[at + 1], rgba[at + 2]);
 }
 
 Matcher _rgb(int r, int g, int b) => isA<Color>().having(
@@ -471,5 +543,131 @@ void main() {
     final scrim = ChromeScrimController(h.context, preset: _plain);
     scrim.close();
     expect(scrim.isDone, isTrue);
+  });
+
+  group('glass source', () {
+    testWidgets('a second still is made with its own tone and reported '
+        'ready as the glass source', (tester) async {
+      final h = _Harness(tester)..window = _muted;
+      await h.pump();
+      final scrim = h.open(preset: _glassy);
+      await tester.pump();
+      await h.glassMade();
+      final glass = scrim.glassSource!;
+      final (r, g, b) = _mutedToned;
+      expect(await _pixelOf(tester, glass.image!, 5, 5), _rgb(r, g, b));
+      // The still under the dim keeps the window's colours.
+      expect(
+        await _pixelOf(tester, scrim.still!.image!, 5, 5),
+        _rgb(160, 96, 96),
+      );
+      final ready = h.phases.whereType<ChromeScrimPhase$StillReady>().toList();
+      expect(ready.map((p) => p.glassSource), unorderedEquals([false, true]));
+      expect(
+        ready.firstWhere((p) => p.glassSource).makeTime,
+        greaterThan(Duration.zero),
+      );
+      scrim.cancel();
+    });
+
+    testWidgets('a glass surface on the scrim samples the toned still, not '
+        'the scene', (tester) async {
+      final h = _Harness(tester)
+        ..window = _muted
+        ..surface = _glassSurface;
+      await h.pump();
+      final scrim = h.open(preset: _glassy);
+      await tester.pump();
+      await h.glassMade();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      final glass = find.byKey(_glassKey);
+      expect(
+        find.descendant(of: glass, matching: find.byType(SampledGlassBackdrop)),
+        findsOneWidget,
+      );
+      final source = GlassSourceLink.of(tester.element(glass))!.source!;
+      final image = source.capture(
+        const Rect.fromLTWH(300, 250, 200, 100),
+        pixelRatio: 1,
+        blurSigma: 0,
+        saturation: 1,
+      )!;
+      addTearDown(image.dispose);
+      final (r, g, b) = _mutedToned;
+      expect(await _pixelOf(tester, image, 100, 50), _rgb(r, g, b));
+      // Beside the glass, the window shows the scene's still under the dim.
+      expect(await h.pixel(10, 10), _rgb(80, 48, 48));
+      scrim.cancel();
+    });
+
+    testWidgets('without a glass source, a glass on the scrim finds no '
+        'scope of the scrim', (tester) async {
+      final h = _Harness(tester)..surface = _glassSurface;
+      await h.pump();
+      final scrim = h.open();
+      await tester.pump();
+      expect(scrim.glassSource, isNull);
+      expect(GlassSourceLink.of(tester.element(find.byKey(_glassKey))), isNull);
+      scrim.cancel();
+    });
+
+    testWidgets('under reduce transparency there is no glass source', (
+      tester,
+    ) async {
+      final h = _Harness(tester);
+      await h.pump();
+      final scrim = h.open(preset: _glassy, reduceTransparency: true);
+      await tester.pump();
+      expect(scrim.glassSource, isNull);
+      scrim.cancel();
+    });
+
+    testWidgets('cancel disposes both stills', (tester) async {
+      final h = _Harness(tester);
+      await h.pump();
+      final scrim = h.open(preset: _glassy);
+      await tester.pump();
+      await h.glassMade();
+      final glass = scrim.glassSource!;
+      final image = glass.image!;
+      scrim.cancel();
+      expect(glass.isDisposed, isTrue);
+      expect(image.debugDisposed, isTrue);
+      expect(
+        h.phases.last,
+        isA<ChromeScrimPhase$Disposed>().having((p) => p.stills, 'stills', 2),
+      );
+    });
+
+    testWidgets('the fade out disposes the glass source with the still', (
+      tester,
+    ) async {
+      final h = _Harness(tester);
+      await h.pump();
+      final scrim = h.open(preset: _glassy);
+      await tester.pump();
+      await h.glassMade();
+      await tester.pump(const Duration(milliseconds: 101));
+      final glass = scrim.glassSource!;
+      scrim.close();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(glass.isDisposed, isFalse);
+      await tester.pump(const Duration(milliseconds: 51));
+      expect(glass.isDisposed, isTrue);
+    });
+
+    testWidgets('removed without a close, it lets go of the glass source', (
+      tester,
+    ) async {
+      final h = _Harness(tester);
+      await h.pump();
+      final scrim = h.open(preset: _glassy);
+      await tester.pump();
+      final glass = scrim.glassSource!;
+      await tester.pumpWidget(const SizedBox());
+      expect(glass.isDisposed, isTrue);
+    });
   });
 }
