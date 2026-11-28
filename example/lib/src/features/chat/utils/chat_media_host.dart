@@ -3,9 +3,11 @@ import 'dart:ui' as ui show Image;
 import 'package:chrome_foundation/chrome_foundation.dart' show ChromeTextRoot;
 import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
+import 'package:flutter/material.dart' show Icons;
 import 'package:flutter/widgets.dart';
 import 'package:message_media/message_media.dart';
 import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_player/mpx_player.dart' show PlayerPool;
 import 'package:mpx_ui/mpx_ui.dart';
 
 /// What a chat's media bubbles take from the chat screen: the platform's
@@ -84,13 +86,67 @@ final class ChatMediaHost {
   }
 }
 
+/// What the chat's viewer chrome says about a message: its sender, its
+/// date, its caption, and the actions of each item.
+@immutable
+final class ChatViewerDetails {
+  /// The details of one message's media.
+  const ChatViewerDetails({
+    required this.title,
+    this.subtitle,
+    this.caption,
+    this.actionsOf,
+  });
+
+  /// The title (the sender).
+  final String title;
+
+  /// The line under the title (the date).
+  final String? subtitle;
+
+  /// The message's caption, under the picture; null for none.
+  final String? caption;
+
+  /// The actions of [item]; none when null.
+  final List<ViewerAction> Function(MediaItem item)? actionsOf;
+}
+
+/// An action the chat's viewer offers on an item.
+enum ChatViewerAction {
+  /// Forward the message the item is in.
+  forward,
+
+  /// Delete the message the item is in.
+  delete,
+
+  /// Save the item to the gallery.
+  saveToGallery,
+
+  /// Share the item out of the chat.
+  share,
+}
+
 /// The media viewer over a message's items: opens from the tapped item's
-/// rect and closes to the rect the shown item has then.
+/// rect and closes to the rect the shown item has then, hiding the item it
+/// shows in the chat; plays videos on the host's players and draws the
+/// host's chrome.
 abstract final class ChatMediaViewer {
   /// Whether [request] names a picture the viewer shows (a file alone is
   /// not one).
   static bool shows(MediaViewerRequest request, List<MediaItem> items) =>
       galleryOf(request, items).isNotEmpty;
+
+  /// The items of [request] the viewer pages through, in order: its
+  /// pictures (photos, videos, animations).
+  static List<MediaItem> shownOf(
+    MediaViewerRequest request,
+    List<MediaItem> items,
+  ) {
+    final byId = {for (final item in items) item.id: item};
+    return [
+      for (final id in request.items) ?byId[id],
+    ].where((item) => _kindOf(item.kind) != null).toList();
+  }
 
   /// The gallery of [request]: its items in order, each a picture with its
   /// media key and size.
@@ -98,28 +154,20 @@ abstract final class ChatMediaViewer {
     MediaViewerRequest request,
     List<MediaItem> items, {
     AutoDownloadContext? downloadContext,
-  }) {
-    final byId = {for (final item in items) item.id: item};
-    return [
-      for (final id in request.items)
-        if (byId[id] case final item?)
-          if (_kindOf(item.kind) case final kind?)
-            GalleryItem(
-              item.descriptor.key.mediaKey,
-              kind: kind,
-              size: switch (item.descriptor.size) {
-                final size? => Size(
-                  size.width.toDouble(),
-                  size.height.toDouble(),
-                ),
-                null => null,
-              },
-              hasAudio: false,
-              descriptor: item.descriptor.mediaDescriptor,
-              downloadContext: downloadContext,
-            ),
-    ];
-  }
+  }) => [
+    for (final item in shownOf(request, items))
+      GalleryItem(
+        item.descriptor.key.mediaKey,
+        kind: _kindOf(item.kind)!,
+        size: switch (item.descriptor.size) {
+          final size? => Size(size.width.toDouble(), size.height.toDouble()),
+          null => null,
+        },
+        hasAudio: false,
+        descriptor: item.descriptor.mediaDescriptor,
+        downloadContext: downloadContext,
+      ),
+  ];
 
   static GalleryMediaKind? _kindOf(MediaItemKind kind) => switch (kind) {
     MediaItemKind.photo => GalleryMediaKind.photo,
@@ -128,22 +176,77 @@ abstract final class ChatMediaViewer {
     _ => null,
   };
 
+  /// The viewer's link to the chat for [request]: each page's origin by its
+  /// item's id, and the item it shows hidden and covered in the chat's
+  /// [state] (by id, so the hidden cell follows the page); without a state
+  /// the chat keeps drawing it.
+  static OriginBridge bridgeOf(
+    MediaViewerRequest request,
+    List<MediaItem> items, {
+    MessageMediaState? state,
+  }) => _RequestOrigins(request, [
+    for (final item in shownOf(request, items)) item.id,
+  ], state);
+
+  /// The viewer's actions on [item]: Forward and Delete in the bar where
+  /// the chat allows them ([canForward], [canDelete]), then Save to Gallery
+  /// and Share in the menu where [allowed] (the item's
+  /// `MediaItemAction.allowedItemActions`) has them. Each reaches [onAction]
+  /// with the item.
+  static List<ViewerAction> actionsFor(
+    MediaItem item, {
+    required Set<MediaItemAction> allowed,
+    required bool canForward,
+    required bool canDelete,
+    required void Function(MediaItem item, ChatViewerAction action) onAction,
+  }) {
+    ViewerAction of(ChatViewerAction action, String label, IconData icon) =>
+        ViewerAction(
+          label: label,
+          icon: Icon(icon),
+          inBar:
+              action == ChatViewerAction.forward ||
+              action == ChatViewerAction.delete,
+          onSelected: (_) => onAction(item, action),
+        );
+    return [
+      if (canForward)
+        of(ChatViewerAction.forward, 'Forward', Icons.forward_outlined),
+      if (canDelete)
+        of(ChatViewerAction.delete, 'Delete', Icons.delete_outline),
+      if (allowed.contains(MediaItemAction.saveToGallery))
+        of(
+          ChatViewerAction.saveToGallery,
+          'Save to Gallery',
+          Icons.download_outlined,
+        ),
+      if (allowed.contains(MediaItemAction.share))
+        of(ChatViewerAction.share, 'Share', Icons.share_outlined),
+    ];
+  }
+
   /// Pushes the viewer on [request]'s items over [context]'s navigator, its
   /// page under a chrome text root.
+  ///
+  /// Videos play on [players] (a still without them); [details] fill the
+  /// bars, the caption and the actions, and an album shows the strip of its
+  /// pictures; [state] is the chat's media state the viewer hides its item
+  /// in.
   static Future<void> open(
     BuildContext context,
     MediaViewerRequest request,
     List<MediaItem> items, {
     AutoDownloadContext? downloadContext,
+    PlayerPool? players,
+    ChatViewerDetails? details,
+    MessageMediaState? state,
   }) {
+    final shown = shownOf(request, items);
+    if (shown.isEmpty) return Future.value();
     final gallery = galleryOf(request, items, downloadContext: downloadContext);
-    if (gallery.isEmpty) return Future.value();
-    final shown = [
-      for (final id in request.items)
-        if (items.any((item) => item.id == id && _kindOf(item.kind) != null))
-          id,
-    ];
-    final index = shown.indexOf(request.item).clamp(0, shown.length - 1);
+    final index = shown
+        .indexWhere((item) => item.id == request.item)
+        .clamp(0, shown.length - 1);
     final scope = AssetCacheProvider.maybeOf(context);
     final policy = ViewerPolicyScope.resolve(context);
     return Navigator.of(context).push<void>(
@@ -155,15 +258,42 @@ abstract final class ChatMediaViewer {
           child: MediaViewer(
             source: _ListGallery(gallery),
             initialIndex: index,
-            bridge: _RequestOrigins(request, shown),
+            bridge: bridgeOf(request, items, state: state),
             policy: policy,
             scope: scope,
+            players: players,
+            chrome: switch (details) {
+              final details? => _chromeOf(details, shown),
+              null => null,
+            },
             onClosed: () => Navigator.of(routeContext).pop(),
           ),
         ),
       ),
     );
   }
+
+  static ViewerChrome _chromeOf(
+    ChatViewerDetails details,
+    List<MediaItem> shown,
+  ) => ViewerChrome(
+    title: (context, index, item) => Text(details.title),
+    subtitle: switch (details.subtitle) {
+      final subtitle? => (context, index, item) => Text(subtitle),
+      null => null,
+    },
+    caption: switch (details.caption) {
+      final caption? when caption.isNotEmpty => (context, index, item) => Text(
+        caption,
+      ),
+      _ => null,
+    },
+    thumbnails: shown.length > 1,
+    actions: switch (details.actionsOf) {
+      final actionsOf? => (index, item) => actionsOf(shown[index]),
+      null => null,
+    },
+  );
 }
 
 final class _ListGallery implements GallerySource {
@@ -190,12 +320,14 @@ final class _ListGallery implements GallerySource {
 // The viewer's origins from the request: each item's rect by id as the chat
 // shows it now (its mounted views answer, so a row rebuilt while the viewer
 // was up still does), the tapped item's rect at the tap when its row is
-// gone.
+// gone. The item the viewer shows is hidden and covered in the chat's media
+// state by its id.
 final class _RequestOrigins implements OriginBridge {
-  const _RequestOrigins(this._request, this._ids);
+  const _RequestOrigins(this._request, this._ids, this._state);
 
   final MediaViewerRequest _request;
   final List<MediaItemId> _ids;
+  final MessageMediaState? _state;
 
   @override
   GalleryOrigin? originOf(int index) {
@@ -215,10 +347,12 @@ final class _RequestOrigins implements OriginBridge {
   Future<void> reveal(int index) => Future.value();
 
   @override
-  void setCovered(int index, {required bool covered}) {}
+  void setCovered(int index, {required bool covered}) =>
+      _state?.setViewerCovered(_ids[index], covered: covered);
 
   @override
-  void setHidden(int index, {required bool hidden}) {}
+  void setHidden(int index, {required bool hidden}) =>
+      _state?.setViewerHidden(_ids[index], hidden: hidden);
 
   @override
   void handBack(int index, Duration position) {}

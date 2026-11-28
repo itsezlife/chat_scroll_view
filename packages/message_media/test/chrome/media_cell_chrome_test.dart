@@ -1,7 +1,7 @@
 /// The chrome over the cells: replaceable slots, the spoiler's cover and
 /// reveal per platform over fake time, the revealed fact kept by the chat's
-/// state, reduce motion, the options affordance's fade, and the slots'
-/// diagnostics.
+/// state, reduce motion, the options affordance's fade, the source hidden
+/// under the media viewer, and the slots' diagnostics.
 ///
 /// **Seam:** `MessageMediaView` under a `MessageMediaStateScope`, over a
 /// `ContentAssetScope` whose media producer is a `FakeAssetProducer`.
@@ -405,6 +405,117 @@ void main() {
         _item('f', kind: MediaItemKind.file, spoiler: true),
       ]);
       expect(find.byType(MediaSpoilerCover), findsNothing);
+    });
+  });
+
+  group('viewer', () {
+    // The cell's picture: the subtree the chrome lays its overlays over.
+    double pictureOpacityOf(WidgetTester tester, MediaItem item) => tester
+        .widget<Opacity>(
+          find.descendant(
+            of: find.byKey(ValueKey(item.id)),
+            matching: find.byKey(const ValueKey('viewer-source')),
+          ),
+        )
+        .opacity;
+
+    testWidgets('a hidden item hides its picture and overlays at once, and '
+        'shows the picture at once and fades the overlays in over 200 ms '
+        'when the viewer lets it go', (tester) async {
+      final video = _item('v', kind: MediaItemKind.video);
+      await pump(tester, const MessageMediaPolicy.android(), [video]);
+      expect(pictureOpacityOf(tester, video), 1);
+      expect(controlsOf(tester, video).value, 1);
+
+      state.setViewerHidden(video.id, hidden: true);
+      await tester.pump();
+      expect(pictureOpacityOf(tester, video), 0);
+      expect(controlsOf(tester, video).value, 0);
+
+      state.setViewerHidden(video.id, hidden: false);
+      await tester.pump();
+      expect(pictureOpacityOf(tester, video), 1);
+      expect(controlsOf(tester, video).value, 0);
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(controlsOf(tester, video).value, inExclusiveRange(0, 1));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(controlsOf(tester, video).value, 1);
+    });
+
+    testWidgets('a covered item keeps its picture and hides its overlays', (
+      tester,
+    ) async {
+      final video = _item('v', kind: MediaItemKind.video);
+      await pump(tester, const MessageMediaPolicy.android(), [video]);
+
+      state.setViewerCovered(video.id, covered: true);
+      await tester.pump();
+      expect(pictureOpacityOf(tester, video), 1);
+      expect(controlsOf(tester, video).value, 0);
+      final dots = tester.widget<Opacity>(
+        find
+            .ancestor(
+              of: find.byType(MediaOptionsDots),
+              matching: find.byType(Opacity),
+            )
+            .first,
+      );
+      expect(dots.opacity, 0);
+
+      state.setViewerCovered(video.id, covered: false);
+      await tester.pumpAndSettle();
+      expect(controlsOf(tester, video).value, 1);
+    });
+
+    testWidgets('the hidden cell follows the item the viewer shows', (
+      tester,
+    ) async {
+      final a = _item('a');
+      final b = _item('b');
+      await pump(tester, const MessageMediaPolicy.android(), [a, b]);
+
+      state.setViewerHidden(a.id, hidden: true);
+      await tester.pump();
+      state
+        ..setViewerHidden(a.id, hidden: false)
+        ..setViewerHidden(b.id, hidden: true);
+      await tester.pump();
+      expect(pictureOpacityOf(tester, a), 1);
+      expect(pictureOpacityOf(tester, b), 0);
+      expect(state.isViewerHidden(b.id), isTrue);
+      expect(state.isViewerHidden(a.id), isFalse);
+    });
+
+    testWidgets('a host overlay over the items fades as their cells do', (
+      tester,
+    ) async {
+      final a = _item('a');
+      await tester.pumpWidget(
+        MediaViewerFade(
+          state: state,
+          items: [a.id],
+          child: const SizedBox(key: ValueKey('pill')),
+        ),
+      );
+      double opacity() => tester
+          .widget<FadeTransition>(
+            find.ancestor(
+              of: find.byKey(const ValueKey('pill')),
+              matching: find.byType(FadeTransition),
+            ),
+          )
+          .opacity
+          .value;
+      expect(opacity(), 1);
+
+      state.setViewerHidden(a.id, hidden: true);
+      await tester.pump();
+      expect(opacity(), 0);
+
+      state.setViewerHidden(a.id, hidden: false);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(opacity(), 1);
     });
   });
 

@@ -263,7 +263,8 @@ sealed class MediaFileStackWidth {
   const MediaFileStackWidth._();
 
   /// The Android rule: a single file takes the max text width, widened to
-  /// its text and caption; a stack `min(listWidth − 50 − avatar, 300)`.
+  /// its text and caption; a stack `min(listWidth − 50 − avatar, 300)`;
+  /// neither past the bubble's max content width.
   const factory MediaFileStackWidth.android({
     double stackInset,
     double avatarInset,
@@ -331,20 +332,23 @@ final class MediaFileStackWidth$Android extends MediaFileStackWidth {
     required bool single,
     required double need,
   }) {
+    // The bubble cannot be wider than its max content width: a row past it
+    // would draw outside the bubble, its options with it.
+    final most = math.min(input.availableWidth, input.contentWidth);
     if (!single) {
       final room =
           input.availableWidth -
           stackInset -
           (input.showsAvatar ? avatarInset : 0) -
           (input.hasSideButton ? sideButtonInset : 0);
-      return math.max(0, math.min(room, stackMaxWidth));
+      return math.max(0, math.min(math.min(room, stackMaxWidth), most));
     }
     final caption = switch (input.captionWidth) {
       final width? => width + captionPadding,
       null => 0.0,
     };
     return math.min(
-      input.availableWidth,
+      most,
       math.max(input.contentWidth, math.max(need, caption)),
     );
   }
@@ -473,7 +477,7 @@ final class MediaFileTimeGrowth {
 ///
 /// | Part | Android | iOS | Desktop |
 /// | --- | --- | --- | --- |
-/// | [width] | single: max text width, widened; stack: `min(list − 50 − avatar, 300)` | text + control area, ≤ content width | 268 to 430 |
+/// | [width] | single: max text width, widened; stack: `min(list − 50 − avatar, 300)`; both ≤ content width | text + control area, ≤ content width | 268 to 430 |
 /// | [plain] | 56 high, 44 control at (14, 6), text at 67, name + 4, info + 27 | 65 high (insets 15, 9, 15, 12), 44 control at (18, 9), text at 70, centred | 60 high, padding (12, 8, 10, 8), 44 thumb, skip 11, name 12, status 34 |
 /// | [thumbnail] | 86 thumb at (4, 0), text at 100, name 8, info under it + 13 | 74 thumb at (14, 2), control area 86 | 84 high, padding (6, 6, 10, 6), 72 thumb, skip 14, name 11, status 31, link 55 |
 /// | [groupedPlain] / [groupedThumbnail] | as alone | as alone | padding (12, 5, 10, 5) / (6, 3, 10, 3), name 9 / 8, status 31 / 28, link 52 |

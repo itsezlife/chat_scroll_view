@@ -104,6 +104,7 @@ import 'features/chat/corpus_sticker_pack_test.dart'
     as corpus_sticker_pack_test;
 import 'features/chat/deferred_library_view_test.dart'
     as deferred_library_view_test;
+import 'features/chat/demo_video_sources_test.dart' as demo_video_sources_test;
 import 'features/chat/document_embed_test.dart' as document_embed_test;
 import 'features/chat/emoji_chrome_test.dart' as emoji_chrome_test;
 import 'features/chat/emoji_service_colors_test.dart'
@@ -241,6 +242,7 @@ import 'widgets/chat_edit_focus_test.dart' as chat_edit_focus_test;
 import 'widgets/chat_input_set_test.dart' as chat_input_set_test;
 import 'widgets/chat_input_wire_test.dart' as chat_input_wire_test;
 import 'widgets/chat_link_preview_test.dart' as chat_link_preview_test;
+import 'widgets/chat_media_viewer_test.dart' as chat_media_viewer_test;
 import 'widgets/chat_open_at_last_read_test.dart'
     as chat_open_at_last_read_test;
 import 'widgets/chat_scroll_to_bottom_button_test.dart'
@@ -639,6 +641,10 @@ void main() {
     deferred_library_view_test.main,
   );
   group(
+    'features/chat/demo_video_sources_test.dart',
+    demo_video_sources_test.main,
+  );
+  group(
     'features/chat/library_content_source_test.dart',
     library_content_source_test.main,
   );
@@ -731,6 +737,7 @@ void main() {
   );
   group('widgets/copy_feedback_test.dart', copy_feedback_test.main);
   group('widgets/demo_emoji_message_test.dart', demo_emoji_message_test.main);
+  group('widgets/chat_media_viewer_test.dart', chat_media_viewer_test.main);
   group('widgets/demo_media_bubble_test.dart', demo_media_bubble_test.main);
   group('widgets/demo_message_bodies_test.dart', demo_message_bodies_test.main);
   group(

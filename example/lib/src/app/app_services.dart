@@ -1041,9 +1041,10 @@ final class AppServices {
   /// it is made on the first read.
   MediaLibrary? get mediaLibrary => _deviceLibrary.library;
 
-  /// The players the attach sheet's viewer plays [mediaLibrary]'s videos
-  /// on (each library video read in place); null where there is no library
-  /// or no native player. Made on the first read.
+  /// The players the viewers play videos on: the attach sheet's
+  /// [mediaLibrary] videos (each read in place), the camera's captures and
+  /// the chat's clips; null where there is no library or no native player.
+  /// Made on the first read.
   PlayerPool? get libraryPlayers => _deviceLibrary.players;
 
   /// Where the attach sheet's camera keeps each shot: the bytes store the

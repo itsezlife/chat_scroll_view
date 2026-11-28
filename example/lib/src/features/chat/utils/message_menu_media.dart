@@ -3,6 +3,21 @@ import 'package:content_model/content_model.dart' show MediaItem, MediaItemId;
 import 'package:flutter/material.dart';
 import 'package:message_media/message_media.dart';
 
+/// Which media a message menu opened beside a message's media (on its
+/// caption, its padding, beside the bubble) reaches; a press on an item
+/// always reaches that item.
+enum MediaMenuReach {
+  /// The whole message: one item alone, or every item of an album, each
+  /// row acting on all of them (Android).
+  wholeMessage,
+
+  /// The first item (iOS).
+  firstItem,
+
+  /// None: media rows only over an item (desktop).
+  pressedItemOnly,
+}
+
 /// The per-item rows of a message menu opened on a media item: one row per
 /// `MediaItemAction` the item supports and the chat's protection allows,
 /// above the message's own rows.
@@ -30,6 +45,46 @@ abstract final class MessageMenuMediaRows {
   ) => switch (request.partId) {
     final MediaHitPart part => itemOfPart(part, items),
     _ => null,
+  };
+
+  /// The items a menu request reaches: the item its `MediaHitPart` is on;
+  /// else, beside the media, what [reach] says of the message's [items].
+  static List<MediaItem> targetsOf(
+    ChatMessageMenuRequest request,
+    List<MediaItem> items, {
+    required MediaMenuReach reach,
+  }) {
+    if (request.partId case final MediaHitPart part) {
+      return [?itemOfPart(part, items)];
+    }
+    return switch ((reach, items)) {
+      (_, []) || (MediaMenuReach.pressedItemOnly, _) => const [],
+      (MediaMenuReach.firstItem, [final first, ...]) => [first],
+      (MediaMenuReach.wholeMessage, _) => items,
+    };
+  }
+
+  /// The rows of [targets]: an item's own ([rowsFor] its allowed actions),
+  /// or for several the save rows every one of them allows, each acting on
+  /// all of them.
+  static List<ChatMessageMenuItem> rowsForTargets(
+    List<MediaItem> targets,
+    Set<MediaItemAction> Function(MediaItem item) allowedOf,
+  ) => switch (targets) {
+    [] => const [],
+    [final item] => rowsFor(allowedOf(item)),
+    _ => rowsFor(
+      targets
+          .map(allowedOf)
+          .reduce((a, b) => a.intersection(b))
+          .intersection(_albumActions),
+    ),
+  };
+
+  // What a menu over a whole album does to every item at once.
+  static const Set<MediaItemAction> _albumActions = {
+    MediaItemAction.saveToGallery,
+    MediaItemAction.saveToDownloads,
   };
 
   /// The item [part] is on among [items], or null.

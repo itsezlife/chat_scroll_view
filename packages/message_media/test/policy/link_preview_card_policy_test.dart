@@ -157,9 +157,11 @@ void main() {
     test('android metrics', () {
       const m = LinkPreviewCardMetrics.android;
       expect(m.outerLeft, 12 - 1.33);
-      expect(m.outerLeftIncomingText, 18 - 1.33);
+      // From the bubble body's edge, the tail outside it: the card lines
+      // up with the text in every bubble.
+      expect(m.outerLeftIncomingText, 12 - 1.33);
       expect(m.outerRight, 10);
-      expect(m.outerRightOutgoingText, 6);
+      expect(m.outerRightOutgoingText, 0);
       expect(m.textInset.left, 10);
       expect(m.largeMediaInset.horizontal, 17);
       expect(m.siteToTitle, 4);
@@ -549,13 +551,14 @@ void main() {
       expect(media.radii, const MediaCornerRadii.all(4));
     });
 
-    test('android: an incoming tailed text bubble sets the card at + 18 '
-        'and rounds the media\'s bottom-left by the near radius', () {
+    test('android: an incoming tailed text bubble sets the card where its '
+        'text starts (+ 12 − 1.33 from the body, the tail outside it) and '
+        'rounds the media\'s bottom-left by the near radius', () {
       final block = _card(
         _android,
         _input(_page(photo: _photo()), joinedBelow: false),
       )!;
-      expect(block.card!.rect.left, closeTo(18 - 1.33, 1e-9));
+      expect(block.card!.rect.left, closeTo(12 - 1.33, 1e-9));
       expect(block.media!.radii.bottomLeft, 3);
       expect(block.media!.radii.topLeft, 4);
     });
