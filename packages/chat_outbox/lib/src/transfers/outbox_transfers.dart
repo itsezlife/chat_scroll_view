@@ -57,12 +57,6 @@ final class _OutboxTransfers$Engine implements OutboxTransfers {
   void registerPublisher(String id, Publisher publisher) =>
       _transfers.registerPublisher(id, publisher);
 
-  // The engine keeps a job's payload in its journal and hands it to the
-  // publisher only; its facade has no read of it for the job's owner yet.
-  // Until it has, a restart cannot read a message's payload back here.
   @override
-  Uint8List? payloadOf(PublishJobId id) => throw UnsupportedError(
-    'The transfer engine does not expose a publish job\'s payload to its '
-    'owner yet, so the outbox cannot restore messages over it.',
-  );
+  Uint8List? payloadOf(PublishJobId id) => _transfers.publishJob(id)?.payload;
 }

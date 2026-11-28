@@ -85,9 +85,8 @@ this package is pre-1.0.
   decoded payload. A payload the codec cannot read is failed (unknown), with
   the host's `undecodableRowOf` row; a job under the prefix that is not a
   message's is left alone. `ChatOutbox(localKeyOf:, undecodableRowOf:)`.
-- `OutboxTransfers.payloadOf`; `FakeOutboxTransfers.seed` for a job as the
-  journal holds it. The engine adapter throws for `payloadOf` until mpx
-  hands a job's payload to its owner.
+- `OutboxTransfers.payloadOf`, read from the engine's `PublishJob.payload`;
+  `FakeOutboxTransfers.seed` for a job as the journal holds it.
 - The snapshot's restores count. `OutboxOp`: `restored`, `foreignJob`.
 
 ### Changed

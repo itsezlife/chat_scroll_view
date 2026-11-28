@@ -72,18 +72,12 @@ void main() {
         );
       });
 
-      test(
-        "payloadOf answers a job's payload as made",
-        () async {
-          final transfers = await open();
-          final id = transfers.publish(textOf('chat:c1:a'));
+      test("payloadOf answers a job's payload as made", () async {
+        final transfers = await open();
+        final id = transfers.publish(textOf('chat:c1:a'));
 
-          expect(transfers.payloadOf(id), [1, 2, 3]);
-        },
-        // The engine's facade does not hand a job's payload to its owner
-        // yet: the adapter throws until it does.
-        skip: name == 'OutboxTransfers.of(Transfers)',
-      );
+        expect(transfers.payloadOf(id), [1, 2, 3]);
+      });
 
       test('watchJobs gives the current list on listen, then the list '
           'again after a change', () async {
