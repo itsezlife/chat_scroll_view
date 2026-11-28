@@ -12,8 +12,9 @@ enum ContentPreviewOp implements DiagnosticOp {
   /// pixels.
   scrimCaptured,
 
-  /// The still was made (trace): the `preset`, `cpuMs` from the capture, and
-  /// `glassSource`, whether a glass source was made with it (never, here).
+  /// A still was made (trace): the `preset`, `cpuMs` from the capture, and
+  /// `glassSource`, whether it is the glass source (the preview's preset
+  /// has none).
   scrimStillReady,
 
   /// The scrim has no still (debug): `why`, `presetNoBlur` (the blur is off,
@@ -32,6 +33,7 @@ enum ContentPreviewOp implements DiagnosticOp {
   scrimDisposed,
 
   /// The capture threw, or its still could not be made (error): the
-  /// `errorType`, and the error itself.
+  /// `errorType`, `glassSource` as for [scrimStillReady], and the error
+  /// itself.
   scrimCaptureFailed,
 }

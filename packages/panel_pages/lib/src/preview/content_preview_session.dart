@@ -386,14 +386,14 @@ final class ContentPreviewSession implements CatalogLongPressSession {
             'stillHeight': stillSize.height.round(),
           },
         );
-      case ChromeScrimPhase$StillReady(:final makeTime):
+      case ChromeScrimPhase$StillReady(:final makeTime, :final glassSource):
         emit(
           ChatEventLevel.trace,
           ContentPreviewOp.scrimStillReady,
           () => {
             'preset': preset.name,
             'cpuMs': makeTime.inMilliseconds,
-            'glassSource': false,
+            'glassSource': glassSource,
           },
         );
       case ChromeScrimPhase$StillSkipped(:final why):
@@ -416,11 +416,14 @@ final class ContentPreviewSession implements CatalogLongPressSession {
           ContentPreviewOp.scrimDisposed,
           () => {'stills': stills},
         );
-      case ChromeScrimPhase$CaptureFailed(:final error):
+      case ChromeScrimPhase$CaptureFailed(:final error, :final glassSource):
         emit(
           ChatEventLevel.error,
           ContentPreviewOp.scrimCaptureFailed,
-          () => {'errorType': ChatEvent.clip('${error.runtimeType}')},
+          () => {
+            'errorType': ChatEvent.clip('${error.runtimeType}'),
+            'glassSource': glassSource,
+          },
           error,
         );
     }
