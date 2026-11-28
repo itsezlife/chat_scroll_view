@@ -1373,10 +1373,15 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
 
   void _beginEdit(int messageId) {
     if (!_canEdit(messageId)) return;
-    final content = _dataSource?.getMessage(messageId)?.text;
-    if (content == null) return;
+    final message = _dataSource?.getMessage(messageId);
+    final content = message?.text;
+    if (message == null || content == null) return;
     _selection.clear();
-    _input.beginEdit(messageId, content);
+    _input.beginEdit(
+      messageId,
+      content,
+      caption: MessageEditability.editsCaption(message),
+    );
   }
 
   /// Asks before the recent content of [kind] is cleared: the recent
