@@ -1,7 +1,13 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:chat_scroll_view_example/src/features/chat/save/chat_save_entries.dart';
 import 'package:content_model/content_model.dart' show MediaItem, MediaItemId;
 import 'package:flutter/material.dart';
 import 'package:message_media/message_media.dart';
+import 'package:mpx_library/mpx_library.dart'
+    show
+        SaveDestination$Ask,
+        SaveDestination$Downloads,
+        SaveDestination$Gallery;
 
 /// Which media a message menu opened beside a message's media (on its
 /// caption, its padding, beside the bubble) reaches; a press on an item
@@ -18,11 +24,15 @@ enum MediaMenuReach {
   pressedItemOnly,
 }
 
-/// The per-item rows of a message menu opened on a media item: one row per
-/// `MediaItemAction` the item supports and the chat's protection allows,
-/// above the message's own rows.
+/// The per-item rows of a message menu opened on a media item: the save
+/// entry of the item's kind and platform (`ChatSaveEntries`), then one row
+/// per other `MediaItemAction` the item supports and the chat's protection
+/// allows, above the message's own rows.
 abstract final class MessageMenuMediaRows {
   static const String _prefix = 'media_item_';
+
+  /// The row id of the save entry.
+  static const String saveId = 'media_save';
 
   /// The row id of [action].
   static String idOf(MediaItemAction action) => '$_prefix${action.name}';
@@ -47,15 +57,19 @@ abstract final class MessageMenuMediaRows {
     _ => null,
   };
 
-  /// The items a menu request reaches: the item its `MediaHitPart` is on;
-  /// else, beside the media, what [reach] says of the message's [items].
+  /// The items a menu request reaches: the item its `MediaHitPart` is on,
+  /// among [items] and the link preview [card]'s; else, beside the media,
+  /// what [reach] says of the message's [items] (never the card's).
   static List<MediaItem> targetsOf(
     ChatMessageMenuRequest request,
     List<MediaItem> items, {
     required MediaMenuReach reach,
+    MediaItem? card,
   }) {
     if (request.partId case final MediaHitPart part) {
-      return [?itemOfPart(part, items)];
+      return [
+        ?itemOfPart(part, [...items, ?card]),
+      ];
     }
     return switch ((reach, items)) {
       (_, []) || (MediaMenuReach.pressedItemOnly, _) => const [],
@@ -64,28 +78,42 @@ abstract final class MessageMenuMediaRows {
     };
   }
 
-  /// The rows of [targets]: an item's own ([rowsFor] its allowed actions),
-  /// or for several the save rows every one of them allows, each acting on
-  /// all of them.
+  /// The rows of [targets]: the [saveEntry] row first when there is one
+  /// (the entry of the items' kind, null while protection denies the save
+  /// or for a host without saves), then for one item its other rows
+  /// ([rowsFor] its allowed actions); several items (an album) have the
+  /// save entry alone, which acts on all of them.
   static List<ChatMessageMenuItem> rowsForTargets(
     List<MediaItem> targets,
-    Set<MediaItemAction> Function(MediaItem item) allowedOf,
-  ) => switch (targets) {
-    [] => const [],
-    [final item] => rowsFor(allowedOf(item)),
-    _ => rowsFor(
-      targets
-          .map(allowedOf)
-          .reduce((a, b) => a.intersection(b))
-          .intersection(_albumActions),
-    ),
-  };
+    Set<MediaItemAction> Function(MediaItem item) allowedOf, {
+    ChatSaveEntry? saveEntry,
+  }) => [
+    if (targets.isNotEmpty && saveEntry != null) saveRowOf(saveEntry),
+    ...switch (targets) {
+      [final item] => rowsFor(allowedOf(item).difference(_savedByEntry)),
+      _ => const <ChatMessageMenuItem>[],
+    },
+  ];
 
-  // What a menu over a whole album does to every item at once.
-  static const Set<MediaItemAction> _albumActions = {
+  // The actions the save entry stands for: the table's destination decides
+  // which one a kind has on a platform.
+  static const Set<MediaItemAction> _savedByEntry = {
     MediaItemAction.saveToGallery,
     MediaItemAction.saveToDownloads,
+    MediaItemAction.saveAs,
   };
+
+  /// The row of [entry]: its label, the icon of its destination.
+  static ChatMessageMenuItem saveRowOf(ChatSaveEntry entry) =>
+      ChatMessageMenuItem(
+        id: saveId,
+        label: entry.label,
+        icon: switch (entry.destination) {
+          SaveDestination$Gallery() => Icons.photo_library_outlined,
+          SaveDestination$Downloads() => Icons.download_outlined,
+          SaveDestination$Ask() => Icons.save_alt_outlined,
+        },
+      );
 
   /// The item [part] is on among [items], or null.
   static MediaItem? itemOfPart(MediaHitPart part, List<MediaItem> items) =>

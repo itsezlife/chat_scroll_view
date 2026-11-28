@@ -1,6 +1,7 @@
 import 'package:chat_capabilities/chat_capabilities.dart' show ProtectionFlags;
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/app/app_platform_policy.dart';
+import 'package:chat_scroll_view_example/src/features/chat/save/chat_save_entries.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy_feedback.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_messages_copy_format.dart';
@@ -559,6 +560,7 @@ final class MessageMenuActions {
     this.onMessageLogs,
     this.onDenied,
     this.onMediaAction,
+    this.onMediaSave,
     this.onRetry,
     this.onDeleteUnsent,
   });
@@ -575,6 +577,17 @@ final class MessageMenuActions {
   /// id: the item and its action (save, copy, share).
   final void Function(int messageId, MediaItem item, MediaItemAction action)?
   onMediaAction;
+
+  /// The save entry chosen on media of the message with the given id: the
+  /// items it saves (one, or a whole album) and the entry, which says where.
+  /// Protection is the saver's to check again: it may have changed while
+  /// the menu was up.
+  final void Function(
+    int messageId,
+    List<MediaItem> items,
+    ChatSaveEntry entry,
+  )?
+  onMediaSave;
 
   /// Delete one message.
   final ValueChanged<int> onDelete;
@@ -669,6 +682,8 @@ final class MessageMenu {
     this.deniedActionsOf,
     this.mediaOf,
     this.itemActionsOf,
+    this.saveEntryOf,
+    this.cardMediaOf,
     this.linkPreviewUrlOf,
     this.isFailed,
   }) : itemsFor = itemsFor ?? MessageMenuCatalog.itemsFor,
@@ -722,6 +737,20 @@ final class MessageMenu {
   /// protection), read as the menu opens on the item; null allows none.
   final Set<MediaItemAction> Function(int messageId, MediaItem item)?
   itemActionsOf;
+
+  /// The save entry a menu of the message with the given id offers over its
+  /// media targets, [part] the request's touched part
+  /// (`ChatMediaSaves.entryFor`); null offers none. Read as the menu opens.
+  final ChatSaveEntry? Function(
+    int messageId,
+    List<MediaItem> targets, {
+    Object? part,
+  })?
+  saveEntryOf;
+
+  /// The media item of the link preview card of the message with the given
+  /// id, which a press on the card's media reaches; null for none.
+  final MediaItem? Function(int messageId)? cardMediaOf;
 
   /// The address of the link preview card of the message with the given
   /// id, which Copy link on the card writes; null leaves the row inert.
@@ -777,10 +806,18 @@ final class MessageMenu {
       final mediaTargets = request.membership == ChatMessageMenuMembership.idle
           ? _mediaTargetsOf(request)
           : const <MediaItem>[];
+      final saveEntry = mediaTargets.isEmpty
+          ? null
+          : saveEntryOf?.call(
+              request.messageId,
+              mediaTargets,
+              part: request.partId,
+            );
       final mediaRows = switch (itemActionsOf) {
         final actionsOf? => MessageMenuMediaRows.rowsForTargets(
           mediaTargets,
           (item) => actionsOf(request.messageId, item),
+          saveEntry: saveEntry,
         ),
         null => const <ChatMessageMenuItem>[],
       };
@@ -883,6 +920,7 @@ final class MessageMenu {
         emojiPacks: packs,
         content: content,
         mediaTargets: mediaTargets,
+        saveEntry: saveEntry,
       );
     } finally {
       _sessionOpen = false;
@@ -897,6 +935,7 @@ final class MessageMenu {
     required List<PackId> emojiPacks,
     required MessageMenuContent? content,
     required List<MediaItem> mediaTargets,
+    required ChatSaveEntry? saveEntry,
   }) async {
     switch (result) {
       case ChatMessageMenuReactionResult(:final reaction):
@@ -1000,6 +1039,14 @@ final class MessageMenu {
             selection?.clear();
           case MessageMenuActionId.messageLogs:
             actions.onMessageLogs?.call(request.messageId);
+          case MessageMenuMediaRows.saveId:
+            if (saveEntry != null) {
+              actions.onMediaSave?.call(
+                request.messageId,
+                mediaTargets,
+                saveEntry,
+              );
+            }
           case MessageMenuActionId.reply:
             if (actions.onReply case final onReply?) {
               onReply(request.messageId);
@@ -1050,12 +1097,20 @@ final class MessageMenu {
   ) async {
     if (_sessionOpen) return;
     final item = switch (mediaOf) {
-      final of? => MessageMenuMediaRows.itemOfPart(part, of(messageId)),
+      final of? => MessageMenuMediaRows.itemOfPart(part, [
+        ...of(messageId),
+        ?cardMediaOf?.call(messageId),
+      ]),
       null => null,
     };
     final actionsOf = itemActionsOf;
     if (item == null || actionsOf == null) return;
-    final rows = MessageMenuMediaRows.rowsFor(actionsOf(messageId, item));
+    final saveEntry = saveEntryOf?.call(messageId, [item], part: part);
+    final rows = MessageMenuMediaRows.rowsForTargets(
+      [item],
+      (item) => actionsOf(messageId, item),
+      saveEntry: saveEntry,
+    );
     if (rows.isEmpty) return;
     _sessionOpen = true;
     try {
@@ -1076,6 +1131,9 @@ final class MessageMenu {
         isPresent: () => row.isPresent,
       );
       if (result case ChatMessageMenuItemResult(:final itemId)) {
+        if (itemId == MessageMenuMediaRows.saveId && saveEntry != null) {
+          actions.onMediaSave?.call(messageId, [item], saveEntry);
+        }
         if (MessageMenuMediaRows.actionOf(itemId) case final action?) {
           // Protection may have changed while the menu was up.
           if (actionsOf(messageId, item).contains(action)) {
@@ -1143,6 +1201,7 @@ final class MessageMenu {
           request,
           of(request.messageId),
           reach: AppPlatformPolicy.current().mediaMenuReach,
+          card: cardMediaOf?.call(request.messageId),
         ),
         null => const [],
       };

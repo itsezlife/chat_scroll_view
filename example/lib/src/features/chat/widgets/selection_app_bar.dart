@@ -2,6 +2,7 @@ import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/common/widgets/cap_hit_shake.dart';
 import 'package:chat_scroll_view_example/src/common/widgets/frozen_value.dart';
 import 'package:chat_scroll_view_example/src/common/widgets/selection_cap_haptic.dart';
+import 'package:chat_scroll_view_example/src/features/chat/save/chat_save_entries.dart';
 import 'package:flutter/material.dart';
 
 /// Toolbar body height below the top [SafeArea] inset.
@@ -28,6 +29,8 @@ class SelectionAppBar extends StatefulWidget {
     this.onEdit,
     this.canEdit,
     this.onDelete,
+    this.saveEntryOf,
+    this.onSave,
     super.key,
   });
 
@@ -63,6 +66,14 @@ class SelectionAppBar extends StatefulWidget {
 
   /// Delete selected messages.
   final VoidCallback? onDelete;
+
+  /// The save entry over the selected messages, or null for none: read on
+  /// every rebuild, so an entry protection takes away goes as soon as the
+  /// selection notifies (`ChatSelectionController.reapplyCanCopy`).
+  final ChatSaveEntry? Function(Iterable<int> messageIds)? saveEntryOf;
+
+  /// Saves the selected messages' media with the entry [saveEntryOf] gave.
+  final ValueChanged<ChatSaveEntry>? onSave;
 
   @override
   State<SelectionAppBar> createState() => _SelectionAppBarState();
@@ -183,6 +194,12 @@ class _SelectionAppBarState extends State<SelectionAppBar>
     return id == null || canEdit(id);
   }
 
+  // None while the bar slides out: the count is frozen, the selection gone.
+  ChatSaveEntry? get _saveEntry => switch (widget.saveEntryOf) {
+    final entryOf? when _mode => entryOf(widget.selection.selectedIds),
+    _ => null,
+  };
+
   bool get _mayCopy => switch (widget.canCopy) {
     final canCopy? => widget.selection.selectedIds.every(canCopy),
     null => true,
@@ -233,6 +250,13 @@ class _SelectionAppBarState extends State<SelectionAppBar>
                 tooltip: 'Копировать',
                 color: scheme.onSurface,
                 onPressed: widget.onCopy,
+              ),
+            if ((widget.onSave, _saveEntry) case (final onSave?, final entry?))
+              IconButton(
+                icon: const Icon(Icons.download_outlined),
+                tooltip: entry.label,
+                color: scheme.onSurface,
+                onPressed: () => onSave(entry),
               ),
             if (widget.onEdit != null && _mayEdit(count))
               IconButton(

@@ -44,6 +44,8 @@ import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outbox.da
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_server_script_sheet.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/outbox_debug_panel.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/source_lost_prompt.dart';
+import 'package:chat_scroll_view_example/src/features/chat/save/chat_media_saves.dart';
+import 'package:chat_scroll_view_example/src/features/chat/save/chat_save_entries.dart';
 import 'package:chat_scroll_view_example/src/features/chat/save/save_debug_panel.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_bulletins.dart';
@@ -95,9 +97,11 @@ import 'package:content_model/content_model.dart'
         LibraryPackEdit,
         LinkPreview,
         LinkPreviewResolver,
+        LinkPreviewMediaSlot,
         LinkPreviewWire,
         MediaItem,
         MediaItemId,
+        MediaItemKind,
         PackId,
         PackKind,
         PackInstallState,
@@ -311,6 +315,16 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
   /// takes from the menus and the bar, the desktop selection cleared on a
   /// live change, the capture block.
   late final ChatProtectionHost _protection;
+
+  /// The chat's save entries and saves, through the app's one saver.
+  late final ChatMediaSaves _saves = ChatMediaSaves(
+    saver: widget.services.saver,
+    chatId: widget.chatId,
+    entries: ChatSaveEntries.current(),
+    mediaOf: (id) => _dataSource?.getMessage(id)?.media ?? const [],
+    allowedOf: _itemActionsOf,
+    reportDenied: (id) => _protection.reportDenied(CapabilityAction.save, id),
+  );
 
   /// The debug switcher's rows over [_rights].
   late final CapabilitiesSwitcher _switcher = CapabilitiesSwitcher(_rights);
@@ -705,6 +719,27 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     _ => null,
   };
 
+  /// The media item of [message]'s link preview card, as the card's layout
+  /// names it, or null when the card shows none (or the message carries no
+  /// page: a page the receiver looked up is not here).
+  static MediaItem? _cardMediaOf(IChatMessage? message) => switch (message) {
+    UserChatMessage(:final id, :final payload) =>
+      switch (LinkPreviewWire.readLinkPreview(payload)?.page) {
+        final page? => switch (LinkPreviewMediaSizeRule.mediaOf(page)) {
+          (:final descriptor, :final slot) => MediaItem(
+            id: MediaItemId.linkPreviewOf('$id', slot: slot),
+            descriptor: descriptor,
+            kind: slot == LinkPreviewMediaSlot.photo
+                ? MediaItemKind.photo
+                : null,
+          ),
+          null => null,
+        },
+        null => null,
+      },
+    _ => null,
+  };
+
   /// Opens the viewer on a tapped picture; a file alone has no page in it
   /// and opens elsewhere (here, a notice).
   void _openMediaViewer(
@@ -759,13 +794,18 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       )
       .contains(ProtectionFlags.forward);
 
-  /// A viewer action on [item] of the message [messageId]: save and share go
-  /// where the menu's do; forward and delete are stubs that say what they
-  /// would do.
+  /// A viewer action on [item] of the message [messageId]: save goes through
+  /// the chat's saves with the entry of the item's kind, share where the
+  /// menu's does; forward and delete are stubs that say what they would do.
   void _onViewerAction(int messageId, MediaItem item, ChatViewerAction action) {
     switch (action) {
       case ChatViewerAction.saveToGallery:
-        _onMediaAction(messageId, item, MediaItemAction.saveToGallery);
+        _saves.save(
+          messageId,
+          [item],
+          _saves.entries.entryOf(item.kind),
+          source: ChatSaveSource.viewer,
+        );
       case ChatViewerAction.share:
         _onMediaAction(messageId, item, MediaItemAction.share);
       case ChatViewerAction.forward:
@@ -803,8 +843,9 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     }
   }
 
-  /// A per-item row: Copy File Name copies; the others (save, share) are
-  /// the media-save work's and show what they would do.
+  /// A per-item row other than the save entry ([ChatMediaSaves]): Copy File
+  /// Name copies; the others (share, show in folder, copy image) show what
+  /// they would do.
   void _onMediaAction(int messageId, MediaItem item, MediaItemAction action) {
     switch ((action, item.descriptor.fileName)) {
       case (MediaItemAction.copyFileName, final name?):
@@ -833,6 +874,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     _stopScrollReport();
     _controller.dispose();
     _bodyPainters.clear();
+    _saves.dispose();
     _protection.dispose();
     _selection.dispose();
     _spoilers.dispose();
@@ -968,6 +1010,14 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
           onNotice: _showNotice,
           onMessageLogs: kDebugMode ? _openMessageLogs : null,
           onMediaAction: _onMediaAction,
+          onMediaSave: (messageId, items, entry) => _saves.save(
+            messageId,
+            items,
+            entry,
+            source: items.length > 1
+                ? ChatSaveSource.album
+                : ChatSaveSource.menu,
+          ),
           onRetry: (messageId) => unawaited(_outboxChat?.retryAt(messageId)),
           onDeleteUnsent: (messageId) => _outboxChat?.deleteAt(messageId),
           onDenied: (actionId, messageId) =>
@@ -981,6 +1031,8 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
         isFailed: (id) => _outboxChat?.isFailedAt(id) ?? false,
         mediaOf: (id) => backend.getMessage(id)?.media ?? const [],
         itemActionsOf: _itemActionsOf,
+        saveEntryOf: _saves.entryFor,
+        cardMediaOf: (id) => _cardMediaOf(backend.getMessage(id)),
         linkPreviewUrlOf: (id) => _linkPreviewUrlOf(backend.getMessage(id)),
         contentOf: (id) => switch (backend.getMessage(id)?.text) {
           final text? => _menuContentOf(text),
@@ -1954,6 +2006,13 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
             onEdit: _editSelectedFromBar,
             canEdit: _canEdit,
             onDelete: () => _handleDeleteSelected(_selection.selectedIds),
+            saveEntryOf: _saves.selectionEntryOf,
+            // A started save ends the selection, as a delete does.
+            onSave: (entry) {
+              if (_saves.saveSelection(_selection.selectedIds, entry) != null) {
+                _selection.clear();
+              }
+            },
           ),
         ),
         // Demo: search + bubble radius — top-right chrome. Position

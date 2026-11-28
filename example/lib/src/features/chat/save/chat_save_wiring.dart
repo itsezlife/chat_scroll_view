@@ -20,6 +20,31 @@ enum ChatSaveOp implements DiagnosticOp {
   /// `destination`, with the save job as `jobId`; at warning, with the
   /// error and no job, when the demo item could not be read.
   debugSave,
+
+  /// A menu or the selection bar offers a save entry (debug): the items'
+  /// `kind` (`mixed` for several kinds), the `platform`, the entry's
+  /// `destination` and the `batch` (`single`, `album`, `selection`).
+  entriesOffered,
+
+  /// A save entry the items would have is not offered (info): `why`
+  /// (`protection`, `linkPreviewPart`) and whether it went `live`, from an
+  /// entry offered before (the selection bar).
+  entriesHidden,
+
+  /// A save entry started its job (info): the `source` (`menu`, `album`,
+  /// `selection`, `viewer`), the number of `items` and the `destination`,
+  /// with the job as `jobId`; a single item also names its item and media
+  /// key.
+  saveStarted,
+
+  /// A tap on a save entry was dropped by the input guard (debug): `ms`
+  /// since the tap that started the job.
+  saveDropped,
+
+  /// A save that protection denies reached the host anyway (info): `path`
+  /// (`staleMenu`, `viewer`); the chat's denial feedback reports
+  /// `capabilities` / `denied` beside it.
+  saveDenied,
 }
 
 /// Makes the app's one [MediaSaver] over the composition's [transfers]
