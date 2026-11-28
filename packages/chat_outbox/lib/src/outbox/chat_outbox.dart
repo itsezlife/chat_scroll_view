@@ -329,6 +329,11 @@ final class ChatOutbox<M> {
   /// message is fresh: the host's [isFreshOutgoing] answers true for it
   /// once.
   ///
+  /// [itemOf] answers for this send's items in place of the outbox's
+  /// resolver: what the host knows of this send alone (the files it
+  /// prepared for it, the keys it minted for its payload) goes with the
+  /// call instead of being held on the host around it.
+  ///
   /// [origins] are the picker's send origins by item order: each item's
   /// global thumbnail rect at send time, null for an item the picker did
   /// not show. The outbox keys them by the items' `MediaItemId`s and hands
@@ -346,6 +351,7 @@ final class ChatOutbox<M> {
     required M payload,
     List<MediaItemId>? itemIds,
     List<Rect?>? origins,
+    OutgoingSendItemResolver? itemOf,
   }) {
     _checkNotDisposed();
     _projection.origins.expire(_now());
@@ -395,7 +401,8 @@ final class ChatOutbox<M> {
       PlannedSend$Single(:final form) || PlannedSend$Group(:final form) => form,
       PlannedSend$Text() => SendForm.media,
     };
-    final sendItems = [for (final item in items) _itemOf(item, form)];
+    final resolve = itemOf ?? _itemOf;
+    final sendItems = [for (final item in items) resolve(item, form)];
     final strategy = idStrategy(chatId);
     ChatDiagnostics.current.emit(
       ChatEventLevel.info,

@@ -223,6 +223,32 @@ void main() {
     });
   });
 
+  test("a send's own item resolver answers for its items, with what the "
+      'host knows of that send alone', () {
+    final prepared = {'a': inputOf('prepared-a')};
+    outbox.send(
+      const ChatId('c1'),
+      PlannedSend.single(photo('a'), form: SendForm.media),
+      payload: const Note(text: 'look'),
+      itemOf: (item, form) => OutgoingSendItem(
+        localKey: localKeyOf(item.id),
+        mediaKey: mediaKeyOf(item.id),
+        source: PublishSource.prepare(
+          prepared[item.id]!,
+          const PreparationIntent.photo(),
+        ),
+      ),
+    );
+
+    expect(
+      transfers.requests.single.items.single.source,
+      PublishSource.prepare(
+        inputOf('prepared-a'),
+        const PreparationIntent.photo(),
+      ),
+    );
+  });
+
   test('a row builder that throws leaves no job behind to hold the chat\'s '
       'ordering group', () async {
     final transfers = FakeOutboxTransfers();

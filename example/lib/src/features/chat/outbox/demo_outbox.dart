@@ -99,24 +99,22 @@ final class DemoOutbox {
 
   static const String _legacyLocalPrefix = 'local:';
 
-  // The prepared files of the send being accepted, by attach item: `send`
-  // calls [_itemOf] synchronously, item by item.
-  Map<AttachItemId, PreparedMedia> _$prepared = const {};
-
-  // The keys minted for the send being accepted, by attach item: its
-  // payload names them before the outbox asks [_itemOf].
-  Map<AttachItemId, MediaKey> _$minted = const {};
-
-  // An item is uploaded from its prepared file, under a key the chat can
-  // name ([DemoOutgoingMedia]). One the host could not prepare (no work
-  // folder, as on the web) has no file the engine can read: the demo sends
-  // it by its key alone, as content the server holds.
-  OutgoingSendItem _itemOf(AttachItem item, SendForm form) {
-    final mediaKey = _$minted[item.id] ?? media.mint();
+  // An item is uploaded from its prepared file ([prepared], the send's),
+  // under a key the chat can name ([DemoOutgoingMedia]; [minted], the one
+  // the send's payload names, else a new one). One the host could not
+  // prepare (no work folder, as on the web) has no file the engine can
+  // read: the demo sends it by its key alone, as content the server holds.
+  OutgoingSendItem _itemOf(
+    AttachItem item,
+    SendForm form, {
+    Map<AttachItemId, PreparedMedia> prepared = const {},
+    Map<AttachItemId, MediaKey> minted = const {},
+  }) {
+    final mediaKey = minted[item.id] ?? media.mint();
     return OutgoingSendItem(
       localKey: localKeyOf(mediaKey),
       mediaKey: mediaKey,
-      source: switch (_$prepared[item.id]) {
+      source: switch (prepared[item.id]) {
         final prepared? => PublishSource.prepared(prepared),
         null => const PublishSource.remote(),
       },
@@ -308,17 +306,10 @@ final class DemoOutboxChat {
     if (bodies.length != sends.length) {
       throw ArgumentError.value(bodies.length, 'bodies', 'One per send.');
     }
-    _owner._$prepared = prepared;
-    try {
-      return [
-        for (final (index, send) in sends.indexed)
-          _sendOne(send, bodies[index], origins?[index], prepared),
-      ];
-    } finally {
-      _owner
-        .._$prepared = const {}
-        .._$minted = const {};
-    }
+    return [
+      for (final (index, send) in sends.indexed)
+        _sendOne(send, bodies[index], origins?[index], prepared),
+    ];
   }
 
   OutgoingMessage? _sendOne(
@@ -341,12 +332,13 @@ final class DemoOutboxChat {
     for (final item in items) {
       if (item.source case final source?) media.know(item.mediaKey, source);
     }
-    _owner._$minted = minted;
     final message = _outbox.send(
       chatId,
       send,
       payload: _payloadOf(body, const {}, items: items),
       origins: origins,
+      itemOf: (item, form) =>
+          _owner._itemOf(item, form, prepared: prepared, minted: minted),
     );
     _accepted(message);
     // The server shows the chat's peers that media is on its way.
