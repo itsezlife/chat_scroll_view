@@ -8,6 +8,14 @@ this package is pre-1.0.
 
 ### Added
 
+- `OutgoingAppearancePolicy` (`android()`, `ios()`, `desktop()`,
+  `platform()`) and the sealed `OutgoingAppearance` it resolves to
+  (`slideUp`, `fadeScale` with `delayAt`, `flight`, `none`): how a fresh
+  outgoing row appears per platform, reduce motion answering `none`.
+  `ChatOutbox(appearance:)` (the platform's preset by default) and
+  `appearanceOf(chatId, id, atBottom:, reduceMotion:)`, which answers once
+  per fresh message, reads its items and held send origins, and reports
+  `rowAppeared`.
 - `ChatOutbox(onStatusChanged:)`: the host hears each change of an
   outgoing message's status (a job moving on, a failure, a retry, the
   server's accept), so its time pill and error badge redraw when the row

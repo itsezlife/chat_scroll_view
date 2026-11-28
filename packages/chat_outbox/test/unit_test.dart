@@ -8,6 +8,8 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'appearance/outgoing_appearance_policy_test.dart'
+    as appearance_outgoing_appearance_policy_test;
 import 'diagnostics/outbox_debug_snapshot_test.dart'
     as diagnostics_outbox_debug_snapshot_test;
 import 'ids/data_source_tail_test.dart' as ids_data_source_tail_test;
@@ -17,6 +19,8 @@ import 'message/outgoing_message_test.dart' as message_outgoing_message_test;
 import 'message/outgoing_payload_codec_test.dart'
     as message_outgoing_payload_codec_test;
 import 'message/outgoing_status_test.dart' as message_outgoing_status_test;
+import 'outbox/chat_outbox_appearance_test.dart'
+    as outbox_chat_outbox_appearance_test;
 import 'outbox/chat_outbox_cancel_test.dart' as outbox_chat_outbox_cancel_test;
 import 'outbox/chat_outbox_capabilities_test.dart'
     as outbox_chat_outbox_capabilities_test;
@@ -42,6 +46,10 @@ import 'transfers/outbox_transfers_test.dart'
 
 void main() {
   group(
+    'appearance/outgoing_appearance_policy_test.dart',
+    appearance_outgoing_appearance_policy_test.main,
+  );
+  group(
     'diagnostics/outbox_debug_snapshot_test.dart',
     diagnostics_outbox_debug_snapshot_test.main,
   );
@@ -60,6 +68,10 @@ void main() {
     message_outgoing_payload_codec_test.main,
   );
   group('message/outgoing_status_test.dart', message_outgoing_status_test.main);
+  group(
+    'outbox/chat_outbox_appearance_test.dart',
+    outbox_chat_outbox_appearance_test.main,
+  );
   group(
     'outbox/chat_outbox_cancel_test.dart',
     outbox_chat_outbox_cancel_test.main,

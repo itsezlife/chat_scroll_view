@@ -4,6 +4,7 @@ import 'dart:ui' show Rect;
 
 import 'package:attach_model/attach_model.dart';
 import 'package:chat_capabilities/chat_capabilities.dart';
+import 'package:chat_outbox/src/appearance/outgoing_appearance_policy.dart';
 import 'package:chat_outbox/src/diagnostics/outbox_debug_snapshot.dart';
 import 'package:chat_outbox/src/diagnostics/outbox_op.dart';
 import 'package:chat_outbox/src/diagnostics/outbox_trace.dart';
@@ -99,6 +100,9 @@ final class ChatOutbox<M> {
   /// iOS `Info.plist` entries and the Play Console declaration are the
   /// host's duties toward `mpx_transfer` (see its README, "Android" and
   /// "iOS"); the outbox only reads what the jobs do.
+  ///
+  /// [appearance] is how a fresh row appears ([appearanceOf]), the running
+  /// platform's preset unless given.
   ChatOutbox({
     required OutboxTransfers transfers,
     required OutgoingPayloadCodec<M> codec,
@@ -116,6 +120,7 @@ final class ChatOutbox<M> {
     ContentKey Function(MediaKey mediaKey)? localKeyOf,
     IChatMessage Function(OutgoingMessage message)? undecodableRowOf,
     bool deleteOnSystemInterruption = false,
+    OutgoingAppearancePolicy? appearance,
   }) : this.over(
          OutboxProjection(),
          transfers: transfers,
@@ -134,6 +139,7 @@ final class ChatOutbox<M> {
          localKeyOf: localKeyOf,
          undecodableRowOf: undecodableRowOf,
          deleteOnSystemInterruption: deleteOnSystemInterruption,
+         appearance: appearance,
        );
 
   /// An outbox reading [projection], for tests that set rows up directly.
@@ -156,7 +162,9 @@ final class ChatOutbox<M> {
     ContentKey Function(MediaKey mediaKey)? localKeyOf,
     IChatMessage Function(OutgoingMessage message)? undecodableRowOf,
     this.deleteOnSystemInterruption = false,
-  }) : _onCancelled = onCancelled,
+    OutgoingAppearancePolicy? appearance,
+  }) : appearance = appearance ?? OutgoingAppearancePolicy.platform(),
+       _onCancelled = onCancelled,
        _onItemDropped = onItemDropped,
        _onStatusChanged = onStatusChanged,
        _localKeyOf = localKeyOf,
@@ -195,6 +203,10 @@ final class ChatOutbox<M> {
   /// Whether a message whose job the system's end of the transfer envelope
   /// paused is deleted rather than kept sending; see [ChatOutbox.new].
   final bool deleteOnSystemInterruption;
+
+  /// How a fresh outgoing row appears on this platform: the values the host
+  /// animates its row with, and the policy [appearanceOf] resolves.
+  final OutgoingAppearancePolicy appearance;
 
   final OutboxProjection _projection;
   final OutboxTransfers _transfers;
@@ -1749,6 +1761,55 @@ final class ChatOutbox<M> {
       fields: () => {'answered': fresh},
     );
     return fresh;
+  }
+
+  /// How the outgoing row [clientMessageId] of [chatId] appears, for the
+  /// host to animate it: the [appearance] policy's answer for a fresh
+  /// message, or null for one that is not fresh (asked before, restored,
+  /// unknown or Absent).
+  ///
+  /// Asks [isFreshOutgoing], so it answers once per message; the host asks
+  /// as its row is first built. [atBottom] is whether the list showed its
+  /// newest message as the row arrived, [reduceMotion] the platform's
+  /// switch. The outbox knows the rest: a message without items is
+  /// text-only, and one whose item still has its send origin (the cell has
+  /// not taken it) flies in where the policy flies. Asking leaves the
+  /// origin for the cell. Reports `rowAppeared`.
+  OutgoingAppearance? appearanceOf(
+    String chatId,
+    String clientMessageId, {
+    required bool atBottom,
+    required bool reduceMotion,
+  }) {
+    if (!isFreshOutgoing(chatId, clientMessageId)) return null;
+    final message = _projection.lookup(chatId, clientMessageId);
+    final items = message?.items ?? const <OutgoingItem>[];
+    _projection.origins.expire(_now());
+    final resolved = appearance.resolve(
+      atBottom: atBottom,
+      originPresent: items.any((item) => _projection.origins.holds(item.id)),
+      textOnly: items.isEmpty,
+      reduceMotion: reduceMotion,
+    );
+    ChatDiagnostics.current.emit(
+      ChatEventLevel.debug,
+      ChatEventCategory.outbox,
+      OutboxOp.rowAppeared,
+      correlation: ChatCorrelation(
+        chatId: chatId,
+        clientMessageId: clientMessageId,
+        scrollId: switch (message) {
+          final message? => '${message.position}',
+          null => null,
+        },
+      ),
+      fields: () => {
+        'form': resolved.form.name,
+        'atBottom': atBottom,
+        'reduceMotion': reduceMotion,
+      },
+    );
+    return resolved;
   }
 
   /// What the outbox holds for [chatId] right now, without user content;

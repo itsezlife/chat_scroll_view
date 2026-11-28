@@ -17,6 +17,11 @@ enum OutboxOp implements DiagnosticOp {
   /// appearance (trace): the answer, true once per message.
   freshOutgoingTaken,
 
+  /// A fresh outgoing row asked how it appears (debug): `form`, the
+  /// appearance policy's answer (`slideUp`, `fadeScale`, `flight`, `none`),
+  /// `atBottom` and `reduceMotion`; the row's position as the scroll id.
+  rowAppeared,
+
   /// The outbox accepted a send (info): its kind (`text`, `single`,
   /// `group`), its item count and who issued the items' ids (`outbox`,
   /// `host`).

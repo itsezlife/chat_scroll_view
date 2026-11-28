@@ -12,6 +12,7 @@
 /// `OutgoingPayloadCodec` for its message model.
 library;
 
+export 'src/appearance/outgoing_appearance_policy.dart';
 export 'src/diagnostics/outbox_debug_snapshot.dart';
 export 'src/diagnostics/outbox_op.dart';
 export 'src/ids/local_ids.dart';

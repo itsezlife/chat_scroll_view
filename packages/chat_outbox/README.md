@@ -12,7 +12,7 @@ Decision: [ADR 048](../../docs/adr/048-outgoing-messages.md). Diagnostics:
 
 | Type | Role |
 | --- | --- |
-| `ChatOutbox<M>` | The facade. `send(chatId, plannedSend, payload:)` and `sendText` make one publish job per send, after slow mode and the chat's limits let it through (a refusal reaches `onDenied` and makes no job); `idStrategy(chatId)` is the chat's id strategy, which places each accepted message's row; `sendInFlight(chatId)` is on while one of the chat's messages is sending; `byClientMessageId(chatId, id)` matches the server's echo of the host's own message, so the host inserts no twin row; `isFreshOutgoing(chatId, id)` answers true once per message the user just sent, for the host's row appearance; `takeSendOrigin(mediaItemId)` answers an item's send origin once; `registerSender(sender)` makes the host's sender the chats' publisher; `cancel(chatId, id)` and `cancelItem(chatId, id, itemId)` cancel a message or one of its items (see Cancel); `pendingFor(chatId)` reads a chat's outgoing messages back from the engine's jobs after a restart; `debugSnapshot(chatId)` describes what it holds. |
+| `ChatOutbox<M>` | The facade. `send(chatId, plannedSend, payload:)` and `sendText` make one publish job per send, after slow mode and the chat's limits let it through (a refusal reaches `onDenied` and makes no job); `idStrategy(chatId)` is the chat's id strategy, which places each accepted message's row; `sendInFlight(chatId)` is on while one of the chat's messages is sending; `byClientMessageId(chatId, id)` matches the server's echo of the host's own message, so the host inserts no twin row; `isFreshOutgoing(chatId, id)` answers true once per message the user just sent, and `appearanceOf(chatId, id, …)` how that row appears; `takeSendOrigin(mediaItemId)` answers an item's send origin once; `registerSender(sender)` makes the host's sender the chats' publisher; `cancel(chatId, id)` and `cancelItem(chatId, id, itemId)` cancel a message or one of its items (see Cancel); `pendingFor(chatId)` reads a chat's outgoing messages back from the engine's jobs after a restart; `debugSnapshot(chatId)` describes what it holds. |
 | `OutgoingMessageSender<M>` | The host's transport: `send(OutgoingSendRequest)` once per attempt, with the chat, the `clientMessageId` (the idempotency key), the decoded payload, each item's remote references and, under `SequentialServerIds`, `proposedId`. |
 | `OutgoingSendAnswer<M>` | What the server said: `sent` (`OutgoingSendResult(serverMessageId, serverKeys, payloadAsStored, missing)`), `reuploadItems(ids)`, `conflict(nextId, missing)`, `rejected(reason, retryable)` or `denied(action, reason)`. |
 | `OutgoingSent<M>` | What `onSent` hands the host for a published message: its id from now on, the row to replace (`rowAt`), the payload as sent and as stored, the server keys. |
@@ -43,6 +43,7 @@ Decision: [ADR 048](../../docs/adr/048-outgoing-messages.md). Diagnostics:
 | Settle a sent row | `onSent(sent)` (a `ChatOutbox` argument) runs inside the publish call: replace the row at `sent.rowAt` with the confirmed message (`updateMessage`, a message `identityOf` answers null for), from `payloadAsStored` when given (the rich-text reconcile). With `rowAt` null the row has left; place the confirmed message at `sent.position` when the history reaches it. Address a provisional row by its current position (`positionOf`). |
 | Follow a cancel | `onCancelled(cancelled)`: the row has left the tail; when `rowRemoved` is false (a row an appended message settled), remove the row at `message.position`. `onItemDropped(dropped)`: drop the item from the row at `message.position`. Both fire for the status control's cancel too, which reaches the outbox through the jobs. |
 | Draw the status | `onStatusChanged(message)` hears each change of a message's status after its send (the job moving on, a failure, a retry, the server's accept), with the message as it is now: the time pill and the error badge redraw on it, since a change need not move the row. A cancel is `onCancelled`'s. |
+| Animate a fresh row | As a row is first built, `appearanceOf(chatId, id, atBottom:, reduceMotion:)` answers once how it appears (see Appearance), null for a row that is not fresh; the host animates its own row with the answer's values. |
 | Offer Retry and Delete | For a `failed` message the menu calls `retry(chatId, id)` and `delete(chatId, id)`. Whether a denial offers Retry is the host's per-platform choice; an `undecodable` answer means only Delete helps. For `failed(sourceLost)` ask the user for the file again and pass its bytes: `retry(chatId, id, sources: {itemId: SourceBytes.blob(file)})`. Delete is followed by `onCancelled`, as a cancel is. |
 | Answer the server | Return a conflict or a replay with the confirmed messages between the tip and the server's id in `missing` when you have them, so the row can move to the server's id; return a server denial as `denied(action, reason)`, not a rejection. |
 | Resolve attach items | `itemOf(item, form)` returns the item's keys (the media key through the content assets' key mapping) and its source: a preparation input with its intent, a prepared file, or `remote`. |
@@ -142,6 +143,23 @@ nobody takes goes when its message is sent or cancelled, or
 `ChatOutbox.sendOriginLifetime` (5 s) after the send. Neither the picker
 nor the media cells depend on the outbox: the lookup is a plain
 `Rect? Function(MediaItemId)`.
+
+## Appearance
+
+`OutgoingAppearancePolicy` holds how a fresh row appears on each platform
+(`android()`, `ios()`, `desktop()`, `platform()`, the outbox's `appearance`)
+and resolves a row's situation to an `OutgoingAppearance`:
+
+| | Android | iOS | Desktop |
+| --- | --- | --- | --- |
+| list at the bottom | `slideUp`: the rows translate up by the added height, 250 ms on `(0.199, 0.011, 0.279, 0.910)` | `flight` while an item holds its send origin (the media cells fly, the row stays still); otherwise as Android | `none` |
+| list scrolled up | `fadeScale`: opacity 0 → 1 and scale 0.9 → 1 around the bubble centre, 250 ms, after `(1 − rowBottom / listHeight) · 100 ms` (`delayAt`) | the same | `none` |
+| text-only message | as media | as media, never a flight | `none` |
+
+Reduce motion answers `none`. `appearanceOf` reads the message's items and
+held origins itself (asking leaves the origin for the cell), shares
+`isFreshOutgoing`'s one-shot, and reports `rowAppeared`. The motion itself
+is the host's, since it owns the row.
 
 ## Identity and order
 
