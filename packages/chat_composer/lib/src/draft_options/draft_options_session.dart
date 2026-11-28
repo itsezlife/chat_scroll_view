@@ -75,6 +75,19 @@ enum DraftOptionsCloseTrigger {
   disposed,
 }
 
+/// A motion of the draft options overlay's presentation, as its `motion`
+/// event names it.
+enum DraftOptionsMotionPhase {
+  /// The overlay coming in.
+  open,
+
+  /// The overlay going.
+  close,
+
+  /// The presentation following a changed preview.
+  change,
+}
+
 /// One open of the draft options overlay: the value it edits, when edits
 /// reach the host, and how it closes.
 ///
@@ -320,6 +333,24 @@ final class DraftOptionsSession {
       DraftOptionsField.remove,
     ]);
   }
+
+  /// The presentation started a motion: [phase] over [duration] (already
+  /// scaled by the motion speed), [reduceMotion] when the speed is instant
+  /// and the motion lands on its end at once. Emits `motion`.
+  void reportMotion(
+    DraftOptionsMotionPhase phase, {
+    required Duration duration,
+    required bool reduceMotion,
+  }) => _emit(
+    ChatEventLevel.trace,
+    OverlayOp.motion,
+    () => {
+      'presentation': policy.presentation.name,
+      'phase': phase.name,
+      'durationMs': duration.inMilliseconds,
+      'reduceMotion': reduceMotion,
+    },
+  );
 
   /// Lets go of the listenables; called by the session's owner once the
   /// overlay is gone.

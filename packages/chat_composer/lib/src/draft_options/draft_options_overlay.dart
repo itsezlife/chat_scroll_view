@@ -4,6 +4,8 @@ import 'package:chat_composer/src/capabilities/composer_clock.dart';
 import 'package:chat_composer/src/draft_options/draft_link_page.dart';
 import 'package:chat_composer/src/draft_options/draft_link_part.dart';
 import 'package:chat_composer/src/draft_options/draft_link_rows.dart';
+import 'package:chat_composer/src/draft_options/draft_options_card.dart';
+import 'package:chat_composer/src/draft_options/draft_options_card_view.dart';
 import 'package:chat_composer/src/draft_options/draft_options_host.dart';
 import 'package:chat_composer/src/draft_options/draft_options_policy.dart';
 import 'package:chat_composer/src/draft_options/draft_options_session.dart';
@@ -480,14 +482,18 @@ class DraftOptionsOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     Widget overlay = ChromeScrim(
       controller: scrim,
-      child: Center(
-        child: _DraftOptionsPage(
-          session: session,
-          bubbleBuilder: bubbleBuilder,
-          text: text,
-          linkPage: linkPage,
+      child: switch (session.policy) {
+        DraftOptionsPolicy$Android(:final card, :final cardMotion) =>
+          _androidCard(context, card, cardMotion),
+        _ => Center(
+          child: _DraftOptionsPage(
+            session: session,
+            bubbleBuilder: bubbleBuilder,
+            text: text,
+            linkPage: linkPage,
+          ),
         ),
-      ),
+      },
     );
     if (session.policy.apply == DraftOptionsApply.commitOnSave) {
       // The box takes focus, so Enter and Escape reach it: a scope of its
@@ -508,6 +514,41 @@ class DraftOptionsOverlay extends StatelessWidget {
       overlay = _PressPassThrough(passes: passes, child: overlay);
     }
     return ChromeTextRoot(child: overlay);
+  }
+
+  // The Android card: the header from the policy's title, the live preview
+  // in its list and the rows in the glass menu under it.
+  Widget _androidCard(
+    BuildContext context,
+    DraftOptionsCardLayout card,
+    DraftOptionsCardMotion motion,
+  ) {
+    final strings = ChromeStringsScope.composerOf(context).draftOptions;
+    final (title, subtitle) = switch (session.policy.title) {
+      DraftOptionsTitle.titleAndSubtitle => (
+        strings.linkTitle,
+        strings.linkSubtitle,
+      ),
+      DraftOptionsTitle.titleWithOnePart => (strings.linkTitle, null),
+      DraftOptionsTitle.none => (null, null),
+    };
+    return DraftOptionsCardView(
+      session: session,
+      scrim: scrim,
+      layout: card,
+      motion: motion,
+      title: title,
+      subtitle: subtitle,
+      preview: _DraftLivePreview(
+        session: session,
+        bubbleBuilder: bubbleBuilder,
+        text: text,
+      ),
+      menu: switch (linkPage) {
+        final page? => DraftLinkRows(page: page),
+        null => null,
+      },
+    );
   }
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
@@ -565,27 +606,10 @@ class _DraftOptionsPage extends StatelessWidget {
             final subtitle? => Text(subtitle, style: style),
             null => null,
           },
-          Stack(
-            children: [
-              ValueListenableBuilder(
-                valueListenable: session.page,
-                builder: (context, page, _) => ValueListenableBuilder(
-                  valueListenable: session.value,
-                  builder: (context, part, _) => bubbleBuilder(
-                    context,
-                    DraftOptionsPreview(
-                      text: text,
-                      part: part,
-                      page: page,
-                      onLinkTap: session.tapLink,
-                    ),
-                  ),
-                ),
-              ),
-              Positioned.fill(
-                child: _DraftLinkHighlightLayer(highlight: session.highlight),
-              ),
-            ],
+          _DraftLivePreview(
+            session: session,
+            bubbleBuilder: bubbleBuilder,
+            text: text,
           ),
           ?switch (linkPage) {
             final page? => DraftLinkRows(page: page),
@@ -595,6 +619,44 @@ class _DraftOptionsPage extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The live preview: the host's bubble of the draft as it stands, rebuilt
+/// on every edit and page change, with the chosen link's mark above it.
+class _DraftLivePreview extends StatelessWidget {
+  const _DraftLivePreview({
+    required this.session,
+    required this.bubbleBuilder,
+    required this.text,
+  });
+
+  final DraftOptionsSession session;
+  final DraftOptionsBubbleBuilder bubbleBuilder;
+  final model.RichText text;
+
+  @override
+  Widget build(BuildContext context) => Stack(
+    children: [
+      ValueListenableBuilder(
+        valueListenable: session.page,
+        builder: (context, page, _) => ValueListenableBuilder(
+          valueListenable: session.value,
+          builder: (context, part, _) => bubbleBuilder(
+            context,
+            DraftOptionsPreview(
+              text: text,
+              part: part,
+              page: page,
+              onLinkTap: session.tapLink,
+            ),
+          ),
+        ),
+      ),
+      Positioned.fill(
+        child: _DraftLinkHighlightLayer(highlight: session.highlight),
+      ),
+    ],
+  );
 }
 
 /// The chosen link's mark above the live preview: its contour filled in the

@@ -6,6 +6,12 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (card overlay timing)
+
+- `ChromeCardOverlayTiming` (`show`, `hide`, `offsets`, `listScroll`: 250 ms
+  on the list cubic; `offsetsDelay` 50 ms): a full-window card overlay's open,
+  close and change, as the draft options overlay's Android card plays them.
+
 ### Added (keyboard timing)
 
 - `ChromeKeyboardTiming` (`heldReopen` 50 ms, `holdRelease` 15 ms): when a

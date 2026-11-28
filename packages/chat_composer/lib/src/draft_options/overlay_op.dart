@@ -90,4 +90,9 @@ enum OverlayOp implements DiagnosticOp {
   /// (`keyboardWasUp`) and whether a held keyboard was reopened
   /// (`reopened`). Once on open, and once more when a hold ends.
   keyboardIntent,
+
+  /// The presentation started a motion (trace): its `presentation`, the
+  /// `phase` (`open`, `close`, `change`), its `durationMs` after the motion
+  /// speed, and `reduceMotion` when the speed is instant.
+  motion,
 }
