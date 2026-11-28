@@ -12,8 +12,8 @@ their changes.
 
 ### The policy and the layout
 
-- `MessageMediaPolicy` (`android()`, `ios()`, `desktop()`, `platform()`,
-  `forPlatform`), each part replaceable through `copyWith`: the layout step
+- `MessageMediaPolicy` (`android()`, `ios()`, `desktop()`, `web()`,
+  `platform()`, `forPlatform`), each part replaceable through `copyWith`: the layout step
   (`MediaLayoutStep`, the default `MediaLayoutPolicy`), the file rows
   (`fileStack`) and the link preview card (`linkPreview`), which every step
   is handed and the cells draw by, the corners (`MediaCornerPolicy`), the
@@ -24,7 +24,7 @@ their changes.
 - `MediaLayoutPolicy` lays boxes (pictures: photo, video, animation) into
   mosaic blocks, files and custom kinds into file stacks and the link
   preview into a card block last. Its parts: `MediaBoxSizing` (`$Android`,
-  `$IOS`, `$Desktop`), the `MosaicAlgorithm` slot (`GroupedMosaicAlgorithm`,
+  `$IOS`, `$Desktop`, `$Web`), the `MosaicAlgorithm` slot (`GroupedMosaicAlgorithm`,
   `IosMosaicAlgorithm`, `DesktopMosaicAlgorithm`), `MediaFitPolicy` (per
   kind alone, `album` for a mosaic) and `MediaCaptionWidthPolicy`.
 - `MediaLayoutInput` (with `MediaLayoutChrome`, `MediaLinkPreviewInput`,
@@ -83,6 +83,11 @@ their changes.
   message id is no part. `MediaGesturePolicy` says what a tap does, the
   cursor, the hover highlight and the input guard; `MediaViewerRequest`
   and `MessageMediaState.rectOf` give a viewer its origin frames.
+- The web (`MessageMediaPolicy.web()`, what `platform()` gives in a
+  browser): boxes by the window's width class (`MediaLayoutInput.widthClass`,
+  else its `displaySize`), 340 compact and 420 wider, re-laid out at once on
+  a resize; the hover highlight and the click cursor only for a mouse-class
+  pointer (`MediaGesturePolicy.web`, `hoverNeedsMouse`).
 - One semantics node per item and one per card, worded by the host's media
   strings.
 - `MediaItemAction.allowedItemActions`: the per-item actions an item allows
@@ -103,8 +108,9 @@ their changes.
   (with the `MediaBuilder`), `spoilerRevealed`, `transitionStarted`,
   `transitionInterrupted`, `hit` (with the `MediaHitOutcome`),
   `activationDropped`, `viewerOpened`, `originRectMissing` (with the
-  `MediaViewerMoment`), `uploadState`, `itemCancelled` and
-  `sendOriginFlight` (with the `MediaFlightOutcome`); `linkPreview` /
+  `MediaViewerMoment`), `uploadState`, `itemCancelled`,
+  `sendOriginFlight` (with the `MediaFlightOutcome`) and `webClassChanged`;
+  `linkPreview` /
   `cardShown`. Timeline sections `media.layout`, `media.lerp`,
   `media.cellBuild` and `media.cardLayout`.
 

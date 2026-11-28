@@ -1,6 +1,7 @@
-import 'dart:ui' show Color;
+import 'dart:ui' show Color, PointerDeviceKind;
 
-import 'package:chrome_foundation/chrome_foundation.dart' show ChromeTapTiming;
+import 'package:chrome_foundation/chrome_foundation.dart'
+    show ChromeInputClass, ChromeTapTiming;
 import 'package:flutter/foundation.dart';
 import 'package:message_media/src/message_media_hit_part.dart';
 import 'package:mpx_core/mpx_core.dart' show AssetLoadState, MediaStatusIcon;
@@ -64,12 +65,12 @@ final class MediaHoverLook {
 /// normal mode, per platform family; message selection is the viewport's,
 /// where every part toggles the message.
 ///
-/// | | Android | iOS | Desktop |
-/// | --- | --- | --- | --- |
-/// | Tap on a loading item ([loadingTap]) | cancels through the status control only | cancels anywhere on the picture | cancels anywhere on the picture |
-/// | Click cursor over a part ([clickCursor]) | no | no | yes, plain in selection |
-/// | Hover ([hover]) | none | none | cell-local highlight, 200 ms |
-/// | Repeated activation ([activationGuard]) | dropped for 400 ms | the same | the same |
+/// | | Android | iOS | Desktop | Web |
+/// | --- | --- | --- | --- | --- |
+/// | Tap on a loading item ([loadingTap]) | cancels through the status control only | cancels anywhere on the picture | cancels anywhere on the picture | cancels anywhere on the picture |
+/// | Click cursor over a part ([clickCursor]) | no | no | yes, plain in selection | with a mouse ([hoverNeedsMouse]) |
+/// | Hover ([hover]) | none | none | cell-local highlight, 200 ms | the same, with a mouse |
+/// | Repeated activation ([activationGuard]) | dropped for 400 ms | the same | the same | the same |
 ///
 /// A double tap acts as over any bubble on the platform and a long press,
 /// a secondary click or the options affordance open the message menu: both
@@ -82,6 +83,7 @@ final class MediaGesturePolicy {
     this.clickCursor = false,
     this.hover,
     this.activationGuard = ChromeTapTiming.repeatGuard,
+    this.hoverNeedsMouse = false,
   });
 
   /// Android: a loading picture opens the viewer, the status control
@@ -100,6 +102,21 @@ final class MediaGesturePolicy {
         hover: const MediaHoverLook(),
       );
 
+  /// The web: the desktop's cursor and highlight, but only for a pointer of
+  /// the mouse's input class; a tap is the same with any pointer.
+  ///
+  /// A browser runs on touch screens and with a mouse alike, and one device
+  /// may have both, so the class comes from each hover event's pointer kind
+  /// (`ChromeInputClass.fromPointerKind`), not from the platform: a hovering
+  /// stylus or a touch screen shows no highlight and no click cursor.
+  const MediaGesturePolicy.web()
+    : this(
+        loadingTap: MediaLoadingTap.anywhere,
+        clickCursor: true,
+        hover: const MediaHoverLook(),
+        hoverNeedsMouse: true,
+      );
+
   /// Where a tap cancels a loading item.
   final MediaLoadingTap loadingTap;
 
@@ -115,6 +132,19 @@ final class MediaGesturePolicy {
   /// taps opens the viewer once, and a double tap on the status control
   /// does not download and cancel at once.
   final Duration activationGuard;
+
+  /// Whether [hover] and [clickCursor] answer only a pointer of the mouse's
+  /// input class ([hoversWith]); otherwise any hovering pointer does.
+  final bool hoverNeedsMouse;
+
+  /// Whether a hovering pointer of [kind] gets [hover] and [clickCursor].
+  ///
+  /// A kind of no input class (`PointerDeviceKind.unknown`) counts as a
+  /// mouse: hover events come from hovering devices.
+  bool hoversWith(PointerDeviceKind kind) =>
+      !hoverNeedsMouse ||
+      (ChromeInputClass.fromPointerKind(kind) ?? ChromeInputClass.mouse) ==
+          ChromeInputClass.mouse;
 
   /// What a normal-mode tap on [part] of an item in [state] does.
   ///
@@ -147,11 +177,13 @@ final class MediaGesturePolicy {
     MediaHoverLook? hover,
     bool replaceHover = false,
     Duration? activationGuard,
+    bool? hoverNeedsMouse,
   }) => MediaGesturePolicy(
     loadingTap: loadingTap ?? this.loadingTap,
     clickCursor: clickCursor ?? this.clickCursor,
     hover: replaceHover || hover != null ? hover : this.hover,
     activationGuard: activationGuard ?? this.activationGuard,
+    hoverNeedsMouse: hoverNeedsMouse ?? this.hoverNeedsMouse,
   );
 
   @override
@@ -160,7 +192,8 @@ final class MediaGesturePolicy {
       other.loadingTap == loadingTap &&
       other.clickCursor == clickCursor &&
       other.hover == hover &&
-      other.activationGuard == activationGuard;
+      other.activationGuard == activationGuard &&
+      other.hoverNeedsMouse == hoverNeedsMouse;
 
   @override
   int get hashCode => Object.hash(
@@ -169,5 +202,6 @@ final class MediaGesturePolicy {
     clickCursor,
     hover,
     activationGuard,
+    hoverNeedsMouse,
   );
 }

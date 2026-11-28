@@ -54,6 +54,7 @@ import 'transition/media_layout_transition_test.dart'
     as transition_media_layout_transition_test;
 import 'transition/message_media_transition_test.dart'
     as transition_message_media_transition_test;
+import 'web/message_media_web_test.dart' as web_message_media_web_test;
 
 void main() {
   group(
@@ -134,4 +135,5 @@ void main() {
     'transition/message_media_transition_test',
     transition_message_media_transition_test.main,
   );
+  group('web/message_media_web_test', web_message_media_web_test.main);
 }
