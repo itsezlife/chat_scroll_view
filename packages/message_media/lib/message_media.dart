@@ -59,6 +59,7 @@ export 'src/outgoing/media_sent_check.dart';
 export 'src/paint/link_preview_card_view.dart' show LinkPreviewCardColors;
 export 'src/paint/media_box_cell.dart';
 export 'src/paint/media_cell_builders.dart';
+export 'src/paint/media_file_disc.dart';
 export 'src/paint/media_row_cell.dart';
 export 'src/paint/message_media_body.dart'
     show LinkPreviewActivated, MediaChromeHitTest;

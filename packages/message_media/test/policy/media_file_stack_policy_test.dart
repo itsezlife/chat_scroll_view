@@ -205,17 +205,45 @@ void main() {
       expect(_cell(block, 'i').height, 86);
     });
 
-    test('a single file widens to its caption + 31, never past the list', () {
+    test('a single file widens to its caption + 31, never past the '
+        'bubble\'s max content width', () {
       final block = _stack(
+        _android,
+        _input(
+          [_file('f')],
+          availableWidth: 400,
+          captionWidth: 260,
+          captionPosition: MediaCaptionPosition.below,
+        ).withContentWidth(300),
+      );
+      expect(block.rect.width, 300);
+
+      final wide = _stack(
         _android,
         _input(
           [_file('f')],
           availableWidth: 400,
           captionWidth: 360,
           captionPosition: MediaCaptionPosition.below,
-        ).withContentWidth(300),
+        ).withContentWidth(380),
       );
-      expect(block.rect.width, 391);
+      expect(wide.rect.width, 380);
+    });
+
+    test('a stack never takes more than the bubble\'s max content width, so '
+        'its rows and their options stay inside the bubble', () {
+      final block = _stack(
+        _android,
+        _input([
+          _file('a'),
+          _image('b'),
+        ], availableWidth: 420).withContentWidth(274),
+      );
+      expect(block.rect.width, 274);
+      final first = _cell(block, 'a');
+      final options = const MessageMediaPolicy.android().chrome.options
+          .affordanceOf(block.cells.first, block)!;
+      expect(options.iconRect.right, lessThanOrEqualTo(first.right));
     });
 
     test('a stack is min(list − 50 − avatar, 300) wide; rows pull up 3 with '

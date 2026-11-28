@@ -68,7 +68,10 @@ their changes.
   (`MediaSpoilerCover`, `MediaSpoilerReveal`) and the options affordance.
 - A file row cuts its name in the middle (`MiddleElidedText`), with the full
   name in the chrome tooltip on the desktop; its words come from the host's
-  media strings.
+  media strings. A row without a picture draws the file disc
+  (`MediaFileDisc`, the palette's accent or `MediaRowCell.discColor`) under
+  its status control. A file stack is never wider than the bubble's max
+  content width.
 - The card is drawn in `LinkPreviewCardColors`, the host's or the chrome
   palette's accent (`LinkPreviewCardColors.of`); the fill's share in a dark
   theme follows the palette's brightness.

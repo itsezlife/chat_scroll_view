@@ -6,7 +6,7 @@
 library;
 
 import 'package:chrome_foundation/chrome_foundation.dart'
-    show ChromeStrings, ChromeTooltip;
+    show ChromePalette, ChromeStrings, ChromeTooltip;
 import 'package:chrome_foundation/testing.dart';
 import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart' hide RichText;
@@ -155,6 +155,35 @@ void main() {
       find.byType(ContentAssetView),
     );
     expect(status.status, const MediaStatusMode.control());
+  });
+
+  testWidgets('a row without a picture draws the file disc in the control '
+      'slot, under the control, in the theme\'s accent', (tester) async {
+    const policy = MessageMediaPolicy.android();
+    await pump(tester, policy, [_file('f', name: 'notes.txt')]);
+
+    expect(
+      rectIn(tester, 'f', find.byType(MediaFileDisc)),
+      const Rect.fromLTWH(14, 6, 44, 44),
+    );
+    final disc = tester.widget<MediaFileDisc>(find.byType(MediaFileDisc));
+    expect(disc.color, const ChromePalette.light().accent);
+    // The control draws over the disc.
+    final stack = find
+        .ancestor(of: find.byType(MediaFileDisc), matching: find.byType(Stack))
+        .first;
+    final children = tester.widget<Stack>(stack).children;
+    expect(
+      children.indexWhere((c) => c is MediaFileDisc),
+      lessThan(children.indexWhere((c) => c is IgnorePointer)),
+    );
+  });
+
+  testWidgets('a row with a thumbnail draws no file disc', (tester) async {
+    await pump(tester, const MessageMediaPolicy.android(), [
+      _file('i', name: 'b.png', mimeType: 'image/png'),
+    ]);
+    expect(find.byType(MediaFileDisc), findsNothing);
   });
 
   testWidgets('a row with a thumbnail draws the thumbnail, the control '
