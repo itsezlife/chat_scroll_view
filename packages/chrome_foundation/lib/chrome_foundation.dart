@@ -4,6 +4,8 @@
 library;
 
 export 'src/backdrop/backdrop_snapshot.dart';
+export 'src/backdrop/chrome_scrim.dart';
+export 'src/backdrop/chrome_scrim_preset.dart';
 export 'src/box/chrome_alert.dart';
 export 'src/box/chrome_box_layer.dart';
 export 'src/box/chrome_tooltip.dart';
@@ -50,6 +52,7 @@ export 'src/motion/motion_spec.dart';
 export 'src/motion/overshoot_curve.dart';
 export 'src/motion/pointer_menu_motion.dart';
 export 'src/motion/scale_pressable.dart';
+export 'src/motion/scrim_motion.dart';
 export 'src/motion/spoiler_particle_motion.dart';
 export 'src/palette/chrome_contrast.dart';
 export 'src/palette/chrome_palette.dart';

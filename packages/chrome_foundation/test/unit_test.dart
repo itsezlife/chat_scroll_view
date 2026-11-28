@@ -9,6 +9,9 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'backdrop/backdrop_snapshot_test.dart' as backdrop_snapshot_test;
+import 'backdrop/chrome_scrim_golden_test.dart' as chrome_scrim_golden_test;
+import 'backdrop/chrome_scrim_preset_test.dart' as chrome_scrim_preset_test;
+import 'backdrop/chrome_scrim_test.dart' as chrome_scrim_test;
 import 'backdrop/stack_blur_test.dart' as stack_blur_test;
 import 'box/chrome_box_layer_test.dart' as chrome_box_layer_test;
 import 'box/chrome_tooltip_test.dart' as chrome_tooltip_test;
@@ -72,6 +75,15 @@ import 'tokens/spoiler_tokens_test.dart' as spoiler_tokens_test;
 
 void main() {
   group('backdrop/backdrop_snapshot_test.dart', backdrop_snapshot_test.main);
+  group(
+    'backdrop/chrome_scrim_golden_test.dart',
+    chrome_scrim_golden_test.main,
+  );
+  group(
+    'backdrop/chrome_scrim_preset_test.dart',
+    chrome_scrim_preset_test.main,
+  );
+  group('backdrop/chrome_scrim_test.dart', chrome_scrim_test.main);
   group('backdrop/stack_blur_test.dart', stack_blur_test.main);
   group('box/chrome_box_layer_test.dart', chrome_box_layer_test.main);
   group('box/chrome_tooltip_test.dart', chrome_tooltip_test.main);

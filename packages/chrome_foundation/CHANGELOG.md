@@ -6,6 +6,20 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (chrome scrim)
+
+- `ChromeScrim` and `ChromeScrimController`: the backdrop of a surface over
+  the whole window, a still captured before the surface paints under a dim,
+  on separate clocks; closes on a press outside (`ChromeScrimCloseOn`), back
+  and Escape where the preset says; `cancel` removes it at once; it disposes
+  its still itself. Owners are told its phases (`ChromeScrimPhase`) and
+  report them; the package emits nothing.
+- `ChromeScrimPreset` (`android`, `ios`, `ipad`, `desktop`, `web`,
+  `contentPreview`), `ChromeScrimStill` (with `androidGlassSource`, declared
+  for glass on a scrim) and `ChromeScrimTone`; the presets' fades in
+  `ScrimMotion`.
+- `BackdropSnapshot.width` and `height`: the still's size, known at capture.
+
 ### Added (media strings)
 
 - **Breaking:** `ChromeStrings` requires `media` (`MediaStrings`): the
