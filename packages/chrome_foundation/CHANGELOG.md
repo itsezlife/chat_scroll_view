@@ -6,6 +6,14 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed (sheet spring back)
+
+- A bottom sheet a short pull left low springs back from where the finger
+  left it. Before, `ChromeSheetDrag` jumped to one pixel below its rest on
+  release and moved only that pixel, so the return read as a snap.
+- `ChromeSheetDragSpec.springBackCurve` (default `Curves.ease`, the curve a
+  picker sheet returns to its rest on) replaces the fixed ease out.
+
 ### Moved (overlay back listener)
 
 - `OverlayBackButtonListener` comes from here, not from `chat_composer`: a
