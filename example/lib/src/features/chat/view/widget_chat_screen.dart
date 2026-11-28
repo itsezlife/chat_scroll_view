@@ -71,6 +71,7 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_search_b
 import 'package:chat_scroll_view_example/src/features/chat/widgets/date_separator.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_backend_error.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message_meta.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_row_appearance.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/large_emoji_limit_button.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/notes_dialog.dart';
@@ -719,14 +720,58 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       _showNotice('Would open ${name ?? 'the file'}');
       return;
     }
+    final message = _dataSource?.getMessage(request.messageId);
     unawaited(
       ChatMediaViewer.open(
         context,
         request,
         items,
         downloadContext: widget.kind.downloadContext,
+        players: widget.services.libraryPlayers,
+        state: _mediaState,
+        details: ChatViewerDetails(
+          title: message?.sender ?? '',
+          subtitle: switch (message) {
+            final message? => DemoMessageMeta.formatTime(message.createdAt),
+            null => null,
+          },
+          caption: message?.text,
+          actionsOf: (item) => ChatMediaViewer.actionsFor(
+            item,
+            allowed: _itemActionsOf(request.messageId, item),
+            canForward: !_forwardDeniedOf(request.messageId),
+            canDelete: true,
+            onAction: (item, action) =>
+                _onViewerAction(request.messageId, item, action),
+          ),
+        ),
       ),
     );
+  }
+
+  /// Whether the chat's protection forbids forwarding the message
+  /// [messageId].
+  bool _forwardDeniedOf(int messageId) => _rights.capabilities.value.protection
+      .forMessage(
+        messageProtected:
+            _dataSource?.getMessage(messageId)?.isProtected ?? false,
+      )
+      .contains(ProtectionFlags.forward);
+
+  /// A viewer action on [item] of the message [messageId]: save and share go
+  /// where the menu's do; forward and delete are stubs that say what they
+  /// would do.
+  void _onViewerAction(int messageId, MediaItem item, ChatViewerAction action) {
+    switch (action) {
+      case ChatViewerAction.saveToGallery:
+        _onMediaAction(messageId, item, MediaItemAction.saveToGallery);
+      case ChatViewerAction.share:
+        _onMediaAction(messageId, item, MediaItemAction.share);
+      case ChatViewerAction.forward:
+        _showNotice('Would forward the message');
+      case ChatViewerAction.delete:
+        _showNotice('Would delete the message');
+    }
   }
 
   /// The item's options from its semantics action: the per-item rows over
