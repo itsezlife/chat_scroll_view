@@ -398,13 +398,24 @@ abstract class ChatDataSource {
   /// Emits [InsertMutation] (not [InsertBatchMutation]). For bulk tail bursts
   /// use [insertMessages] — integrator explicit API choice vs silent
   /// [upsertMessages].
-  void insertMessage(IChatMessage message, {Object? reason}) {
+  ///
+  /// [followSelf] false inserts a self-authored row that is not a new send
+  /// (an outgoing row placed again after a restart): the viewport does not
+  /// pull a reader scrolled into history to it
+  /// ([InsertMutation.followSelf]).
+  void insertMessage(
+    IChatMessage message, {
+    Object? reason,
+    bool followSelf = true,
+  }) {
     if (_disposed) return;
     assert(
       !_removalStaging.containsKey(message.id),
       'insertMessage: id ${message.id} is pending removal',
     );
-    _notifyMutation(ChatMutation.insert(message.id, reason: reason));
+    _notifyMutation(
+      ChatMutation.insert(message.id, reason: reason, followSelf: followSelf),
+    );
     writeMessageSilent(message);
     _extendBoundariesForInsert(message.id);
     // After eviction, writeMessageSilent recreates the chunk as `valid` with
@@ -424,7 +435,13 @@ abstract class ChatDataSource {
   /// Integrators choose this over [upsertMessages] when batch insert intent /
   /// animation eligibility is desired (e.g. app-resume tail burst). Fetch and
   /// silent cache merge MUST use [upsertMessages] instead.
-  void insertMessages(Iterable<IChatMessage> messages, {Object? reason}) {
+  ///
+  /// [followSelf] as for [insertMessage].
+  void insertMessages(
+    Iterable<IChatMessage> messages, {
+    Object? reason,
+    bool followSelf = true,
+  }) {
     if (_disposed) return;
     final normalized = _normalizeInsertMessages(messages);
     if (normalized.isEmpty) return;
@@ -436,6 +453,7 @@ abstract class ChatDataSource {
         ids: ids,
         operationId: operationId,
         reason: reason,
+        followSelf: followSelf,
       ),
     );
     for (final message in normalized) {
