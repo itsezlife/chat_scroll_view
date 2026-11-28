@@ -41,7 +41,7 @@ import 'package:chat_scroll_view_example/src/features/chat/input/chat_outgoing_m
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_pack_sheets.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_delivery.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outbox.dart';
-import 'package:chat_scroll_view_example/src/features/chat/outbox/fake_server_script_sheet.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_server_script_sheet.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/outbox_debug_panel.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/source_lost_prompt.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
@@ -1961,10 +1961,10 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                     if (kDebugMode && _outboxChat != null) ...[
                       const SizedBox(width: 4),
                       IconButton.filledTonal(
-                        key: FakeServerScriptSheet.openKey,
+                        key: DemoServerScriptSheet.openKey,
                         tooltip: 'Fake server',
                         onPressed: () => unawaited(
-                          FakeServerScriptSheet.show(
+                          DemoServerScriptSheet.show(
                             context,
                             server: widget.services.outbox.server,
                             chatId: widget.chatId,

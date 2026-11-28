@@ -12,9 +12,9 @@ import 'package:chat_outbox/chat_outbox.dart';
 import 'package:chat_outbox/testing.dart';
 import 'package:chat_scroll_view_example/src/app/demo_chrome_strings.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_chat_server.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_delivery.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outbox.dart';
-import 'package:chat_scroll_view_example/src/features/chat/outbox/fake_chat_server.dart';
 import 'package:content_model/content_model.dart' show MediaItemId;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mpx_core/mpx_core.dart';
@@ -25,14 +25,14 @@ void main() {
   const history = 20;
 
   late FakeOutboxTransfers transfers;
-  late FakeChatServer server;
+  late DemoChatServer server;
   late DemoOutbox demo;
   late GeneratedChatDataSource source;
   late List<String> announced;
 
   setUp(() {
     transfers = FakeOutboxTransfers();
-    server = FakeChatServer(peerDelay: Duration.zero);
+    server = DemoChatServer(peerDelay: Duration.zero);
     demo = DemoOutbox(transfers: transfers, server: server);
     source = GeneratedChatDataSource(messageCount: history);
     announced = [];

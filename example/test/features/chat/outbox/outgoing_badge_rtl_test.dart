@@ -6,8 +6,8 @@ library;
 import 'package:chat_outbox/testing.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_chat_server.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outbox.dart';
-import 'package:chat_scroll_view_example/src/features/chat/outbox/fake_chat_server.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_error_badge.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message_meta.dart';
@@ -19,13 +19,13 @@ void main() {
   const chat = 'c1';
 
   Future<void> pumpFailed(WidgetTester tester, TextDirection direction) async {
-    final server = FakeChatServer(peerDelay: Duration.zero);
+    final server = DemoChatServer(peerDelay: Duration.zero);
     final demo = DemoOutbox(transfers: FakeOutboxTransfers(), server: server);
     addTearDown(demo.dispose);
     final source = GeneratedChatDataSource(messageCount: 0);
     final bound = demo.chat(chat);
     await bound.attach(source);
-    server.script(chat, FakeServerScript.reject);
+    server.script(chat, DemoServerScript.reject);
     final message = bound.sendText('failed')!;
     // The server answers on a timer.
     await tester.pump(const Duration(milliseconds: 50));

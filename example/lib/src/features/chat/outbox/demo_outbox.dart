@@ -7,10 +7,10 @@ import 'package:chat_outbox/chat_outbox.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/app/demo_chrome_strings.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_chat_server.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_delivery.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outgoing_media.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outgoing_payload.dart';
-import 'package:chat_scroll_view_example/src/features/chat/outbox/fake_chat_server.dart';
 import 'package:content_assets/content_assets.dart'
     show ContentKeyMedia, MediaKeyContent;
 import 'package:content_model/content_model.dart';
@@ -36,11 +36,11 @@ final class DemoOutbox {
   /// says, the running platform's preset unless given.
   DemoOutbox({
     required OutboxTransfers transfers,
-    FakeChatServer? server,
+    DemoChatServer? server,
     DemoOutgoingMedia? media,
     OutgoingAppearancePolicy? appearance,
     this.sender = 'Hixie',
-  }) : server = server ?? FakeChatServer(),
+  }) : server = server ?? DemoChatServer(),
        media = media ?? DemoOutgoingMedia() {
     outbox = ChatOutbox<DemoOutgoingPayload>(
       transfers: transfers,
@@ -74,7 +74,7 @@ final class DemoOutbox {
   }
 
   /// The server every chat sends to.
-  final FakeChatServer server;
+  final DemoChatServer server;
 
   /// The outgoing items' keys and where their pictures come from.
   final DemoOutgoingMedia media;
@@ -134,7 +134,7 @@ final class DemoOutbox {
   }
 
   /// [message] as the chat's row.
-  static UserChatMessage rowOfServer(FakeServerMessage message) {
+  static UserChatMessage rowOfServer(DemoServerMessage message) {
     final at = message.sentAt.toLocal();
     return UserChatMessage(
       id: message.id,
@@ -177,7 +177,7 @@ final class DemoOutboxChat {
   final String chatId;
 
   ChatDataSource? _$source;
-  StreamSubscription<FakeServerMessage>? _$deliveries;
+  StreamSubscription<DemoServerMessage>? _$deliveries;
   listen.ValueListenable<ChatCapabilities>? _capabilities;
   CapabilityDenialText? _denialText;
   CapabilityDeniedHandler? _onDenied;
@@ -699,7 +699,7 @@ final class DemoOutboxChat {
 
   // --- The server's deliveries -----------------------------------------------
 
-  void _onDelivery(FakeServerMessage message) {
+  void _onDelivery(DemoServerMessage message) {
     final source = _$source;
     if (source == null) return;
     // The echo of the user's own message: the outgoing row is its one row.
@@ -742,7 +742,7 @@ final class _ServerSender
   ) async {
     final payload = request.payload;
     final answer = await _owner.server.send(
-      FakeServerSend(
+      DemoServerSend(
         chatId: request.chatId,
         clientMessageId: request.clientMessageId,
         proposedId: request.proposedId,
@@ -752,11 +752,11 @@ final class _ServerSender
         itemIds: [for (final id in request.items.keys) '$id'],
       ),
     );
-    List<IChatMessage> rows(List<FakeServerMessage> messages) => [
+    List<IChatMessage> rows(List<DemoServerMessage> messages) => [
       for (final message in messages) DemoOutbox.rowOfServer(message),
     ];
     return switch (answer) {
-      FakeServerAccepted(:final message, :final missing) =>
+      DemoServerAccepted(:final message, :final missing) =>
         OutgoingSendAnswer.sent(
           serverMessageId: message.id,
           payloadAsStored: DemoOutgoingPayload(
@@ -766,19 +766,19 @@ final class _ServerSender
           ),
           missing: rows(missing),
         ),
-      FakeServerConflict(:final nextId, :final missing) =>
+      DemoServerConflict(:final nextId, :final missing) =>
         OutgoingSendAnswer.conflict(nextId: nextId, missing: rows(missing)),
-      FakeServerRejected(:final code) => OutgoingSendAnswer.rejected(
+      DemoServerRejected(:final code) => OutgoingSendAnswer.rejected(
         code,
         retryable: true,
       ),
-      FakeServerDenied() => OutgoingSendAnswer.denied(
+      DemoServerDenied() => OutgoingSendAnswer.denied(
         request.items.isEmpty
             ? CapabilityAction.sendText
             : CapabilityAction.sendPhoto,
         const DenialReason.everyone(),
       ),
-      FakeServerReupload(:final itemIds) => OutgoingSendAnswer.reuploadItems([
+      DemoServerReupload(:final itemIds) => OutgoingSendAnswer.reuploadItems([
         for (final id in itemIds) MediaItemId.parse(id),
       ]),
     };

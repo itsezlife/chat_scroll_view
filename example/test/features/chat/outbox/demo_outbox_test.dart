@@ -7,9 +7,9 @@ import 'package:chat_outbox/chat_outbox.dart';
 import 'package:chat_outbox/testing.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_chat_server.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outbox.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outgoing_media.dart';
-import 'package:chat_scroll_view_example/src/features/chat/outbox/fake_chat_server.dart';
 import 'package:chat_scroll_view_example/src/features/logs/data/diagnostics_journal.dart';
 import 'package:chat_scroll_view_example/src/features/logs/model/journal_view.dart';
 import 'package:content_assets/content_assets.dart';
@@ -25,7 +25,7 @@ void main() {
   const history = 20;
 
   late FakeOutboxTransfers transfers;
-  late FakeChatServer server;
+  late DemoChatServer server;
   late DemoOutbox demo;
   late GeneratedChatDataSource source;
 
@@ -40,7 +40,7 @@ void main() {
 
   setUp(() {
     transfers = FakeOutboxTransfers();
-    server = FakeChatServer(peerDelay: Duration.zero);
+    server = DemoChatServer(peerDelay: Duration.zero);
     demo = outboxOver(transfers);
     source = GeneratedChatDataSource(messageCount: history);
   });
@@ -90,7 +90,7 @@ void main() {
   test('a peer posting while a send uploads takes its id: the outgoing row '
       'moves up by one, then is sent there, with no twin', () async {
     final bound = await openChat();
-    server.script(chat, FakeServerScript.peer);
+    server.script(chat, DemoServerScript.peer);
 
     final message = bound
         .sendPlanned(
@@ -107,7 +107,7 @@ void main() {
     );
     final row = demo.outbox.byClientMessageId(chat, message.clientMessageId)!;
     expect(row.position, history + 1);
-    expect(source.getMessage(history)!.sender, FakeChatServer.peerName);
+    expect(source.getMessage(history)!.sender, DemoChatServer.peerName);
     expect(bodyAt(history + 1), contains('photo'));
 
     final job = transfers.jobs.single.id;
@@ -125,7 +125,7 @@ void main() {
   test('a conflict ends sent at the server id, the peer message placed '
       'before it once', () async {
     final bound = await openChat();
-    server.script(chat, FakeServerScript.conflict);
+    server.script(chat, DemoServerScript.conflict);
 
     final message = bound.sendText('mine')!;
     await pumpEventQueue();
@@ -134,14 +134,14 @@ void main() {
       statusOf(bound, message.clientMessageId),
       const OutgoingStatus.sent(),
     );
-    expect(source.getMessage(history)!.sender, FakeChatServer.peerName);
+    expect(source.getMessage(history)!.sender, DemoChatServer.peerName);
     expect(bodyAt(history + 1), contains('mine'));
     expect(source.newestKnownId, history + 1);
   });
 
   test('a rejection leaves the message failed in the tail', () async {
     final bound = await openChat();
-    server.script(chat, FakeServerScript.reject);
+    server.script(chat, DemoServerScript.reject);
 
     final message = bound.sendText('nope')!;
     await pumpEventQueue();
@@ -158,7 +158,7 @@ void main() {
     final denied = <CapabilityAction>[];
     final bound = demo.chat(chat);
     await bound.attach(source, onDenied: (action, _) => denied.add(action));
-    server.script(chat, FakeServerScript.deny);
+    server.script(chat, DemoServerScript.deny);
 
     final message = bound.sendText('nope')!;
     await pumpEventQueue();
@@ -187,7 +187,7 @@ void main() {
 
     // The next run: the same engine journal, a fresh history.
     source = GeneratedChatDataSource(messageCount: history);
-    server = FakeChatServer(peerDelay: Duration.zero);
+    server = DemoChatServer(peerDelay: Duration.zero);
     demo = outboxOver(transfers);
     await openChat();
 
@@ -317,7 +317,7 @@ void main() {
     ChatDiagnostics.current = journal.chatDiagnostics;
     addTearDown(() => ChatDiagnostics.current = previous);
     final bound = await openChat();
-    server.script(chat, FakeServerScript.conflict);
+    server.script(chat, DemoServerScript.conflict);
 
     final message = bound.sendText('logged')!;
     await pumpEventQueue();
@@ -441,7 +441,7 @@ void main() {
       await demo.dispose();
 
       source = GeneratedChatDataSource(messageCount: history);
-      server = FakeChatServer(peerDelay: Duration.zero);
+      server = DemoChatServer(peerDelay: Duration.zero);
       demo = outboxOver(transfers);
       await openChat();
 

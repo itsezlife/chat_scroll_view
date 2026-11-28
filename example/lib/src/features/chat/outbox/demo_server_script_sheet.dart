@@ -1,20 +1,20 @@
-import 'package:chat_scroll_view_example/src/features/chat/outbox/fake_chat_server.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_chat_server.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/material.dart';
 
 /// The fake server's script switch (debug builds): arms one event for the
 /// chat's next send, or has a peer post now, so each of the outbox's paths
 /// can be seen in the chat.
-class FakeServerScriptSheet extends StatelessWidget {
+class DemoServerScriptSheet extends StatelessWidget {
   /// The switch of [chatId] on [server].
-  const FakeServerScriptSheet({
+  const DemoServerScriptSheet({
     required this.server,
     required this.chatId,
     super.key,
   });
 
   /// The server the chat sends to.
-  final FakeChatServer server;
+  final DemoChatServer server;
 
   /// The chat.
   final String chatId;
@@ -26,29 +26,29 @@ class FakeServerScriptSheet extends StatelessWidget {
   static const ValueKey<String> peerNowKey = ValueKey('fake-server-peer-now');
 
   /// Key of [script]'s button.
-  static ValueKey<String> scriptKey(FakeServerScript script) =>
+  static ValueKey<String> scriptKey(DemoServerScript script) =>
       ValueKey('fake-server-script-${script.name}');
 
   /// Shows the sheet over [context]'s navigator, under a chrome text root.
   static Future<void> show(
     BuildContext context, {
-    required FakeChatServer server,
+    required DemoChatServer server,
     required String chatId,
   }) => showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
     builder: (_) => ChromeTextRoot(
-      child: FakeServerScriptSheet(server: server, chatId: chatId),
+      child: DemoServerScriptSheet(server: server, chatId: chatId),
     ),
   );
 
-  static String _labelOf(FakeServerScript script) => switch (script) {
-    FakeServerScript.peer => 'A peer posts during the next upload',
-    FakeServerScript.conflict => 'The next send conflicts',
-    FakeServerScript.reject => 'The next send is rejected',
-    FakeServerScript.deny => 'The next send is denied',
-    FakeServerScript.reupload => 'The next send asks for its media again',
-    FakeServerScript.replay => 'The next send lands at another id',
+  static String _labelOf(DemoServerScript script) => switch (script) {
+    DemoServerScript.peer => 'A peer posts during the next upload',
+    DemoServerScript.conflict => 'The next send conflicts',
+    DemoServerScript.reject => 'The next send is rejected',
+    DemoServerScript.deny => 'The next send is denied',
+    DemoServerScript.reupload => 'The next send asks for its media again',
+    DemoServerScript.replay => 'The next send lands at another id',
   };
 
   @override
@@ -71,7 +71,7 @@ class FakeServerScriptSheet extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            for (final script in FakeServerScript.values)
+            for (final script in DemoServerScript.values)
               TextButton(
                 key: scriptKey(script),
                 style: TextButton.styleFrom(alignment: Alignment.centerLeft),

@@ -1,5 +1,5 @@
-import 'package:chat_scroll_view_example/src/features/chat/outbox/fake_chat_server.dart';
-import 'package:chat_scroll_view_example/src/features/chat/outbox/fake_server_script_sheet.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_chat_server.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_server_script_sheet.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:chrome_foundation/testing.dart';
 import 'package:flutter/material.dart';
@@ -7,9 +7,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   const chat = 'c1';
-  late FakeChatServer server;
+  late DemoChatServer server;
 
-  setUp(() => server = FakeChatServer()..open(chat, nextId: 0));
+  setUp(() => server = DemoChatServer()..open(chat, nextId: 0));
   tearDown(() => server.dispose());
 
   Future<void> open(WidgetTester tester) async {
@@ -23,7 +23,7 @@ void main() {
           home: Builder(
             builder: (context) => Center(
               child: TextButton(
-                onPressed: () => FakeServerScriptSheet.show(
+                onPressed: () => DemoServerScriptSheet.show(
                   context,
                   server: server,
                   chatId: chat,
@@ -41,7 +41,7 @@ void main() {
 
   testWidgets('reads the chrome face', (tester) async {
     await open(tester);
-    expectChromeText(tester, within: find.byType(FakeServerScriptSheet));
+    expectChromeText(tester, within: find.byType(DemoServerScriptSheet));
   });
 
   testWidgets("a script's button arms it for the chat's next send", (
@@ -50,18 +50,18 @@ void main() {
     await open(tester);
 
     await tester.tap(
-      find.byKey(FakeServerScriptSheet.scriptKey(FakeServerScript.conflict)),
+      find.byKey(DemoServerScriptSheet.scriptKey(DemoServerScript.conflict)),
     );
     await tester.pumpAndSettle();
 
-    expect(server.armedOf(chat), FakeServerScript.conflict);
-    expect(find.byType(FakeServerScriptSheet), findsNothing);
+    expect(server.armedOf(chat), DemoServerScript.conflict);
+    expect(find.byType(DemoServerScriptSheet), findsNothing);
   });
 
   testWidgets('a peer posts now', (tester) async {
     await open(tester);
 
-    await tester.tap(find.byKey(FakeServerScriptSheet.peerNowKey));
+    await tester.tap(find.byKey(DemoServerScriptSheet.peerNowKey));
     await tester.pumpAndSettle();
 
     expect(server.nextIdOf(chat), 1);

@@ -13,7 +13,7 @@ import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_composer_spec.dart';
-import 'package:chat_scroll_view_example/src/features/chat/outbox/fake_chat_server.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_chat_server.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/outbox_debug_panel.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message.dart';
 import 'package:chrome_foundation/testing.dart';
@@ -126,7 +126,7 @@ void main() {
   testWidgets('a peer posting during an upload rebases the row with no twin '
       'and no jump', (tester) async {
     final services = await pumpApp(tester);
-    services.outbox.server.script(chat, FakeServerScript.peer);
+    services.outbox.server.script(chat, DemoServerScript.peer);
 
     services.outbox
         .chat(chat)
@@ -165,7 +165,7 @@ void main() {
 
   testWidgets('a conflict ends sent at the server id', (tester) async {
     final services = await pumpApp(tester);
-    services.outbox.server.script(chat, FakeServerScript.conflict);
+    services.outbox.server.script(chat, DemoServerScript.conflict);
 
     await sendFromComposer(tester, 'after a conflict');
 
@@ -177,7 +177,7 @@ void main() {
 
   testWidgets('a rejection shows the message failed', (tester) async {
     final services = await pumpApp(tester);
-    services.outbox.server.script(chat, FakeServerScript.reject);
+    services.outbox.server.script(chat, DemoServerScript.reject);
 
     await sendFromComposer(tester, 'rejected one');
 
@@ -191,7 +191,7 @@ void main() {
   testWidgets("the chat's debug chrome opens the outbox debug panel on the "
       'chat', (tester) async {
     final services = await pumpApp(tester);
-    services.outbox.server.script(chat, FakeServerScript.reject);
+    services.outbox.server.script(chat, DemoServerScript.reject);
     await sendFromComposer(tester, 'kept in the tail');
 
     await tester.tap(find.byKey(OutboxDebugPanel.openKey));

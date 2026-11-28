@@ -129,6 +129,8 @@ import 'features/chat/message_editability_test.dart'
     as message_editability_test;
 import 'features/chat/outbox/chat_outbox_screen_test.dart'
     as outbox_chat_outbox_screen_test;
+import 'features/chat/outbox/demo_chat_server_test.dart'
+    as outbox_demo_chat_server_test;
 import 'features/chat/outbox/demo_delivery_test.dart'
     as outbox_demo_delivery_test;
 import 'features/chat/outbox/demo_outbox_test.dart' as outbox_demo_outbox_test;
@@ -136,16 +138,14 @@ import 'features/chat/outbox/demo_outgoing_media_test.dart'
     as outbox_demo_outgoing_media_test;
 import 'features/chat/outbox/demo_outgoing_payload_test.dart'
     as outbox_demo_outgoing_payload_test;
+import 'features/chat/outbox/demo_server_script_sheet_test.dart'
+    as outbox_demo_server_script_sheet_test;
 import 'features/chat/outbox/demo_status_motion_test.dart'
     as outbox_demo_status_motion_test;
 import 'features/chat/outbox/demo_transfers_test.dart'
     as outbox_demo_transfers_test;
 import 'features/chat/outbox/demo_upload_transport_test.dart'
     as outbox_demo_upload_transport_test;
-import 'features/chat/outbox/fake_chat_server_test.dart'
-    as outbox_fake_chat_server_test;
-import 'features/chat/outbox/fake_server_script_sheet_test.dart'
-    as outbox_fake_server_script_sheet_test;
 import 'features/chat/outbox/outbox_debug_actions_test.dart'
     as outbox_outbox_debug_actions_test;
 import 'features/chat/outbox/outbox_debug_panel_test.dart'
@@ -453,12 +453,12 @@ void main() {
     outbox_demo_upload_transport_test.main,
   );
   group(
-    'features/chat/outbox/fake_chat_server_test.dart',
-    outbox_fake_chat_server_test.main,
+    'features/chat/outbox/demo_chat_server_test.dart',
+    outbox_demo_chat_server_test.main,
   );
   group(
-    'features/chat/outbox/fake_server_script_sheet_test.dart',
-    outbox_fake_server_script_sheet_test.main,
+    'features/chat/outbox/demo_server_script_sheet_test.dart',
+    outbox_demo_server_script_sheet_test.main,
   );
   group(
     'features/chat/outbox/outbox_debug_actions_test.dart',

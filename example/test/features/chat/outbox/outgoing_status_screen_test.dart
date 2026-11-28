@@ -12,8 +12,8 @@ import 'package:chat_scroll_view_example/src/app/demo_chrome_strings.dart';
 import 'package:chat_scroll_view_example/src/common/models/chat_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_composer_spec.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_chat_server.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_delivery.dart';
-import 'package:chat_scroll_view_example/src/features/chat/outbox/fake_chat_server.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_error_badge.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message_meta.dart';
@@ -109,7 +109,7 @@ void main() {
       tester.widget<DemoMessageMeta>(metaOf(text)).delivery;
 
   Future<void> sendFailed(WidgetTester tester, AppServices services) async {
-    services.outbox.server.script(chat, FakeServerScript.reject);
+    services.outbox.server.script(chat, DemoServerScript.reject);
     await sendFromComposer(tester, 'not this time');
   }
 

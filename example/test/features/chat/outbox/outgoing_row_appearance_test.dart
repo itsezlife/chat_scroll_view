@@ -19,9 +19,9 @@ import 'package:chat_outbox/testing.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:chat_scroll_view_example/src/app/demo_chrome_strings.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/generated_chat_data_source.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_chat_server.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_delivery.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outbox.dart';
-import 'package:chat_scroll_view_example/src/features/chat/outbox/fake_chat_server.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message_meta.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_row_appearance.dart';
@@ -50,7 +50,7 @@ void main() {
     final transfers = FakeOutboxTransfers();
     demo = DemoOutbox(
       transfers: transfers,
-      server: FakeChatServer(peerDelay: Duration.zero),
+      server: DemoChatServer(peerDelay: Duration.zero),
       appearance: appearance,
     );
     addTearDown(demo.dispose);
