@@ -36,6 +36,8 @@ import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outgoing_
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_transfers.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_upload_transport.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/outbox_debug_actions.dart';
+import 'package:chat_scroll_view_example/src/features/chat/save/chat_save_wiring.dart';
+import 'package:chat_scroll_view_example/src/features/chat/save/save_debug_actions.dart';
 import 'package:chat_scroll_view_example/src/features/chat/wallpaper/demo_wallpaper.dart';
 import 'package:chat_scroll_view_example/src/features/logs/data/diagnostics_journal.dart';
 import 'package:content_assets/content_assets.dart';
@@ -108,7 +110,10 @@ import 'package:vector_graphics/vector_graphics.dart' show BytesLoader;
 ///    goes through, so text keeps its entities (ADR 032);
 /// 6. the [outbox] of every chat's outgoing messages, over the transfer
 ///    engine ([transfers], opened in step 3 before the asset cache, whose
-///    status controls show its uploads), its sender registered at once.
+///    status controls show its uploads), its sender registered at once;
+/// 7. the [saver]: the one media saver every save goes through, over the
+///    engine's tracked transfers, so content not downloaded yet downloads
+///    first; reported as wired (`saverWired`) once it read its access.
 ///
 /// ## Ownership
 ///
@@ -179,6 +184,8 @@ final class AppServices {
     required this.transfers,
     required this.uploadTransport,
     required this.debugActions,
+    required this.saver,
+    required this.saveDebug,
     required DemoNetworkCut networkCut,
     required HttpBytesClient? devServerClient,
     required VoidCallback? stopNetworkFeed,
@@ -283,6 +290,10 @@ final class AppServices {
   /// one, a journal in memory is made (and freed) here, and no process-wide
   /// policy is touched.
   ///
+  /// [startSaver] makes the media saver over the engine's tracked transfers
+  /// (none when [outboxTransfers] stands in for the engine): the platform's
+  /// unless a test passes its own.
+  ///
   /// [outboxTransfers] is what the outbox makes its publish jobs through:
   /// the transfer engine unless a test passes a fake, and then no engine is
   /// opened. The engine journals in [transfersDirectory], whatever
@@ -307,6 +318,7 @@ final class AppServices {
     DiagnosticsJournal? journal,
     OutboxTransfers? outboxTransfers,
     Future<String?>? transfersDirectory,
+    MediaSaverStarter startSaver = ChatSaveWiring.platform,
   }) async {
     if (!diskCache) {
       l.i(
@@ -903,7 +915,31 @@ final class AppServices {
             )
           : null;
 
+      // 7. The saver: what is not local downloads through the engine's
+      // tracked transfers before it is copied out.
+      final tracked = transfers?.tracked;
+      final saver = startSaver(transfers: tracked);
+      unawaited(ChatSaveWiring.report(saver, transfers: tracked != null));
+      // The save debug panel's actions (debug builds): a bundled photo to
+      // each destination, for the device checks.
+      final saveDebug = kDebugMode
+          ? owned(
+              SaveDebugActions(
+                saver: saver,
+                demoItem: () async => SaveItem.bytes(
+                  (await rootBundle.load(_saveDemoAsset)).buffer.asUint8List(),
+                  name: 'harbour.jpg',
+                  mimeType: 'image/jpeg',
+                  kind: SaveItemKind.photo,
+                ),
+              ),
+              (actions) => actions.dispose(),
+            )
+          : null;
+
       return AppServices._(
+        saver: saver,
+        saveDebug: saveDebug,
         outbox: outbox,
         transfers: transfers,
         uploadTransport: transfers == null ? null : uploadTransport,
@@ -1252,6 +1288,16 @@ final class AppServices {
   /// release or profile build, which has no panel.
   final OutboxDebugActions? debugActions;
 
+  /// The one media saver: the chat's menus, the viewer and the debug panel
+  /// save through it.
+  final MediaSaver saver;
+
+  /// The save debug panel's actions; debug builds only.
+  final SaveDebugActions? saveDebug;
+
+  /// The bundled photo the save debug panel saves.
+  static const String _saveDemoAsset = 'assets/media_photos/harbour.jpg';
+
   final DemoNetworkCut _networkCut;
   final HttpBytesClient? _devServerClient;
 
@@ -1327,6 +1373,7 @@ final class AppServices {
     // The outbox first: it stops watching the jobs and frees the chats'
     // message sources; the engine after it, its jobs journaled.
     debugActions?.dispose();
+    saveDebug?.dispose();
     _stopNetworkFeed?.call();
     _networkCut.dispose();
     final engine = transfers;

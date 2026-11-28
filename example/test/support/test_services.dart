@@ -3,6 +3,7 @@ import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
 import 'package:chat_scroll_view_example/src/app/video_playback.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/corpus_sticker_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/save/chat_save_wiring.dart';
 import 'package:content_model/testing.dart';
 import 'package:emoji_data/emoji_data.dart';
 import 'package:flutter/foundation.dart';
@@ -11,6 +12,8 @@ import 'package:http/http.dart' as http;
 import 'package:http_bytes_cache/http_bytes_cache.dart';
 import 'package:mpx/testing.dart' show FakeDeviceSignals;
 import 'package:mpx_core/mpx_core.dart';
+import 'package:mpx_library/mpx_library.dart' show MediaSaver;
+import 'package:mpx_library/testing.dart';
 
 /// The app's services over in-memory storage and the bundled emoji catalogue,
 /// for host-integration tests.
@@ -29,6 +32,9 @@ import 'package:mpx_core/mpx_core.dart';
 ///
 /// The outbox makes its jobs through [outboxTransfers] (a new fake unless
 /// given), so a test scripts the jobs' states.
+///
+/// The media saver is a `FakeMediaSaver` unless [startSaver] makes another:
+/// no test reaches the platform's save channel.
 Future<AppServices> createTestServices({
   FakeKeyValueStore? storage,
   EmojiAssetLoader? loader,
@@ -38,7 +44,9 @@ Future<AppServices> createTestServices({
   http.Client? giphyHttpClient,
   CorpusStickerPack corpus = CorpusStickerPack.none,
   FakeOutboxTransfers? outboxTransfers,
+  MediaSaverStarter startSaver = _fakeSaver,
 }) => AppServices.create(
+  startSaver: startSaver,
   startLottie: startLottie,
   startVideo: startVideo,
   giphyApiKey: giphyApiKey,
@@ -54,6 +62,9 @@ Future<AppServices> createTestServices({
   // (`FakeOutboxTransfers`).
   outboxTransfers: outboxTransfers ?? FakeOutboxTransfers(),
 );
+
+MediaSaver _fakeSaver({TrackedTransfers? transfers}) =>
+    FakeMediaSaver(transfers: transfers);
 
 Future<LottiePlayback?> _noLottie({
   required PlaybackClock clock,

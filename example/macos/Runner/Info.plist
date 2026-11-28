@@ -30,6 +30,8 @@
 	<string>NSApplication</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Lets you pick photos and videos to send.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Saves photos and videos from chats to your library.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Lets you take a photo or a video to send.</string>
 	<key>NSMicrophoneUsageDescription</key>

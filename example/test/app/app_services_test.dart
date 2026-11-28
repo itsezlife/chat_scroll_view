@@ -14,6 +14,7 @@ import 'package:chat_scroll_view_example/src/features/chat/data/giphy_gif_source
 import 'package:chat_scroll_view_example/src/features/chat/data/lottie_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/save/chat_save_wiring.dart';
 import 'package:content_assets/content_assets.dart';
 import 'package:content_model/content_model.dart';
 import 'package:content_model/testing.dart';
@@ -28,7 +29,8 @@ import 'package:http_bytes_cache/http_bytes_cache.dart';
 import 'package:mpx/mpx.dart';
 import 'package:mpx/testing.dart';
 import 'package:mpx_core/mpx_core.dart';
-import 'package:mpx_core/testing.dart';
+import 'package:mpx_core/testing.dart' hide RecordingDiagnostics;
+import 'package:mpx_library/testing.dart';
 import 'package:panel_catalog/panel_catalog.dart' show PanelCatalogViewport;
 
 import '../support/disposal_watch.dart';
@@ -1298,6 +1300,50 @@ void main() {
 
       signals.network.value = NetworkClass.roaming;
       expect(signals.network.value, NetworkClass.roaming);
+    });
+  });
+
+  group('the media saver', () {
+    test('is made once by the starter, without tracked transfers when no '
+        'engine is composed, and reported as wired at boot', () async {
+      final diagnostics = RecordingDiagnostics.install();
+      final made = <FakeMediaSaver>[];
+      final transfersGiven = <TrackedTransfers?>[];
+      final services = await createTestServices(
+        startSaver: ({transfers}) {
+          transfersGiven.add(transfers);
+          final saver = FakeMediaSaver(transfers: transfers);
+          made.add(saver);
+          return saver;
+        },
+      );
+      addTearDown(services.dispose);
+      await pumpEventQueue();
+
+      expect(made, hasLength(1));
+      expect(services.saver, same(made.single));
+      expect(transfersGiven, [null], reason: 'a fake outbox opens no engine');
+      final wired = diagnostics.events.singleWhere(
+        (event) => event.op == ChatSaveOp.saverWired,
+      );
+      expect(wired.fields['transfers'], isFalse);
+      expect(wired.fields['subfolder'], isTrue);
+    });
+
+    test("is the one the save debug panel's actions save through", () async {
+      RecordingDiagnostics.install();
+      final saver = FakeMediaSaver();
+      final services = await createTestServices(
+        startSaver: ({transfers}) => saver,
+      );
+      addTearDown(services.dispose);
+
+      final job = await services.saveDebug!.saveDemoTo(
+        ChatSaveWiring.downloads,
+      );
+      await job!.results;
+
+      expect(saver.batches.single.destination, ChatSaveWiring.downloads);
     });
   });
 

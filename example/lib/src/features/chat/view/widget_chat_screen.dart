@@ -44,6 +44,7 @@ import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outbox.da
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_server_script_sheet.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/outbox_debug_panel.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/source_lost_prompt.dart';
+import 'package:chat_scroll_view_example/src/features/chat/save/save_debug_panel.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_bulletins.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart';
@@ -2005,6 +2006,19 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
                           ),
                         ),
                         icon: const Icon(Icons.admin_panel_settings, size: 20),
+                      ),
+                    ],
+                    if (widget.services.saveDebug case final saveDebug?) ...[
+                      const SizedBox(width: 4),
+                      IconButton.filledTonal(
+                        key: SaveDebugPanel.openKey,
+                        tooltip: 'Save debug',
+                        onPressed: () => unawaited(
+                          Navigator.of(
+                            context,
+                          ).push(SaveDebugPanel.route(actions: saveDebug)),
+                        ),
+                        icon: const Icon(Icons.save_alt, size: 20),
                       ),
                     ],
                     const SizedBox(width: 4),

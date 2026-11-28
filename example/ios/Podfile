@@ -41,11 +41,12 @@ post_install do |installer|
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
       config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'x86_64'
-      # The attach sheet reads the photo library and opens the system camera:
-      # mpx_library compiles them only under these conditions (its README).
+      # The attach sheet reads the photo library and opens the system camera,
+      # and the chat saves media to Photos (add-only): mpx_library compiles
+      # each only under its condition (its README).
       if target.name == 'mpx_library'
         config.build_settings['SWIFT_ACTIVE_COMPILATION_CONDITIONS'] =
-          '$(inherited) MPX_LIBRARY_PHOTOS MPX_LIBRARY_CAMERA'
+          '$(inherited) MPX_LIBRARY_PHOTOS MPX_LIBRARY_CAMERA MPX_LIBRARY_SAVE'
       end
     end
   end

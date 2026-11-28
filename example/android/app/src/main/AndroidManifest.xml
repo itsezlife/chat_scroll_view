@@ -10,6 +10,12 @@
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32"/>
+    <!-- Saving media to the gallery and Downloads (mpx_library's
+         MediaSaver): from API 29 the MediaStore takes what the app adds
+         without a permission, so the legacy write permission stops at 28. -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28"/>
     <!-- The transfer envelope that keeps the chat's uploads going in the
          background (mpx_transfer): the user-initiated data transfer job on
          Android 14 and later, the dataSync foreground service before, and
