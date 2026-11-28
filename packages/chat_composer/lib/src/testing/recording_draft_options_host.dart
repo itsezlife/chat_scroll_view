@@ -15,16 +15,23 @@ final class RecordingDraftOptionsHost implements DraftOptionsHost {
   final LinkPreviewResolver? resolver;
 
   final List<DraftLinkPart> _edits = [];
+  final List<DraftLinkPart> _denials = [];
   final List<Uri> _chosen = [];
 
   /// Every link part reported, oldest first.
   List<DraftLinkPart> get edits => List.unmodifiable(_edits);
+
+  /// Every link part reported removed by a denial, oldest first.
+  List<DraftLinkPart> get denials => List.unmodifiable(_denials);
 
   /// Every link chosen, oldest first.
   List<Uri> get chosenLinks => List.unmodifiable(_chosen);
 
   @override
   void linkPartEdited(DraftLinkPart part) => _edits.add(part);
+
+  @override
+  void previewDenied(DraftLinkPart part) => _denials.add(part);
 
   @override
   listen.ValueListenable<LinkPreviewState> chooseLink(Uri url) {

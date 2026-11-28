@@ -1,3 +1,4 @@
+import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 
 /// The operations of the diagnostics events a content preview emits through
@@ -34,6 +35,17 @@ enum ContentPreviewOp implements DiagnosticOp {
 
   /// The capture threw, or its still could not be made (error): the
   /// `errorType`, `glassSource` as for [scrimStillReady], and the error
-  /// itself.
-  scrimCaptureFailed,
+  /// itself with its stack.
+  scrimCaptureFailed;
+
+  /// The op of a scrim [phase].
+  static ContentPreviewOp ofScrim(ChromeScrimPhase phase) => switch (phase) {
+    ChromeScrimPhase$Captured() => scrimCaptured,
+    ChromeScrimPhase$StillReady() => scrimStillReady,
+    ChromeScrimPhase$StillSkipped() => scrimStillSkipped,
+    ChromeScrimPhase$Dismissed() => scrimDismissed,
+    ChromeScrimPhase$Cancelled() => scrimCancelled,
+    ChromeScrimPhase$Disposed() => scrimDisposed,
+    ChromeScrimPhase$CaptureFailed() => scrimCaptureFailed,
+  };
 }

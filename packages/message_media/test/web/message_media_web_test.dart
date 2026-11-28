@@ -211,18 +211,18 @@ void main() {
       expect(event.category, ChatEventCategory.media);
       expect(event.correlation.chatId, 'chat-1');
       expect(event.fields, {
-        'from': ChromeWidthClass.compact,
-        'to': ChromeWidthClass.medium,
+        'from': 'compact',
+        'to': 'medium',
         // No input class scope: the platform's class, touch for the
         // test's Android.
-        'input': ChromeInputClass.touch,
+        'input': 'touch',
       });
 
       resize(tester, 1200);
       await tester.pump();
       expect(
         diagnostics.whereOp(MediaOp.webClassChanged).last.fields,
-        containsPair('to', ChromeWidthClass.expanded),
+        containsPair('to', 'expanded'),
       );
       expect(diagnostics.whereOp(MediaOp.webClassChanged), hasLength(2));
     });
@@ -244,9 +244,9 @@ void main() {
       await tester.pump();
 
       expect(diagnostics.whereOp(MediaOp.webClassChanged).single.fields, {
-        'from': ChromeWidthClass.compact,
-        'to': ChromeWidthClass.compact,
-        'input': ChromeInputClass.mouse,
+        'from': 'compact',
+        'to': 'compact',
+        'input': 'mouse',
       });
     });
 

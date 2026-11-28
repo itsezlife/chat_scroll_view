@@ -19,7 +19,10 @@ void main() {
   group('pinned values', () {
     test('the web policy carries the standard menu', () {
       expect(const DraftOptionsPolicy$Web().menu, menu);
-      expect(const DraftOptionsPolicy.web().usesOverlay, isFalse);
+      expect(
+        const DraftOptionsPolicy.web(),
+        isNot(isA<DraftOptionsOverlayPolicy>()),
+      );
     });
 
     test('hover opens after 200 ms; the menu reveals over 0.2 s on the '
@@ -29,7 +32,7 @@ void main() {
       expect(menu.reveal.curve, const Cubic(0.4, 0, 0.2, 1));
       expect(menu.revealScaleFrom, 0.8);
       expect(menu.leaveGrace, const Duration(milliseconds: 200));
-      expect(menu.openGuard, const Duration(milliseconds: 400));
+      expect(DraftOptionsPolicy.openGuard, const Duration(milliseconds: 400));
     });
 
     test('anchored 8 in from the strip top end, 8 above it, 8 from the '

@@ -56,6 +56,7 @@ import 'preview/content_preview_menu_test.dart' as content_preview_menu_test;
 import 'preview/content_preview_scrim_test.dart' as content_preview_scrim_test;
 import 'preview/content_preview_stickers_test.dart'
     as content_preview_stickers_test;
+import 'preview/preview_trace_test.dart' as preview_trace_test;
 import 'scroll/page_scroll_reporter_test.dart' as page_scroll_reporter_test;
 import 'snapshot/catalog_snapshot_builder_test.dart'
     as catalog_snapshot_builder_test;
@@ -157,6 +158,7 @@ void main() {
     'preview/content_preview_stickers_test.dart',
     content_preview_stickers_test.main,
   );
+  group('preview/preview_trace_test.dart', preview_trace_test.main);
   group(
     'scroll/page_scroll_reporter_test.dart',
     page_scroll_reporter_test.main,

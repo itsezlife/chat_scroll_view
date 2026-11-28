@@ -236,15 +236,17 @@ void main() {
   });
 
   group('removed after close', () {
-    test('reports the host value with removed set', () {
+    test('reports the host value with removed set as a denial, not as the '
+        "user's edit", () {
       final session = open(const DraftOptionsPolicy.desktop())
         ..edit(larger, field: DraftOptionsField.size)
         ..close(DraftOptionsCloseTrigger.denied)
         ..reportRemoved();
 
-      expect(host.edits, [
+      expect(host.denials, [
         _initial.copyWith(options: _initial.options.copyWith(removed: true)),
       ]);
+      expect(host.edits, isEmpty, reason: 'the copy was discarded');
       expect(session.isClosing, isTrue);
     });
 
@@ -254,10 +256,21 @@ void main() {
         ..close(DraftOptionsCloseTrigger.denied)
         ..reportRemoved();
 
+      expect(host.edits, [larger]);
       expect(
-        host.edits.last,
+        host.denials.single,
         larger.copyWith(options: larger.options.copyWith(removed: true)),
       );
+    });
+
+    test('a removal by the remove row is an edit', () {
+      open(const DraftOptionsPolicy.android()).edit(
+        _initial.copyWith(options: _initial.options.copyWith(removed: true)),
+        field: DraftOptionsField.remove,
+      );
+
+      expect(host.edits.single.options.removed, isTrue);
+      expect(host.denials, isEmpty);
     });
   });
 }

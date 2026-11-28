@@ -2,6 +2,7 @@ import 'package:chat_composer/src/capabilities/composer_clock.dart';
 import 'package:chat_composer/src/draft_options/draft_link_page.dart';
 import 'package:chat_composer/src/draft_options/draft_link_part.dart';
 import 'package:chat_composer/src/draft_options/draft_link_rows.dart';
+import 'package:chat_composer/src/draft_options/draft_options_gate.dart';
 import 'package:chat_composer/src/draft_options/draft_options_host.dart';
 import 'package:chat_composer/src/draft_options/draft_options_policy.dart';
 import 'package:chat_composer/src/draft_options/draft_options_session.dart';
@@ -91,7 +92,7 @@ enum DraftOptionsWebMenuCloseTrigger {
 /// the link page's.
 final class DraftOptionsWebMenuController {
   /// A controller of the web [policy] reporting to [host], opening on what
-  /// [input] answers.
+  /// [input] answers (nothing opens when it has no draft link).
   ///
   /// [correlation] gives the ids of its events (the chat); [dismissal] is
   /// the composer's link preview dismissal, which the remove row applies as
@@ -106,7 +107,8 @@ final class DraftOptionsWebMenuController {
     this.dismissal,
     this.mediaOf,
   }) : _clock = clock,
-       _correlation = correlation;
+       _correlation = correlation,
+       _gate = DraftOptionsGate(clock: clock, correlation: correlation);
 
   /// The key of the menu's surface.
   static const Key menuKey = ValueKey('draftOptionsWebMenu');
@@ -120,8 +122,9 @@ final class DraftOptionsWebMenuController {
   /// Where edits go.
   final DraftOptionsHost host;
 
-  /// The draft the menu opens on, read at the open.
-  final DraftOptionsInput Function() input;
+  /// The draft the menu opens on, read at the open; null when the draft has
+  /// no link (a hover that outlived the strip's card).
+  final DraftOptionsInput? Function() input;
 
   /// What the remove row turns off; null when the host keeps no dismissal.
   final LinkPreviewDismissal? dismissal;
@@ -131,9 +134,8 @@ final class DraftOptionsWebMenuController {
 
   final ComposerClock _clock;
   final ChatCorrelation Function()? _correlation;
+  final DraftOptionsGate _gate;
   _OpenMenu? _open;
-  DateTime? _acceptedAt;
-  bool _allowed = true;
   bool _disposed = false;
   // The pointer over the strip (as the strip reports it) and over the menu.
   bool _$overStrip = false;
@@ -153,10 +155,10 @@ final class DraftOptionsWebMenuController {
   /// Whether the chat allows link previews. Turned off while the menu is
   /// up, it closes the menu (trigger `denied`) and, once it is gone, reports
   /// the preview removed; while off, the menu does not open.
-  bool get linkPreviewsAllowed => _allowed;
+  bool get linkPreviewsAllowed => _gate.allowed;
   set linkPreviewsAllowed(bool allowed) {
-    if (allowed == _allowed) return;
-    _allowed = allowed;
+    if (allowed == _gate.allowed) return;
+    _gate.allowed = allowed;
     if (!allowed) close(DraftOptionsWebMenuCloseTrigger.denied);
   }
 
@@ -166,8 +168,9 @@ final class DraftOptionsWebMenuController {
   /// A tap or a click on the strip at [stripRect] (global): opens the menu
   /// at once; true when it opened.
   ///
-  /// Refused while link previews are denied or a menu is up; dropped within
-  /// the policy's open guard of the accepted open.
+  /// Refused while link previews are denied, a menu is up or there is no
+  /// draft link; dropped within [DraftOptionsPolicy.openGuard] of the
+  /// accepted open.
   bool open(BuildContext context, Rect stripRect) =>
       _openAt(context, stripRect, hovered: false);
 
@@ -225,20 +228,11 @@ final class DraftOptionsWebMenuController {
 
   bool _openAt(BuildContext context, Rect stripRect, {required bool hovered}) {
     if (_disposed) return false;
-    final now = _clock.now();
-    if (_acceptedAt case final accepted?
-        when now.difference(accepted) < _menu.openGuard) {
-      final ms = now.difference(accepted).inMilliseconds;
-      _emit(OverlayOp.openDropped, () => {'ms': ms});
-      return false;
-    }
-    final refused = switch (_open) {
-      _ when !_allowed => 'denied',
-      _? => 'alreadyOpen',
-      null => null,
-    };
-    if (refused != null) {
-      _emit(OverlayOp.openRefused, () => {'why': refused});
+    final now = _gate.admit(isOpen: _open != null);
+    if (now == null) return false;
+    final draft = input();
+    if (draft == null) {
+      _gate.refuse(DraftOptionsOpenRefusal.noDraft);
       return false;
     }
     final overlay = Overlay.of(context, rootOverlay: true);
@@ -246,12 +240,10 @@ final class DraftOptionsWebMenuController {
       final RenderBox box when box.hasSize => box.localToGlobal(Offset.zero),
       _ => Offset.zero,
     };
-    _acceptedAt = now;
     final inputClass = hovered
         ? ChromeInputClass.mouse
         : ChromeInputClass.of(context);
     final widthClass = ChromeWidthClass.of(context);
-    final draft = input();
     late final _OpenMenu open;
     final session = DraftOptionsSession(
       policy: policy,
@@ -314,7 +306,7 @@ final class DraftOptionsWebMenuController {
   /// strip opens once and does not close again, and over the strip when a
   /// mouse opened the menu, so the strip keeps its hover.
   bool _passesPress(_OpenMenu open, Offset position) =>
-      _clock.now().difference(open.openedAt) < _menu.openGuard ||
+      _gate.guards(open.openedAt) ||
       (open.inputClass == ChromeInputClass.mouse &&
           open.strip.contains(position));
 
@@ -393,13 +385,7 @@ final class DraftOptionsWebMenuController {
   }
 
   void _emit(OverlayOp op, Map<String, Object> Function() fields) =>
-      ChatDiagnostics.current.emit(
-        ChatEventLevel.debug,
-        ChatEventCategory.overlay,
-        op,
-        correlation: _correlation?.call() ?? ChatCorrelation.none,
-        fields: fields,
-      );
+      _gate.emit(ChatEventLevel.debug, op, fields);
 }
 
 final class _OpenMenu {

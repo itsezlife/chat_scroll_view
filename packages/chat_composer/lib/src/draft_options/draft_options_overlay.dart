@@ -1,17 +1,19 @@
 import 'dart:async';
+import 'dart:developer' show TimelineTask;
 
 import 'package:chat_composer/src/capabilities/composer_clock.dart';
 import 'package:chat_composer/src/draft_options/draft_link_page.dart';
 import 'package:chat_composer/src/draft_options/draft_link_part.dart';
 import 'package:chat_composer/src/draft_options/draft_link_rows.dart';
 import 'package:chat_composer/src/draft_options/draft_options_box.dart';
-import 'package:chat_composer/src/draft_options/draft_options_card.dart';
 import 'package:chat_composer/src/draft_options/draft_options_card_view.dart';
+import 'package:chat_composer/src/draft_options/draft_options_gate.dart';
 import 'package:chat_composer/src/draft_options/draft_options_host.dart';
 import 'package:chat_composer/src/draft_options/draft_options_policy.dart';
 import 'package:chat_composer/src/draft_options/draft_options_session.dart';
 import 'package:chat_composer/src/draft_options/draft_options_spring_view.dart';
 import 'package:chat_composer/src/draft_options/overlay_op.dart';
+import 'package:chat_composer/src/draft_options/overlay_trace.dart';
 import 'package:chat_composer/src/input/composer_controller.dart';
 import 'package:chat_composer/src/input/composer_keyboard_intent.dart';
 import 'package:chat_composer/src/link_preview/link_preview_dismissal.dart';
@@ -42,8 +44,8 @@ import 'package:flutter/widgets.dart';
 /// carries the intent out.
 ///
 /// The web's [DraftOptionsPolicy$Web] has no overlay; its menu is
-/// [DraftOptionsWebMenuController], and [open] asserts it is not asked for
-/// one.
+/// [DraftOptionsWebMenuController]. A host binds the strip to a
+/// `DraftOptionsEntry`, which opens whichever the policy calls for.
 final class DraftOptionsController {
   /// A controller of [policy] reporting to [host], drawing the preview with
   /// [bubbleBuilder].
@@ -66,15 +68,11 @@ final class DraftOptionsController {
     this.dismissal,
     this.mediaOf,
   }) : _clock = clock,
-       _correlation = correlation;
-
-  /// Within this of an accepted open, another open is dropped and a press
-  /// on the scrim passes through: a burst of taps on the strip opens one
-  /// overlay and does not close it again.
-  static const Duration openGuard = ChromeTapTiming.repeatGuard;
+       _correlation = correlation,
+       _gate = DraftOptionsGate(clock: clock, correlation: correlation);
 
   /// How the overlay is presented and applied.
-  final DraftOptionsPolicy policy;
+  final DraftOptionsOverlayPolicy policy;
 
   /// Where edits go.
   final DraftOptionsHost host;
@@ -98,9 +96,8 @@ final class DraftOptionsController {
 
   final ComposerClock _clock;
   final ChatCorrelation Function()? _correlation;
+  final DraftOptionsGate _gate;
   _OpenOverlay? _open;
-  DateTime? _acceptedAt;
-  bool _allowed = true;
   bool _disposed = false;
   // A hold's pending reopen and release, from the last close.
   ComposerTimer? _reopenTimer;
@@ -117,10 +114,10 @@ final class DraftOptionsController {
   /// Whether the chat allows link previews. Turned off while an overlay is
   /// up, it closes the overlay (trigger `denied`) and, once it is gone,
   /// reports the preview removed; while off, [open] refuses.
-  bool get linkPreviewsAllowed => _allowed;
+  bool get linkPreviewsAllowed => _gate.allowed;
   set linkPreviewsAllowed(bool allowed) {
-    if (allowed == _allowed) return;
-    _allowed = allowed;
+    if (allowed == _gate.allowed) return;
+    _gate.allowed = allowed;
     if (allowed) return;
     _open?.session.close(DraftOptionsCloseTrigger.denied);
   }
@@ -139,7 +136,8 @@ final class DraftOptionsController {
   ///
   /// Refused while link previews are denied, while an overlay is up, and on
   /// a policy that does not open on a pending page while [page] is not
-  /// loaded; an open within [openGuard] of the accepted one is dropped.
+  /// loaded; an open within [DraftOptionsPolicy.openGuard] of the accepted
+  /// one is dropped.
   bool open(
     BuildContext context, {
     required DraftLinkPart value,
@@ -149,40 +147,20 @@ final class DraftOptionsController {
     Rect? stripRect,
     List<Uri> links = const [],
   }) {
-    assert(
-      policy.usesOverlay,
-      'The web draft options are a menu anchored at the strip, not this '
-      'overlay.',
+    if (_disposed) return false;
+    final now = _gate.admit(
+      isOpen: _open != null,
+      notLoaded: page is! LinkPreviewState$Loaded && !policy.opensOnPending,
     );
+    if (now == null) return false;
     final scrimPreset = policy.scrim;
-    if (_disposed || scrimPreset == null) return false;
-    final now = _clock.now();
-    if (_acceptedAt case final accepted?
-        when now.difference(accepted) < openGuard) {
-      final ms = now.difference(accepted).inMilliseconds;
-      _emit(ChatEventLevel.debug, OverlayOp.openDropped, () => {'ms': ms});
-      return false;
-    }
-    final refused = switch (page) {
-      _ when !_allowed => 'denied',
-      _ when _open != null => 'alreadyOpen',
-      LinkPreviewState$Loaded() => null,
-      _ when !policy.opensOnPending => 'desktopNotLoaded',
-      _ => null,
+    // The desktop box takes focus; it goes back to the field once the box
+    // closes. The other forms leave focus (and a raised keyboard) alone.
+    final returnFocus = switch (policy) {
+      DraftOptionsPolicy$Desktop() =>
+        composer?.focusNode ?? FocusManager.instance.primaryFocus,
+      DraftOptionsPolicy$Android() || DraftOptionsPolicy$IOS() => null,
     };
-    if (refused != null) {
-      _emit(
-        ChatEventLevel.debug,
-        OverlayOp.openRefused,
-        () => {'why': refused},
-      );
-      return false;
-    }
-    _acceptedAt = now;
-    // Where focus goes back to once a box that took it closes: the field.
-    final returnFocus = policy.apply == DraftOptionsApply.commitOnSave
-        ? (composer?.focusNode ?? FocusManager.instance.primaryFocus)
-        : null;
     final keyboardWasUp =
         (MediaQuery.maybeViewInsetsOf(context)?.bottom ?? 0) > 0;
     final held = _stateKeyboard(keyboardWasUp: keyboardWasUp);
@@ -200,17 +178,20 @@ final class DraftOptionsController {
       correlation: _correlation,
       onClose: (trigger) => _closed(open, trigger),
     );
+    final report = _ScrimReport(scrimPreset, _gate);
+    OverlayTrace.begin(OverlayTrace.scrimCapture);
     final scrim = ChromeScrimController(
       context,
       preset: scrimPreset,
       reduceTransparency: reduceTransparency,
-      onPhase: (phase) => _scrimPhase(scrimPreset, phase),
+      onPhase: report.call,
       onDismiss: (by) => session.close(switch (by) {
         ChromeScrimDismissal.outside => DraftOptionsCloseTrigger.outside,
         ChromeScrimDismissal.back => DraftOptionsCloseTrigger.back,
         ChromeScrimDismissal.escape => DraftOptionsCloseTrigger.escape,
       }),
     );
+    OverlayTrace.end(OverlayTrace.scrimCapture);
     final linkPage = DraftLinkPage(
       session: session,
       hasText: text.plain.trim().isNotEmpty,
@@ -226,8 +207,7 @@ final class DraftOptionsController {
         bubbleBuilder: bubbleBuilder,
         text: text,
         linkPage: linkPage,
-        passesPresses: () =>
-            _clock.now().difference(now) < openGuard && !session.isClosing,
+        passesPresses: () => _gate.guards(now) && !session.isClosing,
       ),
     );
     open = _open = _OpenOverlay(
@@ -335,7 +315,7 @@ final class DraftOptionsController {
     ComposerKeyboardIntent intent, {
     required bool keyboardWasUp,
     required bool reopened,
-  }) => _emit(
+  }) => _gate.emit(
     ChatEventLevel.debug,
     OverlayOp.keyboardIntent,
     () => {
@@ -374,78 +354,58 @@ final class DraftOptionsController {
       }),
     );
   }
+}
 
-  void _scrimPhase(ChromeScrimPreset preset, ChromeScrimPhase phase) {
-    Map<String, Object> base() => {
-      'owner': 'draftOptions',
-      'preset': preset.name,
-    };
+/// One open's scrim phases as its overlay events, and the span of its
+/// still on the timeline.
+///
+/// The scrim reports and never logs. The level and the fields are the
+/// phase's own; the owner adds its name and the preset's, and the op names
+/// are the overlay's.
+final class _ScrimReport {
+  _ScrimReport(this.preset, this.gate);
+
+  final ChromeScrimPreset preset;
+  final DraftOptionsGate gate;
+  TimelineTask? _still;
+
+  void call(ChromeScrimPhase phase) {
     switch (phase) {
-      case ChromeScrimPhase$Captured(:final captureTime, :final stillSize):
-        _emit(
-          ChatEventLevel.trace,
-          OverlayOp.scrimCaptured,
-          () => {
-            ...base(),
-            'captureUs': captureTime.inMicroseconds,
-            'stillWidth': stillSize.width.round(),
-            'stillHeight': stillSize.height.round(),
-          },
-        );
-      case ChromeScrimPhase$StillReady(:final makeTime, :final glassSource):
-        _emit(
-          ChatEventLevel.trace,
-          OverlayOp.scrimStillReady,
-          () => {
-            ...base(),
-            'cpuMs': makeTime.inMilliseconds,
-            'glassSource': glassSource,
-          },
-        );
-      case ChromeScrimPhase$StillSkipped(:final why):
-        _emit(
-          ChatEventLevel.debug,
-          OverlayOp.scrimStillSkipped,
-          () => {...base(), 'why': why.name},
-        );
-      case ChromeScrimPhase$Dismissed(:final by, :final closeOn):
-        _emit(
-          ChatEventLevel.debug,
-          OverlayOp.scrimDismissed,
-          () => {...base(), 'by': by.name, 'closeOn': closeOn.name},
-        );
-      case ChromeScrimPhase$Cancelled():
-        _emit(ChatEventLevel.debug, OverlayOp.scrimCancelled, base);
-      case ChromeScrimPhase$Disposed(:final stills):
-        _emit(
-          ChatEventLevel.trace,
-          OverlayOp.scrimDisposed,
-          () => {...base(), 'stills': stills},
-        );
-      case ChromeScrimPhase$CaptureFailed(:final error, :final glassSource):
-        _emit(
-          ChatEventLevel.error,
-          OverlayOp.scrimCaptureFailed,
-          () => {
-            ...base(),
-            'errorType': '${error.runtimeType}',
-            'glassSource': glassSource,
-          },
-        );
+      case ChromeScrimPhase$Captured():
+        _still = OverlayTrace.start(OverlayTrace.scrimStill);
+      case ChromeScrimPhase$StillReady(glassSource: false) ||
+          ChromeScrimPhase$CaptureFailed(glassSource: false) ||
+          ChromeScrimPhase$Disposed():
+        OverlayTrace.finish(_still);
+        _still = null;
+      case _:
+        break;
     }
+    final (error, stackTrace) = switch (phase) {
+      ChromeScrimPhase$CaptureFailed(:final error, :final stackTrace) => (
+        error,
+        stackTrace,
+      ),
+      _ => (null, null),
+    };
+    ChatDiagnostics.current.emit(
+      switch (phase.level) {
+        ChromeScrimPhaseLevel.trace => ChatEventLevel.trace,
+        ChromeScrimPhaseLevel.debug => ChatEventLevel.debug,
+        ChromeScrimPhaseLevel.error => ChatEventLevel.error,
+      },
+      ChatEventCategory.overlay,
+      OverlayOp.ofScrim(phase),
+      correlation: gate.correlation?.call() ?? ChatCorrelation.none,
+      fields: () => {
+        'owner': 'draftOptions',
+        'preset': preset.name,
+        ...phase.fields,
+      },
+      error: error,
+      stackTrace: stackTrace,
+    );
   }
-
-  void _emit(
-    ChatEventLevel level,
-    OverlayOp op,
-    Map<String, Object> Function() fields,
-  ) => ChatDiagnostics.current.emit(
-    level,
-    ChatEventCategory.overlay,
-    op,
-    correlation: _correlation?.call() ?? ChatCorrelation.none,
-    fields: fields,
-  );
 }
 
 final class _OpenOverlay {
@@ -472,13 +432,12 @@ final class _OpenOverlay {
 /// The draft options overlay's skin: the scrim, the text root and the open
 /// part's page, over a [session].
 ///
-/// A `DraftOptionsController` mounts it in the root overlay. The page holds
-/// its title by the policy and the live preview from [bubbleBuilder]; the
-/// link page's rows and each platform's presentation build on it. Under
-/// commit on save, Enter saves (Escape is the scrim's).
-///
-/// A desktop policy ([DraftOptionsPolicy$Desktop]) draws the page as a
-/// [DraftOptionsBox] with Save and Cancel.
+/// A `DraftOptionsController` mounts it in the root overlay. The page is
+/// the policy's presentation: the Android card ([DraftOptionsCardView]),
+/// the iOS content springing from the strip ([DraftOptionsSpringView]) or
+/// the desktop box with Save and Cancel ([DraftOptionsBox]), each headed by
+/// the policy's title, with the live preview from [bubbleBuilder] and the
+/// link page's rows.
 class DraftOptionsOverlay extends StatelessWidget {
   /// The overlay of [session] over [scrim].
   const DraftOptionsOverlay({
@@ -516,54 +475,43 @@ class DraftOptionsOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final rows = switch (linkPage) {
+      final page? => DraftLinkRows(page: page),
+      null => null,
+    };
     final surface = switch (session.policy) {
-      DraftOptionsPolicy$Android(:final card, :final cardMotion) =>
-        _androidCard(context, card, cardMotion),
-      DraftOptionsPolicy$IOS(:final surface) => DraftOptionsSpringView(
-        surface: surface,
+      final DraftOptionsPolicy$Android policy => DraftOptionsCardView(
         session: session,
         scrim: scrim,
-        preview: DraftOptionsPreviewView(
-          session: session,
-          bubbleBuilder: bubbleBuilder,
-          text: text,
-        ),
-        actions: switch (linkPage) {
-          final page? => DraftLinkRows(page: page),
-          null => null,
-        },
+        layout: policy.card,
+        motion: policy.cardMotion,
+        title: _heading(context, policy).title,
+        subtitle: _heading(context, policy).subtitle,
+        preview: _preview(),
+        menu: rows,
       ),
-      DraftOptionsPolicy$Desktop(:final box) => DraftOptionsBox(
-        box: box,
+      final DraftOptionsPolicy$IOS policy => DraftOptionsSpringView(
+        surface: policy.surface,
         session: session,
         scrim: scrim,
-        title: switch (session.policy.title) {
-          // One part in this cut: the title shows.
-          DraftOptionsTitle.titleAndSubtitle ||
-          DraftOptionsTitle.titleWithOnePart => ChromeStringsScope.composerOf(
-            context,
-          ).draftOptions.linkTitle,
-          DraftOptionsTitle.none => null,
-        },
-        preview: DraftOptionsPreviewView(
-          session: session,
-          bubbleBuilder: bubbleBuilder,
-          text: text,
-          linkCursor: box.linkCursor,
-          change: box.optionChange,
-        ),
-        rows: switch (linkPage) {
-          final page? => DraftLinkRows(page: page),
-          null => null,
-        },
+        preview: _preview(),
+        actions: rows,
       ),
-      _ => Center(
-        child: _DraftOptionsPage(
-          session: session,
-          bubbleBuilder: bubbleBuilder,
-          text: text,
-          linkPage: linkPage,
+      final DraftOptionsPolicy$Desktop policy => DraftOptionsBox(
+        box: policy.box,
+        session: session,
+        scrim: scrim,
+        title: _heading(context, policy).title,
+        subtitle: _heading(context, policy).subtitle,
+        preview: _preview(
+          linkCursor: policy.box.linkCursor,
+          change: policy.box.optionChange,
         ),
+        rows: rows,
+      ),
+      DraftOptionsPolicy$Web() => throw StateError(
+        'The web draft options are a menu anchored at the strip '
+        '(DraftOptionsWebMenuController), not this overlay.',
       ),
     };
     Widget overlay = ChromeScrim(
@@ -586,17 +534,17 @@ class DraftOptionsOverlay extends StatelessWidget {
         ],
       ),
     );
-    if (session.policy.apply == DraftOptionsApply.commitOnSave) {
+    if (session.policy case DraftOptionsPolicy$Desktop()) {
       // The box takes focus, so Enter and Escape reach it: a scope of its
-      // own, since the route's scope keeps its focus and would leave the
-      // scrim's autofocus unheard. Live apply leaves focus (and a raised
-      // keyboard) where it is.
+      // own, around the scrim, since the route's scope keeps its focus and
+      // would leave the scrim's autofocus unheard. The other forms leave
+      // focus (and a raised keyboard) where it is.
       overlay = FocusScope(
         autofocus: true,
         child: Focus(
           canRequestFocus: false,
           skipTraversal: true,
-          onKeyEvent: _onKey,
+          onKeyEvent: _onBoxKey,
           child: overlay,
         ),
       );
@@ -612,42 +560,16 @@ class DraftOptionsOverlay extends StatelessWidget {
     );
   }
 
-  // The Android card: the header from the policy's title, the live preview
-  // in its list and the rows in the glass menu under it.
-  Widget _androidCard(
+  // The page's heading by the policy's title, from the chrome strings.
+  ({String? title, String? subtitle}) _heading(
     BuildContext context,
-    DraftOptionsCardLayout card,
-    DraftOptionsCardMotion motion,
-  ) {
-    final strings = ChromeStringsScope.composerOf(context).draftOptions;
-    final (title, subtitle) = switch (session.policy.title) {
-      DraftOptionsTitle.titleAndSubtitle => (
-        strings.linkTitle,
-        strings.linkSubtitle,
-      ),
-      DraftOptionsTitle.titleWithOnePart => (strings.linkTitle, null),
-      DraftOptionsTitle.none => (null, null),
-    };
-    return DraftOptionsCardView(
-      session: session,
-      scrim: scrim,
-      layout: card,
-      motion: motion,
-      title: title,
-      subtitle: subtitle,
-      preview: DraftOptionsPreviewView(
-        session: session,
-        bubbleBuilder: bubbleBuilder,
-        text: text,
-      ),
-      menu: switch (linkPage) {
-        final page? => DraftLinkRows(page: page),
-        null => null,
-      },
-    );
-  }
+    DraftOptionsOverlayPolicy policy,
+  ) => policy.title.linkHeading(
+    ChromeStringsScope.composerOf(context).draftOptions,
+  );
 
-  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+  // Enter saves the box.
+  KeyEventResult _onBoxKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     if (event.logicalKey != LogicalKeyboardKey.enter &&
         event.logicalKey != LogicalKeyboardKey.numpadEnter) {
@@ -656,65 +578,17 @@ class DraftOptionsOverlay extends StatelessWidget {
     session.apply();
     return KeyEventResult.handled;
   }
-}
 
-class _DraftOptionsPage extends StatelessWidget {
-  const _DraftOptionsPage({
-    required this.session,
-    required this.bubbleBuilder,
-    required this.text,
-    required this.linkPage,
-  });
-
-  final DraftOptionsSession session;
-  final DraftOptionsBubbleBuilder bubbleBuilder;
-  final model.RichText text;
-  final DraftLinkPage? linkPage;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = ChromeThemeScope.of(context).palette;
-    final strings = ChromeStringsScope.composerOf(context).draftOptions;
-    final style = ChromeTypography.of(context);
-    final (title, subtitle) = switch (session.policy.title) {
-      DraftOptionsTitle.titleAndSubtitle => (
-        strings.linkTitle,
-        strings.linkSubtitle,
-      ),
-      // One part in this cut: the title shows.
-      DraftOptionsTitle.titleWithOnePart => (strings.linkTitle, null),
-      DraftOptionsTitle.none => (null, null),
-    };
-    return DecoratedBox(
-      decoration: BoxDecoration(color: palette.surface),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ?switch (title) {
-            final title? => Text(
-              title,
-              style: style.copyWith(fontWeight: FontWeight.bold),
-            ),
-            null => null,
-          },
-          ?switch (subtitle) {
-            final subtitle? => Text(subtitle, style: style),
-            null => null,
-          },
-          DraftOptionsPreviewView(
-            session: session,
-            bubbleBuilder: bubbleBuilder,
-            text: text,
-          ),
-          ?switch (linkPage) {
-            final page? => DraftLinkRows(page: page),
-            null => null,
-          },
-        ],
-      ),
-    );
-  }
+  Widget _preview({
+    MouseCursor linkCursor = MouseCursor.defer,
+    MotionSpec change = ChromeMenuRowTiming.labelInstant,
+  }) => DraftOptionsPreviewView(
+    session: session,
+    bubbleBuilder: bubbleBuilder,
+    text: text,
+    linkCursor: linkCursor,
+    change: change,
+  );
 }
 
 /// The live preview of a [session]: the host's bubble for the draft as it
@@ -757,17 +631,22 @@ class DraftOptionsPreviewView extends StatelessWidget {
         valueListenable: session.page,
         builder: (context, page, _) => ValueListenableBuilder(
           valueListenable: session.value,
-          builder: (context, part, _) => bubbleBuilder(
-            context,
-            DraftOptionsPreview(
-              text: text,
-              part: part,
-              page: page,
-              onLinkTap: session.tapLink,
-              linkCursor: linkCursor,
-              change: change,
-            ),
-          ),
+          builder: (context, part, _) {
+            OverlayTrace.begin(OverlayTrace.previewBuild);
+            final bubble = bubbleBuilder(
+              context,
+              DraftOptionsPreview(
+                text: text,
+                part: part,
+                page: page,
+                onLinkTap: session.tapLink,
+                linkCursor: linkCursor,
+                change: change,
+              ),
+            );
+            OverlayTrace.end(OverlayTrace.previewBuild);
+            return bubble;
+          },
         ),
       ),
       Positioned.fill(

@@ -237,12 +237,17 @@ void main() {
     expect(dismissed.level, ChatEventLevel.debug);
     expect(dismissed.fields, {
       'owner': 'contentPreview',
-      'by': ChromeScrimDismissal.outside,
-      'closeOn': ChromeScrimCloseOn.down,
+      'preset': 'contentPreview',
+      'by': 'outside',
+      'closeOn': 'down',
     });
     final disposed = scrimEvent(ContentPreviewOp.scrimDisposed);
     expect(disposed.level, ChatEventLevel.trace);
-    expect(disposed.fields, {'owner': 'contentPreview', 'stills': 1});
+    expect(disposed.fields, {
+      'owner': 'contentPreview',
+      'preset': 'contentPreview',
+      'stills': 1,
+    });
   });
 
   testWidgets('the made still is reported with its time', (tester) async {
@@ -285,10 +290,7 @@ void main() {
     await settleClose(tester);
 
     expect(previews.isOpen.value, isFalse);
-    expect(
-      scrimEvent(ContentPreviewOp.scrimDismissed).fields['by'],
-      ChromeScrimDismissal.back,
-    );
+    expect(scrimEvent(ContentPreviewOp.scrimDismissed).fields['by'], 'back');
   });
 
   testWidgets('the host closing it reports no dismissal', (tester) async {
@@ -317,6 +319,7 @@ void main() {
     expect(scrimOps(), ['scrimCaptured', 'scrimCancelled', 'scrimDisposed']);
     expect(scrimEvent(ContentPreviewOp.scrimCancelled).fields, {
       'owner': 'contentPreview',
+      'preset': 'contentPreview',
     });
     expect(scrimEvent(ContentPreviewOp.scrimDisposed).fields['stills'], 1);
   });
@@ -334,7 +337,8 @@ void main() {
     expect(skipped.level, ChatEventLevel.debug);
     expect(skipped.fields, {
       'owner': 'contentPreview',
-      'why': ChromeScrimStillSkip.presetNoBlur,
+      'preset': 'contentPreview',
+      'why': 'presetNoBlur',
     });
     expect(scrimEvent(ContentPreviewOp.scrimDisposed).fields['stills'], 0);
   });
@@ -347,7 +351,7 @@ void main() {
 
     expect(
       scrimEvent(ContentPreviewOp.scrimStillSkipped).fields['why'],
-      ChromeScrimStillSkip.noSource,
+      'noSource',
     );
     await gesture.up();
     await settleClose(tester);

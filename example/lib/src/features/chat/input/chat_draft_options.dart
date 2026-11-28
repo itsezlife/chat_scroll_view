@@ -4,7 +4,6 @@ import 'package:chat_composer/chat_composer.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_link_preview.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart' hide RichText;
 import 'package:listen/listen.dart' as listen;
 import 'package:message_media/message_media.dart';
@@ -43,22 +42,22 @@ enum ChatDraftOptionsHook {
 ///   media; another link to `ChatLinkPreview.choose`; remove has already
 ///   applied the shared [ChatLinkPreview.dismissal] (the remove row's), so
 ///   the watcher only follows it ([ChatLinkPreview.dismissalApplied]).
+/// - **Denied previews.** The watcher's availability turns the entry's
+///   `linkPreviewsAllowed`: what is up closes with its motion, then reports
+///   the preview denied. No dismissal ran, so there is nothing to follow:
+///   the watcher, unavailable, already sends the preview removed.
 /// - **Another link.** A tap on a link of the preview is looked up through
 ///   [ChatLinkPreview.lookUp]: under live apply the edit has chosen it, and
 ///   that is the strip's own lookup; under commit on save it is a lookup the
 ///   strip does not show, so a cancel leaves the strip on its link.
-/// - **The page.** While the strip's card resolves, the open overlay
-///   follows it, as long as the overlay previews the card's link.
-/// - **Denied previews.** The watcher's availability turns the controllers'
-///   `linkPreviewsAllowed`: an overlay that is up closes with its motion,
-///   then reports the preview removed.
+/// - **The page.** While the strip's card resolves, the options that are up
+///   follow it, as long as they preview the card's link.
 /// - **Size row.** A page's media is read through the chat's
 ///   [MessageMediaPolicy] size rule (`LinkPreviewMediaSizeRule`).
 ///
-/// The policy is the platform's unless one is given, read at the first
-/// open (iPad's from the window's width class then). The web's is the menu
-/// anchored at the strip ([DraftOptionsWebMenuController]); the others the
-/// overlay ([DraftOptionsController]).
+/// The options are a [DraftOptionsEntry]: the overlay, or the web's menu
+/// anchored at the strip, by the policy, which is the platform's at each
+/// open unless one is given.
 final class ChatDraftOptions implements DraftOptionsHost {
   /// The draft options of [composer]'s draft, whose link preview is
   /// [linkPreview].
@@ -77,9 +76,19 @@ final class ChatDraftOptions implements DraftOptionsHost {
     DraftOptionsPolicy? policy,
     ChatCorrelation Function()? correlation,
     ComposerClock clock = ComposerClock.system,
-  }) : _policy = policy,
-       _correlation = correlation,
-       _clock = clock {
+  }) : _correlation = correlation {
+    _entry = DraftOptionsEntry(
+      host: this,
+      input: _input,
+      bubbleBuilder: _bubble,
+      policy: policy,
+      // A hold nobody carries out would only block the keyboard requests.
+      composer: carriesKeyboardIntent ? composer : null,
+      clock: clock,
+      correlation: correlation,
+      dismissal: linkPreview.dismissal,
+      mediaOf: _mediaOf,
+    )..linkPreviewsAllowed = linkPreview.available;
     linkPreview.card.addListener(_onCard);
     linkPreview.draftChanged.addListener(_onDraftChanged);
   }
@@ -100,48 +109,35 @@ final class ChatDraftOptions implements DraftOptionsHost {
   final bool carriesKeyboardIntent;
 
   final ChatCorrelation Function()? _correlation;
-  final ComposerClock _clock;
-  DraftOptionsPolicy? _policy;
-  DraftOptionsController? _overlay;
-  DraftOptionsWebMenuController? _menu;
+  late final DraftOptionsEntry _entry;
+  var _keyboardReported = false;
   var _disposed = false;
 
-  /// The open overlay's session, or null (none is up, or the web's menu).
-  DraftOptionsSession? get overlaySession => _overlay?.session;
+  /// The open session, overlay or menu, or null when none is up.
+  DraftOptionsSession? get session => _entry.session;
 
   /// The strip's open action: opens the draft options at the link page on
   /// the strip at [stripRect] (global), over [context]'s window.
   void open(BuildContext context, Rect stripRect) {
-    if (_disposed) return;
-    final input = _input();
-    if (input == null) return;
-    switch (_policyOf(context)) {
-      case final DraftOptionsPolicy$Web web:
-        _menuOf(web).open(context, stripRect);
-      case final policy:
-        final opened = _overlayOf(policy).open(
-          context,
-          value: input.value,
-          page: input.page,
-          text: input.text,
-          stripRect: stripRect,
-          links: input.links,
-        );
-        if (opened && bubbleBuilder == null) {
-          _missing(ChatDraftOptionsHook.bubbleBuilder);
-        }
+    if (_disposed || !_entry.open(context, stripRect)) return;
+    // The overlay's hooks: the web's menu draws no preview and holds no
+    // keyboard.
+    if (_entry.session?.policy case DraftOptionsOverlayPolicy(
+      :final keyboard,
+    )) {
+      if (bubbleBuilder == null) _missing(ChatDraftOptionsHook.bubbleBuilder);
+      final holds = keyboard.intent == ComposerKeyboardIntent.hold;
+      if (holds && !carriesKeyboardIntent && !_keyboardReported) {
+        _keyboardReported = true;
+        _missing(ChatDraftOptionsHook.keyboardIntent);
+      }
     }
   }
 
-  /// The strip's hover report on the web, where a mouse resting on it opens
-  /// the menu; null on the other platforms, which open on a tap only.
+  /// The strip's hover report where a mouse resting on it opens the
+  /// options (the web); null where only a tap opens them.
   ComposerLinkPreviewHover? hoverOf(BuildContext context) =>
-      switch (_policyOf(context)) {
-        final DraftOptionsPolicy$Web web => (rect) {
-          if (!_disposed) _menuOf(web).hover(context, rect);
-        },
-        _ => null,
-      };
+      _entry.hoverOf(context);
 
   /// Closes what is up at once and stops following the watcher.
   /// Idempotent.
@@ -150,8 +146,7 @@ final class ChatDraftOptions implements DraftOptionsHost {
     _disposed = true;
     linkPreview.card.removeListener(_onCard);
     linkPreview.draftChanged.removeListener(_onDraftChanged);
-    _overlay?.dispose();
-    _menu?.dispose();
+    _entry.dispose();
   }
 
   // --- DraftOptionsHost ----------------------------------------------------
@@ -162,7 +157,7 @@ final class ChatDraftOptions implements DraftOptionsHost {
     final options = part.options;
     if (options.removed) {
       // The remove row reports the edit, then applies the shared dismissal:
-      // the watcher follows once it has. Denied previews are its own.
+      // the watcher follows once it has.
       scheduleMicrotask(() {
         if (!_disposed) linkPreview.dismissalApplied();
       });
@@ -176,54 +171,17 @@ final class ChatDraftOptions implements DraftOptionsHost {
       ..invertMedia = part.invertMedia;
   }
 
+  /// The chat's denial, not the user's remove: no dismissal ran, so the
+  /// watcher has nothing to follow. It is unavailable already, and so sends
+  /// the preview removed with the options the draft last had.
+  @override
+  void previewDenied(DraftLinkPart part) {}
+
   @override
   listen.ValueListenable<LinkPreviewState> chooseLink(Uri url) =>
       linkPreview.lookUp(url);
 
   // --- Wiring --------------------------------------------------------------
-
-  DraftOptionsPolicy _policyOf(BuildContext context) =>
-      _policy ??= DraftOptionsPolicy.forPlatform(
-        defaultTargetPlatform,
-        isWeb: kIsWeb,
-        regularWidth: ChromeWidthClass.of(context) != ChromeWidthClass.compact,
-      );
-
-  DraftOptionsController _overlayOf(DraftOptionsPolicy policy) {
-    if (_overlay case final overlay?) return overlay;
-    final holds = policy.keyboard.intent == ComposerKeyboardIntent.hold;
-    if (holds && !carriesKeyboardIntent) {
-      _missing(ChatDraftOptionsHook.keyboardIntent);
-    }
-    return _overlay = DraftOptionsController(
-      policy: policy,
-      host: this,
-      bubbleBuilder: _bubble,
-      // A hold nobody carries out would only block the keyboard requests.
-      composer: carriesKeyboardIntent ? composer : null,
-      clock: _clock,
-      correlation: _correlation,
-      dismissal: linkPreview.dismissal,
-      mediaOf: _mediaOf,
-    )..linkPreviewsAllowed = linkPreview.available;
-  }
-
-  DraftOptionsWebMenuController _menuOf(DraftOptionsPolicy$Web policy) =>
-      _menu ??= DraftOptionsWebMenuController(
-        policy: policy,
-        host: this,
-        input: () => _input() ?? _emptyInput,
-        clock: _clock,
-        correlation: _correlation,
-        dismissal: linkPreview.dismissal,
-        mediaOf: _mediaOf,
-      )..linkPreviewsAllowed = linkPreview.available;
-
-  // What a hover that outlived the card opens on: nothing to preview.
-  static final _emptyInput = DraftOptionsInput(
-    value: DraftLinkPart(options: LinkPreviewOptions(url: Uri())),
-    page: LinkPreviewState.none,
-  );
 
   /// The draft as the options open on it, or null without a card.
   DraftOptionsInput? _input() => switch (linkPreview.card.value) {
@@ -266,19 +224,15 @@ final class ChatDraftOptions implements DraftOptionsHost {
   }
 
   void _onCard() {
-    final overlay = _overlay;
     final card = linkPreview.card.value;
-    if (overlay == null || card == null) return;
-    // A link chosen in the overlay is followed by its own lookup.
-    if (overlay.session?.value.value.options.url != card.url) return;
-    overlay.page = _stateOf(card);
+    final session = _entry.session;
+    if (session == null || card == null) return;
+    // A link chosen in the options is followed by its own lookup.
+    if (session.value.value.options.url != card.url) return;
+    _entry.page = _stateOf(card);
   }
 
-  void _onDraftChanged() {
-    final allowed = linkPreview.available;
-    _overlay?.linkPreviewsAllowed = allowed;
-    _menu?.linkPreviewsAllowed = allowed;
-  }
+  void _onDraftChanged() => _entry.linkPreviewsAllowed = linkPreview.available;
 
   void _missing(ChatDraftOptionsHook hook) =>
       ChatDraftOptionsDiagnostics.wiringMissing(hook, _correlation);

@@ -9,11 +9,14 @@ is pre-1.0.
 ### Changed (content preview backdrop)
 
 - `ContentPreviewSession` draws its still and dim through chrome_foundation's
-  `ChromeScrim` with `ChromeScrimPreset.contentPreview` instead of its own
-  capture; what it shows, its timing and its dismissal are unchanged. The
-  scrim's phases are `overlay` events (`ContentPreviewOp`, owner
-  `contentPreview`). Back now reaches an open preview through the scrim's
-  own back listener as well as the host's `ContentPreviewController.dismiss`.
+  `ChromeScrim` with `ChromeScrimPreset.contentPreview`. The scrim's phases
+  are `overlay` events (`ContentPreviewOp`, owner `contentPreview`, with the
+  `preset` and the phase's fields, enums by name; a failed capture carries
+  its error and stack), and its capture and still are the
+  `chat_scroll_view.overlay.scrimCapture` and `…scrimStill` timeline
+  sections in a traced build. Back closes an open preview through the
+  scrim's back listener, and the host's `ContentPreviewController.dismiss`
+  closes it too.
 
 ### Changed (tooltip)
 

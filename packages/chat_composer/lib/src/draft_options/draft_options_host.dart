@@ -12,7 +12,17 @@ import 'package:listen/listen.dart' as listen;
 /// arrives depends on the policy's apply mode.
 abstract interface class DraftOptionsHost {
   /// The link part is now [part]: the host writes it into the draft.
+  ///
+  /// The user's edits, the remove row's included: that row has applied the
+  /// link preview dismissal (as the strip's cross does) before the edit
+  /// arrives, so the host follows it.
   void linkPartEdited(DraftLinkPart part);
+
+  /// Link previews became denied while the options were up; they have
+  /// closed, and the draft's link part is [part], its preview removed. The
+  /// host records it in the draft. Nothing applied a dismissal: the denial
+  /// is the chat's, not the user's choice.
+  void previewDenied(DraftLinkPart part);
 
   /// The user chose [url], a link of the draft's text, as the one to
   /// preview: the host re-asks its resolver for that link alone and returns

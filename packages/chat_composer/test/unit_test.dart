@@ -24,6 +24,8 @@ import 'draft_options/draft_options_desktop_golden_test.dart'
     as draft_options_desktop_golden_test;
 import 'draft_options/draft_options_desktop_test.dart'
     as draft_options_desktop_test;
+import 'draft_options/draft_options_entry_test.dart'
+    as draft_options_entry_test;
 import 'draft_options/draft_options_ios_golden_test.dart'
     as draft_options_ios_golden_test;
 import 'draft_options/draft_options_ios_presentation_test.dart'
@@ -44,6 +46,7 @@ import 'draft_options/draft_options_web_menu_policy_test.dart'
     as draft_options_web_menu_policy_test;
 import 'draft_options/draft_options_web_menu_test.dart'
     as draft_options_web_menu_test;
+import 'draft_options/overlay_trace_test.dart' as overlay_trace_test;
 import 'input/composer_clipboard_test.dart' as input_composer_clipboard_test;
 import 'input/composer_controller_extent_test.dart'
     as composer_controller_extent_test;
@@ -158,6 +161,10 @@ void main() {
     draft_options_card_view_test.main,
   );
   group(
+    'draft_options/draft_options_entry_test.dart',
+    draft_options_entry_test.main,
+  );
+  group(
     'draft_options/draft_options_ios_golden_test.dart',
     draft_options_ios_golden_test.main,
   );
@@ -205,6 +212,7 @@ void main() {
     'draft_options/draft_options_web_menu_test.dart',
     draft_options_web_menu_test.main,
   );
+  group('draft_options/overlay_trace_test.dart', overlay_trace_test.main);
   group(
     'input/composer_clipboard_test.dart',
     input_composer_clipboard_test.main,

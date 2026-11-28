@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' show TimelineTask;
 import 'dart:math' as math;
 
 import 'package:chrome_foundation/chrome_foundation.dart';
@@ -18,6 +19,7 @@ import 'package:panel_pages/src/preview/content_preview_item.dart';
 import 'package:panel_pages/src/preview/content_preview_layout.dart';
 import 'package:panel_pages/src/preview/content_preview_menu.dart';
 import 'package:panel_pages/src/preview/content_preview_op.dart';
+import 'package:panel_pages/src/preview/preview_trace.dart';
 import 'package:panel_pages/src/theme/chrome_catalog_theme.dart';
 import 'package:panel_shell/panel_shell.dart';
 
@@ -211,14 +213,17 @@ final class ContentPreviewSession implements CatalogLongPressSession {
       still: blurs && (kind != PointerDeviceKind.mouse || openMenu),
     );
     late final ContentPreviewSession session;
+    final report = _ScrimReport(preset);
+    PreviewTrace.begin(PreviewTrace.scrimCapture);
     final scrim = ChromeScrimController(
       context,
       preset: preset,
       // The still comes in with the menu, on its own clock.
       showStill: false,
-      onPhase: (phase) => _reportScrim(phase, preset),
+      onPhase: report.call,
       onDismiss: (_) => session.close(),
     );
+    PreviewTrace.end(PreviewTrace.scrimCapture);
     session = ContentPreviewSession._(
       item: item,
       assets: assets,
@@ -355,81 +360,9 @@ final class ContentPreviewSession implements CatalogLongPressSession {
       stillFade: preset.stillFade,
       closeOn: preset.closeOn,
       closesOnEscape: preset.closesOnEscape,
+      closesOnBack: preset.closesOnBack,
     );
   }
-
-  // The scrim reports and never logs: its phases become the preview's
-  // overlay events, with no id (a preview knows no chat).
-  static void _reportScrim(ChromeScrimPhase phase, ChromeScrimPreset preset) {
-    final diagnostics = ChatDiagnostics.current;
-    void emit(
-      ChatEventLevel level,
-      ContentPreviewOp op, [
-      Map<String, Object> Function()? fields,
-      Object? error,
-    ]) => diagnostics.emit(
-      level,
-      ChatEventCategory.overlay,
-      op,
-      fields: () => {'owner': _owner, ...?fields?.call()},
-      error: error,
-    );
-    switch (phase) {
-      case ChromeScrimPhase$Captured(:final captureTime, :final stillSize):
-        emit(
-          ChatEventLevel.trace,
-          ContentPreviewOp.scrimCaptured,
-          () => {
-            'preset': preset.name,
-            'captureUs': captureTime.inMicroseconds,
-            'stillWidth': stillSize.width.round(),
-            'stillHeight': stillSize.height.round(),
-          },
-        );
-      case ChromeScrimPhase$StillReady(:final makeTime, :final glassSource):
-        emit(
-          ChatEventLevel.trace,
-          ContentPreviewOp.scrimStillReady,
-          () => {
-            'preset': preset.name,
-            'cpuMs': makeTime.inMilliseconds,
-            'glassSource': glassSource,
-          },
-        );
-      case ChromeScrimPhase$StillSkipped(:final why):
-        emit(
-          ChatEventLevel.debug,
-          ContentPreviewOp.scrimStillSkipped,
-          () => {'why': why},
-        );
-      case ChromeScrimPhase$Dismissed(:final by, :final closeOn):
-        emit(
-          ChatEventLevel.debug,
-          ContentPreviewOp.scrimDismissed,
-          () => {'by': by, 'closeOn': closeOn},
-        );
-      case ChromeScrimPhase$Cancelled():
-        emit(ChatEventLevel.debug, ContentPreviewOp.scrimCancelled);
-      case ChromeScrimPhase$Disposed(:final stills):
-        emit(
-          ChatEventLevel.trace,
-          ContentPreviewOp.scrimDisposed,
-          () => {'stills': stills},
-        );
-      case ChromeScrimPhase$CaptureFailed(:final error, :final glassSource):
-        emit(
-          ChatEventLevel.error,
-          ContentPreviewOp.scrimCaptureFailed,
-          () => {
-            'errorType': ChatEvent.clip('${error.runtimeType}'),
-            'glassSource': glassSource,
-          },
-          error,
-        );
-    }
-  }
-
-  static const _owner = 'contentPreview';
 
   /// The draws the content is resized from: the cache's.
   final ContentAssetScope assets;
@@ -1097,6 +1030,53 @@ class _PreviewMenuItem extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// One preview's scrim phases as its overlay events, with no id (a preview
+/// knows no chat), and the span of its still on the timeline.
+///
+/// The scrim reports and never logs. The level and the fields are the
+/// phase's own; only the op names are the preview's.
+final class _ScrimReport {
+  _ScrimReport(this.preset);
+
+  static const _owner = 'contentPreview';
+
+  final ChromeScrimPreset preset;
+  TimelineTask? _still;
+
+  void call(ChromeScrimPhase phase) {
+    switch (phase) {
+      case ChromeScrimPhase$Captured():
+        _still = PreviewTrace.start(PreviewTrace.scrimStill);
+      case ChromeScrimPhase$StillReady(glassSource: false) ||
+          ChromeScrimPhase$CaptureFailed(glassSource: false) ||
+          ChromeScrimPhase$Disposed():
+        PreviewTrace.finish(_still);
+        _still = null;
+      case _:
+        break;
+    }
+    final (error, stackTrace) = switch (phase) {
+      ChromeScrimPhase$CaptureFailed(:final error, :final stackTrace) => (
+        error,
+        stackTrace,
+      ),
+      _ => (null, null),
+    };
+    ChatDiagnostics.current.emit(
+      switch (phase.level) {
+        ChromeScrimPhaseLevel.trace => ChatEventLevel.trace,
+        ChromeScrimPhaseLevel.debug => ChatEventLevel.debug,
+        ChromeScrimPhaseLevel.error => ChatEventLevel.error,
+      },
+      ChatEventCategory.overlay,
+      ContentPreviewOp.ofScrim(phase),
+      fields: () => {'owner': _owner, 'preset': preset.name, ...phase.fields},
+      error: error,
+      stackTrace: stackTrace,
     );
   }
 }

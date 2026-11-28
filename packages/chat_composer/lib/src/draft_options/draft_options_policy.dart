@@ -42,7 +42,21 @@ enum DraftOptionsTitle {
   titleWithOnePart,
 
   /// No title.
-  none,
+  none;
+
+  /// The title and subtitle this heading shows for the link page, from
+  /// [strings]; null where it shows none. One part in this cut, so
+  /// [titleWithOnePart] shows the title.
+  ({String? title, String? subtitle}) linkHeading(
+    DraftOptionsStrings strings,
+  ) => switch (this) {
+    titleAndSubtitle => (
+      title: strings.linkTitle,
+      subtitle: strings.linkSubtitle,
+    ),
+    titleWithOnePart => (title: strings.linkTitle, subtitle: null),
+    none => (title: null, subtitle: null),
+  };
 }
 
 /// Which links of the draft's text a tap in the live preview may choose as
@@ -123,18 +137,14 @@ final class DraftOptionsKeyboard {
 /// - [DraftOptionsPolicy$Web]: no overlay; the options are a menu anchored at
 ///   the strip, each choice applied at once.
 ///
-/// Every field is a default a host may override through the variant's
-/// constructor.
+/// The first three are the overlay's ([DraftOptionsOverlayPolicy]); the
+/// web's menu takes only what a menu uses. Every field is a default a host
+/// may override through the variant's constructor.
 @immutable
 sealed class DraftOptionsPolicy {
   const DraftOptionsPolicy({
     required this.partOrder,
-    required this.apply,
-    required this.opensOnPending,
-    required this.title,
-    required this.keyboard,
     required this.linkChoice,
-    required this.keepsChosenLinkSelected,
     required this.linkPage,
   });
 
@@ -185,9 +195,6 @@ sealed class DraftOptionsPolicy {
   /// See [DraftOptionsPolicy$Web].
   const factory DraftOptionsPolicy.web({
     List<DraftPart> partOrder,
-    DraftOptionsApply apply,
-    bool opensOnPending,
-    DraftOptionsKeyboard keyboard,
     DraftOptionsLinkChoice linkChoice,
     DraftLinkPagePolicy linkPage,
     DraftOptionsWebMenuPolicy menu,
@@ -214,11 +221,51 @@ sealed class DraftOptionsPolicy {
     };
   }
 
+  /// Within this of an accepted open, another open is dropped and a press
+  /// outside passes through: a burst of taps on the strip opens the options
+  /// once and does not close them again. The overlay's and the menu's.
+  static const Duration openGuard = ChromeTapTiming.repeatGuard;
+
   /// The order of the pages, by part; a part absent from the draft has no
   /// page.
   final List<DraftPart> partOrder;
 
+  /// Which links a tap in the live preview may choose.
+  final DraftOptionsLinkChoice linkChoice;
+
+  /// The link page's rows: which show and when, their labels, presses and
+  /// motion.
+  final DraftLinkPagePolicy linkPage;
+
   /// When edits reach the host.
+  DraftOptionsApply get apply;
+
+  /// The presentation family, for the events.
+  DraftOptionsPresentation get presentation;
+
+  /// The pages of a draft holding [present], in [partOrder].
+  List<DraftPart> pages(Set<DraftPart> present) => [
+    for (final part in partOrder)
+      if (present.contains(part)) part,
+  ];
+}
+
+/// The forms that open as the draft options overlay, over a scrim with a
+/// live preview: [DraftOptionsPolicy$Android], [DraftOptionsPolicy$IOS] and
+/// [DraftOptionsPolicy$Desktop]. A `DraftOptionsController` takes one.
+sealed class DraftOptionsOverlayPolicy extends DraftOptionsPolicy {
+  const DraftOptionsOverlayPolicy({
+    required super.partOrder,
+    required this.apply,
+    required this.opensOnPending,
+    required this.title,
+    required this.keyboard,
+    required super.linkChoice,
+    required this.keepsChosenLinkSelected,
+    required super.linkPage,
+  });
+
+  @override
   final DraftOptionsApply apply;
 
   /// Whether the overlay opens on a page that is still loading (the preview
@@ -231,31 +278,12 @@ sealed class DraftOptionsPolicy {
   /// What the overlay asks of the soft keyboard.
   final DraftOptionsKeyboard keyboard;
 
-  /// Which links a tap in the live preview may choose.
-  final DraftOptionsLinkChoice linkChoice;
-
   /// Whether the chosen link stays highlighted as selected once its page has
   /// loaded; otherwise the highlight goes with the spinner.
   final bool keepsChosenLinkSelected;
 
-  /// The link page's rows: which show and when, their labels, presses and
-  /// motion.
-  final DraftLinkPagePolicy linkPage;
-
-  /// The presentation family, for the overlay's events.
-  DraftOptionsPresentation get presentation;
-
-  /// The scrim under the overlay; null where there is no overlay.
-  ChromeScrimPreset? get scrim;
-
-  /// Whether the options open as the overlay; false for the web's menu.
-  bool get usesOverlay => scrim != null;
-
-  /// The pages of a draft holding [present], in [partOrder].
-  List<DraftPart> pages(Set<DraftPart> present) => [
-    for (final part in partOrder)
-      if (present.contains(part)) part,
-  ];
+  /// The scrim under the overlay.
+  ChromeScrimPreset get scrim;
 }
 
 /// The Android form: a full-window card over the chat under the Android
@@ -263,7 +291,7 @@ sealed class DraftOptionsPolicy {
 /// link, each headed by a title and subtitle. The card's metrics are [card]
 /// and its motion [cardMotion]; the link page's rows stand in a glass menu
 /// under it that samples the scrim's glass source.
-final class DraftOptionsPolicy$Android extends DraftOptionsPolicy {
+final class DraftOptionsPolicy$Android extends DraftOptionsOverlayPolicy {
   /// The Android policy; every field is the platform's default unless given.
   const DraftOptionsPolicy$Android({
     super.partOrder = const [
@@ -299,7 +327,7 @@ final class DraftOptionsPolicy$Android extends DraftOptionsPolicy {
 /// The iOS form: content springing from the strip under the iOS scrim (the
 /// iPad one in a regular-width window), applied live, opening on a pending
 /// page, with no title.
-final class DraftOptionsPolicy$IOS extends DraftOptionsPolicy {
+final class DraftOptionsPolicy$IOS extends DraftOptionsOverlayPolicy {
   /// The iOS policy; [iPad] for a regular-width window. Every field is the
   /// platform's default unless given.
   const DraftOptionsPolicy$IOS({
@@ -348,7 +376,7 @@ final class DraftOptionsPolicy$IOS extends DraftOptionsPolicy {
 /// there is one part. The box ([box]) takes keyboard focus on open, saves
 /// on Enter, discards on Escape and Cancel, and gives focus back to the
 /// composer's field on close.
-final class DraftOptionsPolicy$Desktop extends DraftOptionsPolicy {
+final class DraftOptionsPolicy$Desktop extends DraftOptionsOverlayPolicy {
   /// The desktop policy; every field is the platform's default unless given.
   const DraftOptionsPolicy$Desktop({
     super.partOrder = const [
@@ -378,7 +406,7 @@ final class DraftOptionsPolicy$Desktop extends DraftOptionsPolicy {
 }
 
 /// The web form: no overlay, no scrim, no live preview; the options are a
-/// menu anchored at the strip, each choice applied at once.
+/// menu anchored at the strip, each choice applied at once (live apply).
 final class DraftOptionsPolicy$Web extends DraftOptionsPolicy {
   /// The web policy; every field is the web's default unless given.
   const DraftOptionsPolicy$Web({
@@ -387,20 +415,18 @@ final class DraftOptionsPolicy$Web extends DraftOptionsPolicy {
       DraftPart.reply,
       DraftPart.forward,
     ],
-    super.apply = DraftOptionsApply.liveApply,
-    super.opensOnPending = true,
-    super.keyboard = DraftOptionsKeyboard.keep,
     super.linkChoice = DraftOptionsLinkChoice.anyLink,
     super.linkPage = DraftLinkPagePolicy.web,
     this.menu = DraftOptionsWebMenuPolicy.standard,
-  }) : super(title: DraftOptionsTitle.none, keepsChosenLinkSelected: false);
+  });
 
   /// The menu anchored at the strip: how it opens, looks, moves and
   /// closes.
   final DraftOptionsWebMenuPolicy menu;
 
+  /// Live: a menu has no Save, so each choice is reported at once.
   @override
-  ChromeScrimPreset? get scrim => null;
+  DraftOptionsApply get apply => DraftOptionsApply.liveApply;
 
   @override
   DraftOptionsPresentation get presentation => DraftOptionsPresentation.web;

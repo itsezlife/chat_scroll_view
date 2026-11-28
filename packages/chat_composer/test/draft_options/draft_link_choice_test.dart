@@ -39,7 +39,7 @@ void main() {
   });
 
   DraftOptionsSession open(
-    DraftOptionsPolicy policy, {
+    DraftOptionsOverlayPolicy policy, {
     List<Uri>? links,
     LinkPreviewState page = LinkPreviewState.pending,
   }) {
@@ -62,13 +62,13 @@ void main() {
     test('Android chooses only among several links; iOS, desktop and the '
         'web any link', () {
       expect(
-        const DraftOptionsPolicy.android().linkChoice,
+        const DraftOptionsPolicy$Android().linkChoice,
         DraftOptionsLinkChoice.severalLinks,
       );
       for (final policy in [
-        const DraftOptionsPolicy.ios(),
-        const DraftOptionsPolicy.ios(iPad: true),
-        const DraftOptionsPolicy.desktop(),
+        const DraftOptionsPolicy$IOS(),
+        const DraftOptionsPolicy$IOS(iPad: true),
+        const DraftOptionsPolicy$Desktop(),
         const DraftOptionsPolicy.web(),
       ]) {
         expect(
@@ -80,18 +80,17 @@ void main() {
     });
 
     test('only desktop keeps the chosen link selected', () {
-      expect(const DraftOptionsPolicy.desktop().keepsChosenLinkSelected, true);
+      expect(const DraftOptionsPolicy$Desktop().keepsChosenLinkSelected, true);
       for (final policy in [
-        const DraftOptionsPolicy.android(),
-        const DraftOptionsPolicy.ios(),
-        const DraftOptionsPolicy.web(),
+        const DraftOptionsPolicy$Android(),
+        const DraftOptionsPolicy$IOS(),
       ]) {
         expect(policy.keepsChosenLinkSelected, isFalse, reason: '$policy');
       }
     });
 
     test('a host overrides them', () {
-      const policy = DraftOptionsPolicy.android(
+      const policy = DraftOptionsPolicy$Android(
         linkChoice: DraftOptionsLinkChoice.anyLink,
         keepsChosenLinkSelected: true,
       );
@@ -103,7 +102,7 @@ void main() {
   group('choosing another link', () {
     test('a tap asks the host for that link, edits the url and highlights '
         'it pending', () {
-      final session = open(const DraftOptionsPolicy.android())
+      final session = open(const DraftOptionsPolicy$Android())
         ..tapLink('$_second', _contour);
 
       expect(host.chosenLinks, [_second]);
@@ -132,7 +131,7 @@ void main() {
     });
 
     test('loaded drops the highlight and the page follows', () {
-      final session = open(const DraftOptionsPolicy.ios())
+      final session = open(const DraftOptionsPolicy$IOS())
         ..tapLink('$_second', _contour);
       clock.advance(const Duration(milliseconds: 340));
       resolver.completeAll();
@@ -148,7 +147,7 @@ void main() {
     test('none drops the highlight too', () {
       resolver = FakeLinkPreviewResolver();
       host = RecordingDraftOptionsHost(resolver: resolver);
-      final session = open(const DraftOptionsPolicy.ios())
+      final session = open(const DraftOptionsPolicy$IOS())
         ..tapLink('$_second', _contour);
       resolver.completeAll();
 
@@ -161,7 +160,7 @@ void main() {
     });
 
     test('Android ignores a tap when the text has a single link', () {
-      final session = open(const DraftOptionsPolicy.android(), links: [_first])
+      final session = open(const DraftOptionsPolicy$Android(), links: [_first])
         ..tapLink('$_first', _contour);
 
       expect(host.chosenLinks, isEmpty);
@@ -174,8 +173,8 @@ void main() {
 
     test('iOS and desktop take any link, a single one too', () {
       for (final policy in const [
-        DraftOptionsPolicy.ios(),
-        DraftOptionsPolicy.desktop(),
+        DraftOptionsPolicy$IOS(),
+        DraftOptionsPolicy$Desktop(),
       ]) {
         final only = Uri.parse('https://only.example/');
         final session = DraftOptionsSession(
@@ -195,7 +194,7 @@ void main() {
 
     test('desktop keeps the chosen link selected once loaded', () {
       final session = open(
-        const DraftOptionsPolicy.desktop(),
+        const DraftOptionsPolicy$Desktop(),
         page: LinkPreviewState.loaded(LinkPreview(url: _first)),
       )..tapLink('$_second', _contour);
       resolver.completeAll();
@@ -206,7 +205,7 @@ void main() {
     });
 
     test('desktop: the choice stays in the copy until save', () {
-      final session = open(const DraftOptionsPolicy.desktop())
+      final session = open(const DraftOptionsPolicy$Desktop())
         ..tapLink('$_second', _contour);
       expect(host.edits, isEmpty);
       expect(host.chosenLinks, [_second]);
@@ -220,7 +219,7 @@ void main() {
     });
 
     test('a burst of taps on the same link asks once', () {
-      final session = open(const DraftOptionsPolicy.android());
+      final session = open(const DraftOptionsPolicy$Android());
       for (var i = 0; i < 4; i++) {
         session.tapLink('$_second', _contour);
       }
@@ -237,7 +236,7 @@ void main() {
     test('a tap on another link while pending follows the newer one', () {
       final third = Uri.parse('https://third.example/');
       final session = open(
-        const DraftOptionsPolicy.ios(),
+        const DraftOptionsPolicy$IOS(),
         links: [_first, _second, third],
       )..tapLink('$_second', _contour);
       final other = Path()..addRect(const Rect.fromLTWH(0, 40, 30, 16));
@@ -251,7 +250,7 @@ void main() {
     });
 
     test('a link not in the text is ignored', () {
-      final session = open(const DraftOptionsPolicy.ios())
+      final session = open(const DraftOptionsPolicy$IOS())
         ..tapLink('https://elsewhere.example/', _contour);
 
       expect(host.chosenLinks, isEmpty);
@@ -262,7 +261,7 @@ void main() {
     });
 
     test('no event carries a URL', () {
-      open(const DraftOptionsPolicy.ios())
+      open(const DraftOptionsPolicy$IOS())
         ..tapLink('$_second', _contour)
         ..tapLink('https://elsewhere.example/', _contour);
       resolver.completeAll();
@@ -282,7 +281,7 @@ void main() {
 
     Future<DraftOptionsController> openOverlay(
       WidgetTester tester,
-      DraftOptionsPolicy policy, {
+      DraftOptionsOverlayPolicy policy, {
       List<Uri>? links,
     }) async {
       final controller = DraftOptionsController(
@@ -317,7 +316,7 @@ void main() {
     testWidgets('the builder gets the draft and the not-selectable flag', (
       tester,
     ) async {
-      await openOverlay(tester, const DraftOptionsPolicy.android());
+      await openOverlay(tester, const DraftOptionsPolicy$Android());
 
       final preview = bubble.previews.last;
       expect(preview.text.plain, '$_first and $_second');
@@ -331,7 +330,7 @@ void main() {
     ) async {
       final controller = await openOverlay(
         tester,
-        const DraftOptionsPolicy.android(),
+        const DraftOptionsPolicy$Android(),
       );
       final above = _initial.copyWith(invertMedia: true);
       controller.session!.edit(above, field: DraftOptionsField.position);
@@ -343,7 +342,7 @@ void main() {
     testWidgets('onLinkTap shows the highlight and a spinner until loaded', (
       tester,
     ) async {
-      await openOverlay(tester, const DraftOptionsPolicy.android());
+      await openOverlay(tester, const DraftOptionsPolicy$Android());
       expect(find.byKey(DraftOptionsOverlay.linkHighlightKey), findsNothing);
 
       bubble.previews.last.onLinkTap('$_second', _contour);
@@ -365,7 +364,7 @@ void main() {
       tester,
     ) async {
       final controller = DraftOptionsController(
-        policy: const DraftOptionsPolicy.desktop(),
+        policy: const DraftOptionsPolicy$Desktop(),
         host: host,
         bubbleBuilder: bubble.call,
         clock: clock,
@@ -402,7 +401,7 @@ void main() {
     testWidgets('Android ignores taps with a single link', (tester) async {
       await openOverlay(
         tester,
-        const DraftOptionsPolicy.android(),
+        const DraftOptionsPolicy$Android(),
         links: [_first],
       );
       bubble.previews.last.onLinkTap('$_first', _contour);

@@ -1,3 +1,4 @@
+import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:content_model/content_model.dart';
 
 /// The operations of the `overlay` diagnostics events the draft options
@@ -31,8 +32,8 @@ enum OverlayOp implements DiagnosticOp {
   /// The scrim let go of its stills (trace): `stills`.
   scrimDisposed,
 
-  /// The scrim's capture failed (error): the `errorType`, and `glassSource`
-  /// when it was the glass source's still.
+  /// The scrim's capture failed (error): the `errorType`, `glassSource`
+  /// when it was the glass source's still, and the error with its stack.
   scrimCaptureFailed,
 
   /// The overlay opened (info): `presentation` (`android`, `ios`, `ipad`,
@@ -40,8 +41,9 @@ enum OverlayOp implements DiagnosticOp {
   /// whether the keyboard was up (`keyboardWasUp`).
   opened,
 
-  /// An open was refused (debug): `why`, `desktopNotLoaded`, `denied` or
-  /// `alreadyOpen`.
+  /// An open was refused (debug): `why`, a `DraftOptionsOpenRefusal` name
+  /// (`denied`, `alreadyOpen`, `notLoaded` where the policy opens only on a
+  /// loaded page, `noDraft`).
   openRefused,
 
   /// An open came within the tap guard of the accepted one and was dropped
@@ -63,9 +65,10 @@ enum OverlayOp implements DiagnosticOp {
   /// the text's links and their `count`.
   linkTapped,
 
-  /// A tap on a link in the live preview chose nothing (debug): `why`,
-  /// `singleLink` (the policy needs more than one), `current` (the link
-  /// already previewed) or `notInText` (not one of the text's links).
+  /// A tap on a link in the live preview chose nothing (debug): `why`, a
+  /// `DraftLinkTapIgnored` name: `singleLink` (the policy needs more than
+  /// one), `current` (the link already previewed) or `notInText` (not one
+  /// of the text's links).
   linkTapIgnored,
 
   /// The chosen link's lookup stands at `state` (debug): `pending`,
@@ -111,5 +114,16 @@ enum OverlayOp implements DiagnosticOp {
   /// (a press on the catcher), `leave` (the mouse left the strip and the
   /// menu), `secondaryClick`, `choice` (a row applied) or `denied` (link
   /// previews were denied while it was up).
-  webMenuClosed,
+  webMenuClosed;
+
+  /// The op of a scrim [phase].
+  static OverlayOp ofScrim(ChromeScrimPhase phase) => switch (phase) {
+    ChromeScrimPhase$Captured() => scrimCaptured,
+    ChromeScrimPhase$StillReady() => scrimStillReady,
+    ChromeScrimPhase$StillSkipped() => scrimStillSkipped,
+    ChromeScrimPhase$Dismissed() => scrimDismissed,
+    ChromeScrimPhase$Cancelled() => scrimCancelled,
+    ChromeScrimPhase$Disposed() => scrimDisposed,
+    ChromeScrimPhase$CaptureFailed() => scrimCaptureFailed,
+  };
 }

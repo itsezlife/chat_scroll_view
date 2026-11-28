@@ -355,12 +355,12 @@ final class DraftOptionsCardLayout {
 final class DraftOptionsCardMotion {
   /// A motion; every value is the Android default unless given.
   const DraftOptionsCardMotion({
-    this.open = ChromeCardOverlayTiming.show,
-    this.close = ChromeCardOverlayTiming.hide,
+    this.open = ChromeCardOverlayTiming.motion,
+    this.close = ChromeCardOverlayTiming.motion,
     this.openScale = 0.95,
-    this.offsets = ChromeCardOverlayTiming.offsets,
+    this.offsets = ChromeCardOverlayTiming.motion,
     this.offsetsDelay = ChromeCardOverlayTiming.offsetsDelay,
-    this.scroll = ChromeCardOverlayTiming.listScroll,
+    this.scroll = ChromeCardOverlayTiming.motion,
   });
 
   /// The Android defaults.

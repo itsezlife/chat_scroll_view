@@ -73,9 +73,9 @@ enum MediaOp implements DiagnosticOp {
   sendOriginFlight,
 
   /// The web policy's view saw the window's width class or the input class
-  /// change (debug): the width class `from` and `to` (`ChromeWidthClass`)
-  /// and the `input` class (`ChromeInputClass`); reported once per chat
-  /// and change, with the chat's id.
+  /// change (debug): the width class `from` and `to` (`ChromeWidthClass`
+  /// names) and the `input` class (a `ChromeInputClass` name); reported
+  /// once per chat and change, after the frame, with the chat's id.
   webClassChanged,
 }
 

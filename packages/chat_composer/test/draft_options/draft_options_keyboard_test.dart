@@ -47,7 +47,7 @@ void main() {
   /// [keyboard] at the bottom.
   Future<DraftOptionsController> openOver(
     WidgetTester tester,
-    DraftOptionsPolicy policy, {
+    DraftOptionsOverlayPolicy policy, {
     double keyboard = 300,
   }) async {
     final controller = DraftOptionsController(
@@ -88,7 +88,7 @@ void main() {
   group('Android', () {
     testWidgets('holds a raised keyboard while the overlay is up; a keyboard '
         'request does nothing', (tester) async {
-      await openOver(tester, const DraftOptionsPolicy.android());
+      await openOver(tester, const DraftOptionsPolicy$Android());
 
       expect(intent(), ComposerKeyboardIntent.hold);
       composer.requestKeyboard();
@@ -110,7 +110,7 @@ void main() {
         '15 ms after the full close', (tester) async {
       final controller = await openOver(
         tester,
-        const DraftOptionsPolicy.android(),
+        const DraftOptionsPolicy$Android(),
       );
 
       controller.session!.close(DraftOptionsCloseTrigger.outside);
@@ -139,7 +139,7 @@ void main() {
     ) async {
       final controller = await openOver(
         tester,
-        const DraftOptionsPolicy.android(),
+        const DraftOptionsPolicy$Android(),
       );
 
       controller.session!.close(DraftOptionsCloseTrigger.remove);
@@ -158,7 +158,7 @@ void main() {
     testWidgets('keeps a keyboard that was down on open', (tester) async {
       final controller = await openOver(
         tester,
-        const DraftOptionsPolicy.android(),
+        const DraftOptionsPolicy$Android(),
         keyboard: 0,
       );
 
@@ -178,7 +178,7 @@ void main() {
         'reopening', (tester) async {
       final controller = await openOver(
         tester,
-        const DraftOptionsPolicy.android(),
+        const DraftOptionsPolicy$Android(),
       );
 
       controller.dispose();
@@ -193,7 +193,7 @@ void main() {
         'once', (tester) async {
       final controller = await openOver(
         tester,
-        const DraftOptionsPolicy.android(),
+        const DraftOptionsPolicy$Android(),
       );
       controller.session!.close(DraftOptionsCloseTrigger.outside);
       await tester.pumpAndSettle();
@@ -209,7 +209,7 @@ void main() {
   testWidgets('iOS keeps the keyboard: the overlay draws above it', (
     tester,
   ) async {
-    final controller = await openOver(tester, const DraftOptionsPolicy.ios());
+    final controller = await openOver(tester, const DraftOptionsPolicy$IOS());
 
     expect(intent(), ComposerKeyboardIntent.keep);
     expect(intentEvents(), [
@@ -225,7 +225,7 @@ void main() {
 
   testWidgets('without a composer the overlay states nothing', (tester) async {
     final controller = DraftOptionsController(
-      policy: const DraftOptionsPolicy.android(),
+      policy: const DraftOptionsPolicy$Android(),
       host: RecordingDraftOptionsHost(),
       bubbleBuilder: FakeDraftBubbleBuilder().call,
       clock: clock,

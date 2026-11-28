@@ -47,7 +47,7 @@ void main() {
   /// focus; returns the controller and the field's composer.
   Future<(DraftOptionsController, ComposerController)> openBox(
     WidgetTester tester, {
-    DraftOptionsPolicy policy = const DraftOptionsPolicy.desktop(),
+    DraftOptionsOverlayPolicy policy = const DraftOptionsPolicy$Desktop(),
     List<Uri>? links,
     ChromeMotionSpeed? motionSpeed,
     bool settle = true,
@@ -92,7 +92,7 @@ void main() {
     } else {
       await tester.pump();
     }
-    clock.advance(DraftOptionsController.openGuard);
+    clock.advance(DraftOptionsPolicy.openGuard);
     return (controller, composer);
   }
 
@@ -157,11 +157,11 @@ void main() {
     });
 
     test('a host may override the box', () {
-      final policy = DraftOptionsPolicy.desktop(
+      final policy = DraftOptionsPolicy$Desktop(
         box: DraftOptionsDesktopBox.standard.copyWith(width: 420),
       );
 
-      expect((policy as DraftOptionsPolicy$Desktop).box.width, 420);
+      expect(policy.box.width, 420);
       expect(policy.box.radius, 8);
     });
 
@@ -422,7 +422,7 @@ void main() {
     testWidgets('a mobile overlay leaves focus with the field', (tester) async {
       final (_, composer) = await openBox(
         tester,
-        policy: const DraftOptionsPolicy.ios(),
+        policy: const DraftOptionsPolicy$IOS(),
       );
 
       expect(composer.hasFocus, isTrue);
