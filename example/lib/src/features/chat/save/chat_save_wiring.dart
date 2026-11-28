@@ -45,6 +45,16 @@ enum ChatSaveOp implements DiagnosticOp {
   /// (`staleMenu`, `viewer`); the chat's denial feedback reports
   /// `capabilities` / `denied` beside it.
   saveDenied,
+
+  /// A save job's feedback showed (debug): the `form` (`progressDialog`,
+  /// `savedBulletin`, `failedBulletin`) and the `ms` since the job started;
+  /// a failure also names its `reason`. The job is the `jobId`.
+  feedbackShown,
+
+  /// The user cancelled a save job from its progress dialog (debug): `from`
+  /// (`dialog`, `back`), the `ms` since the job started and the job's
+  /// `percent` done. The job is the `jobId`.
+  feedbackCancelled,
 }
 
 /// Makes the app's one [MediaSaver] over the composition's [transfers]

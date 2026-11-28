@@ -172,6 +172,8 @@ import 'features/chat/save/chat_media_saves_test.dart'
     as save_chat_media_saves_test;
 import 'features/chat/save/chat_save_entries_test.dart'
     as save_chat_save_entries_test;
+import 'features/chat/save/chat_save_feedback_test.dart'
+    as save_chat_save_feedback_test;
 import 'features/chat/save/chat_save_menu_test.dart'
     as save_chat_save_menu_test;
 import 'features/chat/save/chat_save_wiring_test.dart'
@@ -483,6 +485,10 @@ void main() {
   group(
     'features/chat/save/chat_media_saves_test.dart',
     save_chat_media_saves_test.main,
+  );
+  group(
+    'features/chat/save/chat_save_feedback_test.dart',
+    save_chat_save_feedback_test.main,
   );
   group(
     'features/chat/save/chat_save_menu_test.dart',

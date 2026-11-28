@@ -46,7 +46,9 @@ import 'package:chat_scroll_view_example/src/features/chat/outbox/outbox_debug_p
 import 'package:chat_scroll_view_example/src/features/chat/outbox/source_lost_prompt.dart';
 import 'package:chat_scroll_view_example/src/features/chat/save/chat_media_saves.dart';
 import 'package:chat_scroll_view_example/src/features/chat/save/chat_save_entries.dart';
+import 'package:chat_scroll_view_example/src/features/chat/save/chat_save_feedback.dart';
 import 'package:chat_scroll_view_example/src/features/chat/save/save_debug_panel.dart';
+import 'package:chat_scroll_view_example/src/features/chat/save/save_progress_dialog.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_body_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_bulletins.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/chat_copy.dart';
@@ -324,6 +326,22 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     mediaOf: (id) => _dataSource?.getMessage(id)?.media ?? const [],
     allowedOf: _itemActionsOf,
     reportDenied: (id) => _protection.reportDenied(CapabilityAction.save, id),
+    onStarted: (job, items, entry) => _saveFeedback.follow(
+      job,
+      kinds: items.map((item) => item.kind),
+      destination: entry.destination,
+    ),
+  );
+
+  /// The feedback of [_saves]' jobs: the progress dialog of a long one, and
+  /// the bulletin each earns. Opening the Downloads is a stub, as Show in
+  /// Folder is.
+  late final ChatSaveFeedback _saveFeedback = ChatSaveFeedback(
+    chatId: widget.chatId,
+    bulletins: _bulletins,
+    present: (progress) =>
+        mounted ? SaveProgressDialog.show(context, progress) : () {},
+    openDownloads: () => _showNotice('Would open Downloads'),
   );
 
   /// The debug switcher's rows over [_rights].
@@ -875,6 +893,7 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
     _controller.dispose();
     _bodyPainters.clear();
     _saves.dispose();
+    _saveFeedback.dispose();
     _protection.dispose();
     _selection.dispose();
     _spoilers.dispose();
@@ -1831,7 +1850,10 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
               // at the chat's bottom padding on the frame it
               // changes, so they move with the composer.
               child: ChromeIconScope(
-                icons: ChatBulletins.icons,
+                icons: const {
+                  ...ChatBulletins.icons,
+                  ...ChatSaveFeedback.icons,
+                },
                 child: BulletinHost(
                   controller: _bulletins,
                   obstruction: _bulletinObstruction,

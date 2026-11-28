@@ -88,7 +88,11 @@ void main() {
     saver = FakeMediaSaver();
   });
 
-  ChatMediaSaves savesOn(ChatSaveEntries entries, {DateTime Function()? now}) {
+  ChatMediaSaves savesOn(
+    ChatSaveEntries entries, {
+    DateTime Function()? now,
+    ChatSaveStarted? onStarted,
+  }) {
     final selection = ChatSelectionController(chatId: 'chat-1');
     addTearDown(selection.dispose);
     final protection = ChatProtectionHost(
@@ -112,6 +116,7 @@ void main() {
       ),
       reportDenied: (id) => protection.reportDenied(CapabilityAction.save, id),
       now: now,
+      onStarted: onStarted,
     );
     addTearDown(saves.dispose);
     return saves;
@@ -319,6 +324,36 @@ void main() {
           jobId: saver.contentBatches.first.jobId,
         ),
       );
+    });
+
+    test('each job started reaches its feedback with its items and entry; a '
+        'dropped tap reaches none', () {
+      final started = <(SaveJob, List<MediaItem>, ChatSaveEntry)>[];
+      final saves = savesOn(
+        ChatSaveEntries.android,
+        onStarted: (job, items, entry) => started.add((job, items, entry)),
+      );
+      final job = saves.save(
+        1,
+        [photo, video],
+        ChatSaveEntries.android.photo,
+        source: ChatSaveSource.album,
+      );
+      saves.save(
+        1,
+        [photo, video],
+        ChatSaveEntries.android.photo,
+        source: ChatSaveSource.album,
+      );
+      final selection = saves.saveSelection([
+        2,
+        3,
+      ], ChatSaveEntries.android.file);
+
+      expect(started.map((start) => start.$1), [job, selection]);
+      expect(started.first.$2, [photo, video]);
+      expect(started.last.$2, [report, notes]);
+      expect(started.last.$3, ChatSaveEntries.android.file);
     });
 
     test('a burst of taps on one entry starts one job', () {

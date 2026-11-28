@@ -24,6 +24,12 @@ enum ChatSaveSource {
   viewer,
 }
 
+/// Called with each job a save entry started, the [items] it saves and the
+/// [entry] it went through: where the host follows the job with its
+/// feedback.
+typedef ChatSaveStarted =
+    void Function(SaveJob job, List<MediaItem> items, ChatSaveEntry entry);
+
 /// The chat's save entries and the saves they start, headless: which entry
 /// a menu, an album or a selection offers, and one [SaveJob] per tap.
 ///
@@ -40,6 +46,8 @@ enum ChatSaveSource {
 ///   downloads the rest: the chat cannot tell which is which.
 /// - A burst of taps on one entry starts one job: the same items to the
 ///   same destination are dropped for [guardWindow] after a save started.
+/// - Every job started reaches [onStarted], whatever started it, so the
+///   host's feedback follows each one.
 ///
 /// One per chat screen, disposed with it.
 final class ChatMediaSaves {
@@ -53,6 +61,7 @@ final class ChatMediaSaves {
     allowedOf,
     required void Function(int messageId) reportDenied,
     DateTime Function()? now,
+    this.onStarted,
   }) : _saver = saver,
        _mediaOf = mediaOf,
        _allowedOf = allowedOf,
@@ -67,6 +76,9 @@ final class ChatMediaSaves {
 
   /// The entries per kind on this platform.
   final ChatSaveEntries entries;
+
+  /// Called with each job started; null follows none.
+  final ChatSaveStarted? onStarted;
 
   final MediaSaver _saver;
   final List<MediaItem> Function(int messageId) _mediaOf;
@@ -305,6 +317,7 @@ final class ChatMediaSaves {
         'destination': entry.destination.name,
       },
     );
+    onStarted?.call(job, items, entry);
     return job;
   }
 
