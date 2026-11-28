@@ -22,10 +22,12 @@ import 'package:chat_scroll_view_example/src/features/chat/data/address_link_pre
 import 'package:chat_scroll_view_example/src/features/chat/data/animated_emoji_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/chat_draft_store.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_directory.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/chat_draft_options.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_draft_sync.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_format_offer.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_link_preview.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/chat_outgoing_message.dart';
+import 'package:chat_scroll_view_example/src/features/chat/input/composer_keyboard_intent_host.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/composer_panel_field.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/emoji_panel_page.dart';
 import 'package:chat_scroll_view_example/src/features/chat/input/media_panel_pages.dart';
@@ -44,6 +46,7 @@ import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter/widgets.dart' hide RichText;
 import 'package:glyph_atlas/glyph_atlas.dart';
 import 'package:listen/listen.dart' as listen;
+import 'package:message_media/message_media.dart' show MessageMediaPolicy;
 import 'package:panel_presentation/panel_presentation.dart';
 import 'package:panel_shell/panel_shell.dart';
 
@@ -147,7 +150,10 @@ final class ChatInputSet {
   /// [panelFeedback] (the composer's feedback when null). Link previews
   /// are looked up through [linkPreviewResolver] (the address alone by
   /// default), dismissed under [linkPreviewDismissal] (the platform's
-  /// policy by default), and a tap on the strip goes to [onLinkPreviewOpen].
+  /// policy by default), and a tap on the strip goes to [onLinkPreviewOpen],
+  /// or else opens the [draftOptions] (of [draftOptionsPolicy], the
+  /// platform's by default), whose live preview [draftBubble] draws and
+  /// whose size row follows [mediaPolicy]'s size rule, on [draftOptionsClock].
   factory ChatInputSet({
     required AppServices services,
     required FlutterView view,
@@ -171,6 +177,10 @@ final class ChatInputSet {
         const AddressLinkPreviewResolver(),
     LinkPreviewDismissalPolicy? linkPreviewDismissal,
     ComposerLinkPreviewOpen? onLinkPreviewOpen,
+    DraftOptionsPolicy? draftOptionsPolicy,
+    DraftOptionsBubbleBuilder? draftBubble,
+    MessageMediaPolicy? mediaPolicy,
+    ComposerClock draftOptionsClock = ComposerClock.system,
   }) {
     // What has been made so far, to free in reverse if a later step throws
     // (a constructor assertion, a keyboard that cannot be read): a half-built
@@ -355,6 +365,10 @@ final class ChatInputSet {
               isWeb: kIsWeb,
             ),
         onLinkPreviewOpen: onLinkPreviewOpen,
+        draftOptionsPolicy: draftOptionsPolicy,
+        draftBubble: draftBubble,
+        mediaPolicy: mediaPolicy ?? MessageMediaPolicy.platform(),
+        draftOptionsClock: draftOptionsClock,
       );
     } on Object {
       for (final undo in unwind.reversed) {
@@ -396,6 +410,10 @@ final class ChatInputSet {
     required LinkPreviewResolver linkPreviewResolver,
     required LinkPreviewDismissalPolicy linkPreviewDismissal,
     required this.onLinkPreviewOpen,
+    required DraftOptionsPolicy? draftOptionsPolicy,
+    required DraftOptionsBubbleBuilder? draftBubble,
+    required MessageMediaPolicy mediaPolicy,
+    required ComposerClock draftOptionsClock,
   }) : _messageLengthLimit = messageLengthLimit,
        _pageAvailability = pageAvailability,
        _frames = frames,
@@ -419,9 +437,19 @@ final class ChatInputSet {
          correlation: () => ChatCorrelation(chatId: chatId),
          capabilities: capabilities,
        ) {
+    draftOptions = ChatDraftOptions(
+      linkPreview: linkPreview,
+      composer: composer,
+      mediaPolicy: mediaPolicy,
+      bubbleBuilder: draftBubble,
+      policy: draftOptionsPolicy,
+      correlation: () => ChatCorrelation(chatId: chatId),
+      clock: draftOptionsClock,
+    );
     ImeSampleFeed? feed;
     StreamSubscription<PanelEvent>? panelEvents;
     KeyboardPanelDock? dock;
+    ComposerKeyboardIntentHost? keyboardIntent;
     try {
       // A screen opened with the keyboard already up has no stream event yet.
       _imeFeed = feed = ImeSampleFeed(keyboard: keyboardPort, ime: ime);
@@ -429,6 +457,13 @@ final class ChatInputSet {
         presentation: presentation,
         keyboard: keyboardStrategy,
         field: ComposerPanelField(composer),
+        hideKeyboard: _hideKeyboard,
+      );
+      // A surface over the composer (the draft options) states a keyboard
+      // intent through the composer; the slot carries it out.
+      _keyboardIntent = keyboardIntent = ComposerKeyboardIntentHost(
+        composer: composer,
+        keyboard: keyboardStrategy,
         hideKeyboard: _hideKeyboard,
       );
       _panelEvents = panelEvents = shell.events.listen(_onPanelEvent);
@@ -448,6 +483,8 @@ final class ChatInputSet {
       presentation.state.removeListener(_onPresentationState);
       composer.text.removeListener(_onComposerText);
       dock?.dispose();
+      keyboardIntent?.dispose();
+      draftOptions.dispose();
       _editing.dispose();
       _busy.dispose();
       _formatOffer.dispose();
@@ -508,9 +545,13 @@ final class ChatInputSet {
   final ChatLinkPreview linkPreview;
 
   /// The host's answer to a tap on the link preview strip, with the strip's
-  /// global rect; null leaves the strip inert. (The draft options overlay
-  /// opens here once it exists.)
+  /// global rect, in place of the [draftOptions]; null opens them.
   final ComposerLinkPreviewOpen? onLinkPreviewOpen;
+
+  /// The draft options the link preview strip opens: their edits go into
+  /// the draft through [linkPreview], and the keyboard intent they state is
+  /// carried out by the keyboard slot.
+  late final ChatDraftOptions draftOptions;
 
   /// The keyboard-replacement strategy (mobile).
   final KeyboardReplacementStrategy keyboardStrategy;
@@ -583,6 +624,7 @@ final class ChatInputSet {
   // remembers the height a cold open needs.
   late StreamSubscription<PanelEvent> _panelEvents;
   late final KeyboardPanelDock _dock;
+  late final ComposerKeyboardIntentHost _keyboardIntent;
   ChatPreImeBackClaim? _backClaim;
   PanelAutoHideHold? _autoHideHold;
   var _wasVisible = false;
@@ -1348,6 +1390,8 @@ final class ChatInputSet {
     unawaited(_panelEvents.cancel());
     presentation.state.removeListener(_onPresentationState);
     _dock.dispose();
+    draftOptions.dispose();
+    _keyboardIntent.dispose();
     composer.text.removeListener(_onComposerText);
     _offerTimer?.cancel();
     shell.autoHideHolds.removeListener(_onPanelHolds);

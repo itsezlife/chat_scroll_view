@@ -193,6 +193,7 @@ class DemoMessageBubble extends StatelessWidget {
     this.outbox,
     this.onAvatarTap,
     this.onSenderTap,
+    this.registersMedia = true,
     super.key,
   });
 
@@ -219,6 +220,12 @@ class DemoMessageBubble extends StatelessWidget {
 
   /// Optional tap callback for the sender name header.
   final void Function(String sender)? onSenderTap;
+
+  /// Whether a media message's media registers with [selection] as the
+  /// message's non-text body. Off where only the text's links are read (the
+  /// draft options' preview): the media's registration answers every inline
+  /// hit of the message, the caption's links included.
+  final bool registersMedia;
 
   @override
   Widget build(BuildContext context) {
@@ -384,7 +391,7 @@ extension on DemoMessageBubble {
       textPadding: ChatBubbleMetrics.bubbleContentPadding(
         theme: layout,
       ).resolve(Directionality.of(context)),
-      selection: selection,
+      selection: registersMedia ? selection : null,
       caption: switch (markdown) {
         final md? when body.trim().isNotEmpty => _RegisteredChatMdBody(
           selection: selection,

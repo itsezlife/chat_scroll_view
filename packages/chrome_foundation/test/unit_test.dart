@@ -8,7 +8,12 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'adaptive/chrome_input_class_test.dart' as chrome_input_class_test;
+import 'adaptive/chrome_width_class_test.dart' as chrome_width_class_test;
 import 'backdrop/backdrop_snapshot_test.dart' as backdrop_snapshot_test;
+import 'backdrop/chrome_scrim_golden_test.dart' as chrome_scrim_golden_test;
+import 'backdrop/chrome_scrim_preset_test.dart' as chrome_scrim_preset_test;
+import 'backdrop/chrome_scrim_test.dart' as chrome_scrim_test;
 import 'backdrop/stack_blur_test.dart' as stack_blur_test;
 import 'box/chrome_box_layer_test.dart' as chrome_box_layer_test;
 import 'box/chrome_tooltip_test.dart' as chrome_tooltip_test;
@@ -25,6 +30,8 @@ import 'glass/glass_surface_route_test.dart' as glass_surface_route_test;
 import 'glass/glass_surface_test.dart' as glass_surface_test;
 import 'icons/chrome_icon_registry_test.dart' as chrome_icon_registry_test;
 import 'icons/chrome_icon_test.dart' as chrome_icon_test;
+import 'menu/overlay_back_button_listener_test.dart'
+    as overlay_back_button_listener_test;
 import 'menu/pointer_menu_aim_test.dart' as pointer_menu_aim_test;
 import 'menu/pointer_menu_entry_test.dart' as pointer_menu_entry_test;
 import 'menu/pointer_menu_golden_test.dart' as pointer_menu_golden_test;
@@ -39,6 +46,8 @@ import 'motion/chrome_ink_yield_test.dart' as chrome_ink_yield_test;
 import 'motion/chrome_motion_scope_test.dart' as chrome_motion_scope_test;
 import 'motion/chrome_motion_speed_test.dart' as chrome_motion_speed_test;
 import 'motion/chrome_motion_test.dart' as chrome_motion_test;
+import 'motion/chrome_source_spring_timing_test.dart'
+    as chrome_source_spring_timing_test;
 import 'motion/no_literal_durations_test.dart' as no_literal_durations_test;
 import 'motion/overshoot_curve_test.dart' as overshoot_curve_test;
 import 'motion/pointer_menu_motion_test.dart' as pointer_menu_motion_test;
@@ -69,7 +78,18 @@ import 'tokens/selection_menu_tokens_test.dart' as selection_menu_tokens_test;
 import 'tokens/spoiler_tokens_test.dart' as spoiler_tokens_test;
 
 void main() {
+  group('adaptive/chrome_input_class_test.dart', chrome_input_class_test.main);
+  group('adaptive/chrome_width_class_test.dart', chrome_width_class_test.main);
   group('backdrop/backdrop_snapshot_test.dart', backdrop_snapshot_test.main);
+  group(
+    'backdrop/chrome_scrim_golden_test.dart',
+    chrome_scrim_golden_test.main,
+  );
+  group(
+    'backdrop/chrome_scrim_preset_test.dart',
+    chrome_scrim_preset_test.main,
+  );
+  group('backdrop/chrome_scrim_test.dart', chrome_scrim_test.main);
   group('backdrop/stack_blur_test.dart', stack_blur_test.main);
   group('box/chrome_box_layer_test.dart', chrome_box_layer_test.main);
   group('box/chrome_tooltip_test.dart', chrome_tooltip_test.main);
@@ -86,6 +106,10 @@ void main() {
   group('glass/glass_surface_test.dart', glass_surface_test.main);
   group('icons/chrome_icon_registry_test.dart', chrome_icon_registry_test.main);
   group('icons/chrome_icon_test.dart', chrome_icon_test.main);
+  group(
+    'menu/overlay_back_button_listener_test.dart',
+    overlay_back_button_listener_test.main,
+  );
   group('menu/pointer_menu_aim_test.dart', pointer_menu_aim_test.main);
   group('menu/pointer_menu_test.dart', pointer_menu_test.main);
   group('menu/pointer_menu_golden_test.dart', pointer_menu_golden_test.main);
@@ -103,6 +127,10 @@ void main() {
   group('motion/chrome_motion_scope_test.dart', chrome_motion_scope_test.main);
   group('motion/chrome_motion_speed_test.dart', chrome_motion_speed_test.main);
   group('motion/chrome_motion_test.dart', chrome_motion_test.main);
+  group(
+    'motion/chrome_source_spring_timing_test.dart',
+    chrome_source_spring_timing_test.main,
+  );
   group(
     'motion/no_literal_durations_test.dart',
     no_literal_durations_test.main,

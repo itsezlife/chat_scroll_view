@@ -50,11 +50,11 @@ The backdrop under a surface that comes up over the whole window: an optional bl
 _Avoid_: A full-window live blur filter; a backdrop each overlay builds for itself; a still that holds the surface it is under
 
 **Width class**:
-How wide the window is, in three live classes a web policy reads for layout and presentation: compact (up to 600 logical pixels), medium (601 to 925), expanded (over 925). It changes as the window resizes.
+How wide the window is, in three live classes a web policy reads for layout and presentation: compact (up to 600 logical pixels), medium (601 to 925), expanded (over 925). It changes as the window resizes. A host option counts a landscape phone (up to 950 wide and 450 high) as compact; it is off by default.
 _Avoid_: Reading the platform for layout on the web; a device type (phone, tablet) where a width is meant
 
 **Input class**:
-How the user points, touch or mouse, from the browser's operating system and the pointer kind of each event; a web policy reads it for interaction (hover, long press, tap, density).
+How the user points, touch or mouse, from the browser's operating system and the pointer kind of each event; a web policy reads it for interaction (hover, long press, tap, density). The standing class follows the last pointer event; a single gesture reads its own event's kind.
 _Avoid_: Picking a whole platform family from the width alone; one class fixed for every event
 
 **Motion role**:

@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:chrome_foundation/chrome_foundation.dart' show ChromeWidthClass;
 import 'package:content_model/content_model.dart';
 import 'package:message_media/src/layout/media_layout_text.dart';
 import 'package:meta/meta.dart';
@@ -156,6 +157,7 @@ final class MediaLayoutInput {
     required this.availableWidth,
     required this.text,
     this.displaySize,
+    this.widthClass,
     this.tabletMinSide,
     this.maxContentWidth,
     this.captionPosition = MediaCaptionPosition.none,
@@ -188,6 +190,21 @@ final class MediaLayoutInput {
 
   /// The screen's size; null reads as a square of [availableWidth].
   final Size? displaySize;
+
+  /// The window's width class, as the host read it
+  /// (`ChromeWidthClass.of(context)`, which honours a
+  /// `ChromeWidthClassScope`'s landscape phone option); null derives it from
+  /// [displaySize]. Only a sizing that follows the width class reads it
+  /// (the web's, `MediaBoxSizing$Web`).
+  final ChromeWidthClass? widthClass;
+
+  /// [widthClass], or the class of [displaySize] (a square of
+  /// [availableWidth] when that is unknown too).
+  ChromeWidthClass get windowWidthClass =>
+      widthClass ??
+      ChromeWidthClass.fromSize(
+        displaySize ?? Size(availableWidth, availableWidth),
+      );
 
   /// The shorter side of a tablet's screen; null on a phone or a desktop.
   final double? tabletMinSide;
@@ -281,6 +298,7 @@ final class MediaLayoutInput {
     availableWidth: availableWidth ?? this.availableWidth,
     text: text ?? this.text,
     displaySize: displaySize,
+    widthClass: widthClass,
     tabletMinSide: tabletMinSide,
     maxContentWidth: maxContentWidth,
     captionPosition: captionPosition ?? this.captionPosition,
@@ -306,6 +324,7 @@ final class MediaLayoutInput {
       other.availableWidth == availableWidth &&
       other.text == text &&
       other.displaySize == displaySize &&
+      other.widthClass == widthClass &&
       other.tabletMinSide == tabletMinSide &&
       other.maxContentWidth == maxContentWidth &&
       other.captionPosition == captionPosition &&
@@ -324,11 +343,12 @@ final class MediaLayoutInput {
       _mapEquals(other.fileCaptionHeights, fileCaptionHeights);
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     Object.hashAll(items),
     availableWidth,
     text,
     displaySize,
+    widthClass,
     tabletMinSide,
     maxContentWidth,
     captionPosition,
@@ -347,7 +367,7 @@ final class MediaLayoutInput {
     Object.hashAllUnordered(
       fileCaptionHeights.entries.map((e) => Object.hash(e.key, e.value)),
     ),
-  );
+  ]);
 
   static bool _mapEquals(
     Map<MediaItemId, double> a,

@@ -248,18 +248,26 @@ final class ChatTextSelection {
     return false;
   }
 
-  /// Resolves whether [globalOffset] hits an inline element (link or code)
-  /// in the registered body of [messageId].
+  /// Resolves whether [globalOffset] hits a part of the registered non-text
+  /// body of [messageId] ([ChatNonTextBody.inlineHitAt]), else an inline
+  /// element (link or code) in its registered text body.
   ///
-  /// Returns a [ChatInlineHit] if an inline element was hit, or `null` if
-  /// the point misses text, is outside [messageId], lands on non-inline
-  /// body content (plain text, background, padding), or lands within a fenced
-  /// code body (which delegates to text selection).
+  /// A message may register both (media and its caption, or an emoji-only
+  /// body over its text): the non-text body answers for its own parts, and
+  /// where it has none (null) the text answers, so a link in a caption
+  /// activates as a link and a tap on the media as its part.
+  ///
+  /// Returns a [ChatInlineHit] if a body part or an inline element was hit,
+  /// or `null` if the point misses both, is outside [messageId], lands on
+  /// non-inline text content (plain text, background, padding), or lands
+  /// within a fenced code body (which delegates to text selection).
   ChatInlineHit? resolveInlineHit(int messageId, Offset globalOffset) {
     if (_disposed) return null;
-    if (_nonTextBodies[messageId]?.values.last case final body?) {
-      return body.inlineHitAt(globalOffset);
-    }
+    return _nonTextBodies[messageId]?.values.last.inlineHitAt(globalOffset) ??
+        _textInlineHit(messageId, globalOffset);
+  }
+
+  ChatInlineHit? _textInlineHit(int messageId, Offset globalOffset) {
     if (!_bodies.containsKey(messageId)) return null;
     final hit = markdownSelection.positionForGlobal(
       globalOffset,

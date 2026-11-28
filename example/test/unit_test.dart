@@ -88,6 +88,7 @@ import 'features/chat/chat_composer_spec_test.dart' as chat_composer_spec_test;
 import 'features/chat/chat_copy_test.dart' as chat_copy_test;
 import 'features/chat/chat_data_source_bodies_test.dart'
     as chat_data_source_bodies_test;
+import 'features/chat/chat_draft_options_test.dart' as chat_draft_options_test;
 import 'features/chat/chat_draft_store_test.dart' as chat_draft_store_test;
 import 'features/chat/chat_messages_copy_format_test.dart'
     as chat_messages_copy_format_test;
@@ -97,6 +98,8 @@ import 'features/chat/chat_received_link_preview_test.dart'
     as chat_received_link_preview_test;
 import 'features/chat/chat_texture_warmer_test.dart'
     as chat_texture_warmer_test;
+import 'features/chat/composer_keyboard_intent_host_test.dart'
+    as composer_keyboard_intent_host_test;
 import 'features/chat/corpus_sticker_pack_test.dart'
     as corpus_sticker_pack_test;
 import 'features/chat/deferred_library_view_test.dart'
@@ -215,6 +218,8 @@ import 'widgets/chat_composer_queries_test.dart' as chat_composer_queries_test;
 import 'widgets/chat_composer_send_test.dart' as chat_composer_send_test;
 import 'widgets/chat_composer_shortcuts_test.dart'
     as chat_composer_shortcuts_test;
+import 'widgets/chat_draft_preview_bubble_test.dart'
+    as chat_draft_preview_bubble_test;
 import 'widgets/chat_drafts_test.dart' as chat_drafts_test;
 import 'widgets/chat_edit_focus_screen_test.dart'
     as chat_edit_focus_screen_test;
@@ -498,6 +503,10 @@ void main() {
     'features/chat/chat_data_source_bodies_test.dart',
     chat_data_source_bodies_test.main,
   );
+  group(
+    'features/chat/chat_draft_options_test.dart',
+    chat_draft_options_test.main,
+  );
   group('features/chat/chat_draft_store_test.dart', chat_draft_store_test.main);
   group(
     'features/chat/chat_received_link_preview_test.dart',
@@ -544,6 +553,10 @@ void main() {
   group(
     'features/chat/chat_messages_copy_format_test.dart',
     chat_messages_copy_format_test.main,
+  );
+  group(
+    'features/chat/composer_keyboard_intent_host_test.dart',
+    composer_keyboard_intent_host_test.main,
   );
   group(
     'features/chat/corpus_sticker_pack_test.dart',
@@ -656,6 +669,10 @@ void main() {
   group('widgets/chat_edit_focus_test.dart', chat_edit_focus_test.main);
   group('widgets/chat_input_set_test.dart', chat_input_set_test.main);
   group('widgets/chat_input_wire_test.dart', chat_input_wire_test.main);
+  group(
+    'widgets/chat_draft_preview_bubble_test.dart',
+    chat_draft_preview_bubble_test.main,
+  );
   group('widgets/chat_link_preview_test.dart', chat_link_preview_test.main);
   group(
     'widgets/chat_open_at_last_read_test.dart',

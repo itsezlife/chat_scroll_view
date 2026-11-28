@@ -45,12 +45,14 @@ sealed class ComposerHeader {
   /// thumbnail from [thumbnail]); a tap on it calls [onOpen] with the
   /// strip's global rect, the origin of a spring into the host's options.
   /// The open action and the dismiss control take one tap per
-  /// `ComposerHeaderStrip.tapGuard`.
+  /// `ComposerHeaderStrip.tapGuard`. [onHover] hears a mouse coming onto
+  /// the strip and leaving it, for options that open by hover.
   const factory ComposerHeader.linkPreview({
     required Uri url,
     LinkPreview? page,
     ComposerLinkPreviewThumbnail? thumbnail,
     ComposerLinkPreviewOpen? onOpen,
+    ComposerLinkPreviewHover? onHover,
     ChromeIconId icon,
     VoidCallback? onDismiss,
   }) = ComposerHeader$LinkPreview;
@@ -161,6 +163,10 @@ typedef ComposerLinkPreviewThumbnail =
 /// strip's rect in global coordinates.
 typedef ComposerLinkPreviewOpen = void Function(Rect stripRect);
 
+/// A mouse came onto a link preview strip ([stripRect] its rect in global
+/// coordinates) or left it (null).
+typedef ComposerLinkPreviewHover = void Function(Rect? stripRect);
+
 /// A link preview; see [ComposerHeader.linkPreview].
 final class ComposerHeader$LinkPreview extends ComposerHeader {
   /// Creates a link preview header.
@@ -169,6 +175,7 @@ final class ComposerHeader$LinkPreview extends ComposerHeader {
     this.page,
     this.thumbnail,
     this.onOpen,
+    this.onHover,
     this.icon = const ChromeIconId('link'),
     super.onDismiss,
   });
@@ -184,6 +191,11 @@ final class ComposerHeader$LinkPreview extends ComposerHeader {
 
   /// Called by a tap on the strip; null makes the strip inert.
   final ComposerLinkPreviewOpen? onOpen;
+
+  /// Called when a mouse or trackpad pointer comes onto the strip, with its
+  /// rect, and with null when it leaves; a finger or a pen is not reported.
+  /// Null reports nothing.
+  final ComposerLinkPreviewHover? onHover;
 
   /// Glyph of the strip when there is no thumbnail. The stock registry has
   /// none for `link`; a host registers a painter.

@@ -67,6 +67,9 @@ enum ChatLinkPreviewCancel {
   /// The watcher was disposed.
   disposed,
 
+  /// A newer side lookup ([ChatLinkPreview.lookUp]) took its place.
+  replaced,
+
   /// The message was sent.
   sent,
 }
@@ -195,6 +198,10 @@ final class ChatLinkPreview {
   // cancel, so the next reading asks again even for the same candidates.
   LinkPreviewRequest? _request;
   List<Uri> _asked = const [];
+
+  // A lookup of one link the strip does not show ([lookUp]), dropped by the
+  // next one and by dispose.
+  LinkPreviewRequest? _side;
   final Stopwatch _clock = Stopwatch();
 
   /// The card to show, or null.
@@ -288,6 +295,41 @@ final class ChatLinkPreview {
     _update();
   }
 
+  /// The lookup of [url] alone, for a surface that previews another link of
+  /// the text before the user settles on it (the draft options under commit
+  /// on save): the one the strip is following when it asked [url] alone,
+  /// else a lookup of its own that the strip does not show. A newer side
+  /// lookup drops one still pending.
+  listen.ValueListenable<LinkPreviewState> lookUp(Uri url) {
+    if (_timer != null) _read();
+    if (_request case final request? when listEquals(_asked, [url])) {
+      return request;
+    }
+    if (_side case final side? when !side.value.isTerminal) {
+      side.cancel();
+      _emit(
+        ChatEventLevel.debug,
+        ChatLinkPreviewOp.resolveCancelled,
+        () => {'reason': ChatLinkPreviewCancel.replaced.name},
+      );
+    }
+    return _side = _resolver.resolve([url]);
+  }
+
+  /// The dismissal was applied by another surface than the strip's cross
+  /// (the draft options' remove row, which shares [dismissal]): the shown
+  /// link goes as after [dismiss], and the next allowed link, if any, is
+  /// looked up.
+  void dismissalApplied() {
+    if (_disposed) return;
+    if (_chosen case final chosen? when !dismissal.allows(chosen)) {
+      _chosen = null;
+    }
+    // A lookup of what is still allowed stays; anything else goes.
+    _update();
+    _draftChanged.value++;
+  }
+
   /// The strip's cross: the dismissal policy turns the shown link (or the
   /// field) off, and the next allowed link, if any, is looked up.
   void dismiss() {
@@ -362,6 +404,8 @@ final class ChatLinkPreview {
   void dispose() {
     if (_disposed) return;
     _cancel(ChatLinkPreviewCancel.disposed);
+    if (_side case final side? when !side.value.isTerminal) side.cancel();
+    _side = null;
     _disposed = true;
     _allowance?.removeListener(_onAllowance);
     _timer?.cancel();

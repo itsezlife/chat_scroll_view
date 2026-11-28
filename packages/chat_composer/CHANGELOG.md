@@ -6,6 +6,103 @@ is pre-1.0.
 
 ## [Unreleased]
 
+### Added (draft options)
+
+- `DraftOptionsEntry`: the draft options a host binds the link preview
+  strip to. `open` (the strip's open action) and `hoverOf` (its hover, on
+  the web only) open the overlay or, on the web, the menu anchored at the
+  strip; `page` and `linkPreviewsAllowed` reach whichever is up. Without a
+  given policy it takes the platform's at each open, from the window it
+  opens in.
+- `DraftOptionsPolicy` (`forPlatform`): the overlay's forms `$Android`,
+  `$IOS` and `$Desktop`, each a `DraftOptionsOverlayPolicy` (apply mode,
+  opening on a pending page, title, keyboard, scrim preset, whether the
+  chosen link stays selected), and `$Web`, the menu, applied live. Every
+  form has the part order, `linkChoice` and `linkPage`
+  (`DraftLinkPagePolicy`); `openGuard` (400 ms) drops a repeated open.
+- `DraftOptionsController` and `DraftOptionsOverlay`: one overlay in the
+  root overlay over a `ChromeScrim`, the link page headed by the policy's
+  title (`DraftOptionsTitle.linkHeading`) with the host's
+  `DraftOptionsBubbleBuilder` preview, under a `ChromeTextRoot`.
+  `DraftOptionsSession` holds one open: the `DraftLinkPart` it edits,
+  reported to the `DraftOptionsHost` at once under `liveApply` or on save
+  under `commitOnSave`. Denied previews close it and, once it is gone,
+  report the preview removed through `DraftOptionsHost.previewDenied`, apart
+  from the user's edits (`linkPartEdited`). Breaking for hosts implementing
+  `DraftOptionsHost`: they add `chooseLink` and `previewDenied`.
+- The Android form, `DraftOptionsCardView` (`DraftOptionsPolicy$Android.card`,
+  `.cardMotion`): a card over the window with the header (title and
+  subtitle) and the live preview at its list's bottom, the rows in a glass
+  menu under it (`GlassMaterial.scrimMenu`, sampling the scrim's glass
+  source). Its visible top stands 4 above the bubble, within 80 % of the
+  display, the group centred; in landscape it is full height beside the
+  menu. It fades and scales about its centre over 250 ms on the list cubic
+  and follows an option change 50 ms behind, then scrolls its list to the
+  card's end. A press above the visible top closes it.
+- The iOS form, `DraftOptionsSpringView` (`DraftOptionsPolicy$IOS.surface`,
+  `DraftOptionsSpringSurface.phone` / `.iPad`): the preview in a 30-radius
+  content rect (W − 24 wide, the preview + 3 tall within 200 and 460; an
+  iPad's at most 400 wide, centred on the strip) with the rows as a context
+  list right-aligned 10 under it, springing out of the strip and back
+  (`DraftOptionsSpringMotion`) with a haptic impact on open. iOS rows are 44
+  tall with the icon at the end (`DraftLinkRowMetrics.iconAtEnd`); back does
+  not close it.
+- The desktop form, `DraftOptionsBox` (`DraftOptionsPolicy$Desktop.box`, a
+  `DraftOptionsDesktopBox`): a modal box 364 wide, radius 8, with the title
+  and subtitle, the preview, the rows pinned under it, Cancel and Save.
+  Save reports the copy and closes; Cancel, Escape and a click outside (on
+  release) discard it; Enter saves. Focus moves into the box, Tab walks the
+  rows, Save, then Cancel, Enter or Space presses a focused target, and
+  focus goes back to the composer's field on close. It fades in and out
+  over 200 ms ease-out-circ; an option change is instant. Desktop rows are
+  40 tall with a 4 skip above them, the link hint at the start and
+  focusable rows.
+- The web form, `DraftOptionsWebMenuController`
+  (`DraftOptionsPolicy$Web.menu`, a `DraftOptionsWebMenuPolicy`): a menu
+  anchored at the strip with no overlay, scrim or preview. A mouse resting
+  on the strip for 200 ms opens it (`ComposerHeader.linkPreview(onHover:)`),
+  touch on a tap; each choice is reported at once and closes it; a press
+  outside closes it, and with a mouse also leaving the strip and the menu
+  or a secondary click. It reveals over 0.2 s from scale 0.8, 8 in from the
+  strip's top end and 8 above it, toward the end up to 600 wide and toward
+  the start beyond, solid with touch and menu glass with a mouse. The host
+  passes the draft through `DraftOptionsInput`.
+- The link page's rows: `DraftLinkPage` (headless) gives position (edits
+  `invertMedia`), size (by the host's `DraftLinkMediaReader`), apply and
+  remove, with labels, icons and inert state; `DraftLinkRows` /
+  `DraftLinkRowView` draw them with `ChromeInk`, the icon morph and, on
+  Android, the label cross-fade (at once in a right-to-left text, by
+  `labelChangeRtl`). Remove sets `removed`, applies the controller's
+  `LinkPreviewDismissal` and, on Android, takes the next link the dismissal
+  allows; under `commitOnSave` it reports the copy. A tap within `rowGuard`
+  is dropped.
+- Choosing another link: the builder's `DraftOptionsPreview` carries
+  `onLinkTap(url, contourPath)`, `selectable` (false), `linkCursor` and
+  `change`. A tap edits the url, follows `DraftOptionsHost.chooseLink` and
+  marks the link (`DraftOptionsSession.highlight`) with a spinner until the
+  page loads or comes to nothing.
+- The keyboard intent: `ComposerController.keyboardIntent`
+  (`ComposerKeyboardIntent` `keep`, `hold`, `hide`, set with
+  `setKeyboardIntent`) for the host to carry out; while `hold`,
+  `requestKeyboard` does nothing until `reopenKeyboard`. Given the
+  composer, the overlay states `DraftOptionsOverlayPolicy.keyboard`: Android
+  holds a raised keyboard, reopens it 50 ms into the close and ends the
+  hold 15 ms after it; the remove row ends it with `hide`; iOS and desktop
+  keep it.
+- Semantics: the area outside the content is one button labelled
+  `DraftOptionsStrings.dismiss` that closes as a press outside does;
+  `DraftOptionsSession.announcement` says "loading preview" on a pending
+  page and that it loaded, spoken politely.
+- Diagnostics: `OverlayOp` names the `overlay` events (the scrim's phases
+  with `owner` `draftOptions` and the phase's fields, the error's stack
+  with a failed capture; `openRefused` with a `DraftOptionsOpenRefusal`,
+  `linkTapIgnored` with a `DraftLinkTapIgnored`, `motion`, `keyboardIntent`,
+  `announced`, `webMenuOpened`, `webMenuClosed`). The capture, the still and
+  the preview build are `chat_scroll_view.overlay.scrimCapture`,
+  `…scrimStill` and `…previewBuild` timeline sections in a traced build.
+  Test support: `RecordingDraftOptionsHost` (with `denials`),
+  `FakeDraftBubbleBuilder`.
+
 ### Changed (link preview strip, breaking)
 
 - `ComposerHeader.linkPreview` takes the `url` and the resolver's `page`

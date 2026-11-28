@@ -66,6 +66,7 @@ import 'package:chat_scroll_view_example/src/features/chat/wallpaper/demo_wallpa
 import 'package:chat_scroll_view_example/src/features/chat/widgets/body_prefill.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_bottom_chrome.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_dialogs.dart';
+import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_draft_preview_bubble.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/chat_search_bar.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/date_separator.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_backend_error.dart';
@@ -79,7 +80,6 @@ import 'package:chat_scroll_view_example/src/features/chat/widgets/unread_separa
 import 'package:chat_scroll_view_example/src/features/logs/model/journal_view.dart';
 import 'package:chat_scroll_view_example/src/features/logs/view/journal_page.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
-import 'package:content_model/content_model.dart' as model show RichText;
 import 'package:content_model/content_model.dart'
     show
         AppliedEdit,
@@ -101,6 +101,7 @@ import 'package:content_model/content_model.dart'
         PackLookup$Found,
         PastedMedia,
         SemanticKind;
+import 'package:content_model/content_model.dart' as model show RichText;
 import 'package:control/control.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -447,6 +448,15 @@ class _WidgetChatScreenState extends State<WidgetChatScreen> {
       chatId: _rights.chatId,
       accessAction: _rights.accessAction,
       linkPreviewResolver: _linkPreviews,
+      // The strip's draft options preview the draft as this chat draws a
+      // message it sent, by its media policy.
+      mediaPolicy: _media.policy,
+      draftBubble: (context, preview) => ChatDraftPreviewBubble(
+        preview: preview,
+        bodies: _bodies,
+        sender: _demoSender,
+        chatId: _rights.chatId,
+      ),
     );
     if (fresh && kPanelTrace) _trace = PanelTrace(input);
     if (fresh) {
