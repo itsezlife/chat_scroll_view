@@ -246,19 +246,25 @@ void main() {
       expect(options.iconRect.right, lessThanOrEqualTo(first.right));
     });
 
-    test('a stack is min(list − 50 − avatar, 300) wide; rows pull up 3 with '
-        'a thumbnail, 6 without, and give up as much below', () {
+    test('a stack is min(list − 50 − avatar, 300) wide; rows meet, each '
+        'giving up 6 (3 with a thumbnail) at a side it shares, so every '
+        'control and thumbnail keeps its size inside its row', () {
       final block = _stack(
         _android,
         _input([_file('a'), _image('b'), _file('c')]),
       );
       expect(block.rect.width, 300);
-      expect(_cell(block, 'a'), const Rect.fromLTWH(0, 0, 300, 56));
-      // 56 − 3 (b pulls up) − 6 (a gives up).
-      expect(_cell(block, 'b'), const Rect.fromLTWH(0, 47, 300, 86));
-      // 133 − 6 − 3; the last file carries the time.
-      expect(_cell(block, 'c'), const Rect.fromLTWH(0, 124, 300, 60));
-      expect(block.rect.height, 184);
+      // A lone row's 6 above the control, 3 below it.
+      expect(_cell(block, 'a'), const Rect.fromLTWH(0, 0, 300, 53));
+      expect(_row(block, 'a').leading, const Rect.fromLTWH(14, 6, 44, 44));
+      // 3 above and below the 86 thumbnail.
+      expect(_cell(block, 'b'), const Rect.fromLTWH(0, 53, 300, 90));
+      expect(_row(block, 'b').leading, const Rect.fromLTWH(4, 2, 86, 86));
+      expect(_row(block, 'b').name.top, 10);
+      // 7 above the control, a lone row's 6 below it, + 4 for the time.
+      expect(_cell(block, 'c'), const Rect.fromLTWH(0, 143, 300, 61));
+      expect(_row(block, 'c').leading, const Rect.fromLTWH(14, 7, 44, 44));
+      expect(block.rect.height, 204);
       expect(_row(block, 'a').carriesTime, isFalse);
       expect(_row(block, 'c').carriesTime, isTrue);
 
@@ -340,8 +346,9 @@ void main() {
       expect(row.link, const Rect.fromLTWH(92, 55, 268 - 102, 16));
     });
 
-    test('a stack takes the grouped paddings, pulls rows up 6 and adds the '
-        'extra line for views, signature or edited', () {
+    test('a stack takes the grouped paddings, its rows meeting, 3 more '
+        'above and below it, and adds the extra line for views, signature or '
+        'edited', () {
       final block = _stack(
         _desktop,
         _input([
@@ -349,19 +356,72 @@ void main() {
           _image('b'),
         ], chrome: const MediaLayoutChrome(hasFooterInfo: true)),
       );
-      expect(_cell(block, 'a'), const Rect.fromLTWH(0, 0, 268, 54));
-      expect(_row(block, 'a').leading, const Rect.fromLTWH(12, 5, 44, 44));
-      expect(_row(block, 'a').name.top, 9);
-      expect(_row(block, 'a').info.top, 31);
-      expect(_cell(block, 'b'), const Rect.fromLTWH(0, 48, 268, 78));
+      // 3 + the grouped (12, 5, 10, 5).
+      expect(_cell(block, 'a'), const Rect.fromLTWH(0, 0, 268, 57));
+      expect(_row(block, 'a').leading, const Rect.fromLTWH(12, 8, 44, 44));
+      expect(_row(block, 'a').name.top, 12);
+      expect(_row(block, 'a').info.top, 34);
+      // The grouped (6, 3, 10, 3) + 3.
+      expect(_cell(block, 'b'), const Rect.fromLTWH(0, 57, 268, 81));
       expect(_row(block, 'b').leading, const Rect.fromLTWH(6, 3, 72, 72));
       expect(_row(block, 'b').link?.top, 52);
-      expect(block.footer, const Rect.fromLTWH(0, 126, 268, 13));
-      expect(block.rect.height, 139);
+      expect(block.footer, const Rect.fromLTWH(0, 138, 268, 13));
+      expect(block.rect.height, 151);
 
       final quiet = _stack(_desktop, _input([_file('a'), _image('b')]));
       expect(quiet.footer, isNull);
     });
+  });
+
+  group('row slots', () {
+    // A disc row, a square thumbnail and a tall one: each row's control or
+    // thumbnail is painted inside its own row and the stack, and over no
+    // part of another row.
+    final items = [
+      _file('disc', name: 'notes.txt'),
+      _file('square', name: 'diagram.svg', mimeType: 'image/svg+xml'),
+      _file('tall', name: 'meadow.jpg', mimeType: 'image/jpeg'),
+    ];
+    for (final (name, policy) in [
+      ('Android', _android),
+      ('iOS', _ios),
+      ('desktop', _desktop),
+    ]) {
+      test('$name: every thumbnail sits inside its row and the stack', () {
+        final block = _stack(policy, _input(items));
+        List<Rect> paintedOf(MediaCell cell) {
+          final row = block.rowOf(cell.itemId)!;
+          return [
+            for (final rect in [row.leading, row.name, row.info])
+              rect.shift(cell.rect.topLeft),
+          ];
+        }
+
+        for (final cell in block.cells) {
+          final leading = paintedOf(cell).first;
+          expect(
+            cell.rect.intersect(leading),
+            leading,
+            reason: '${cell.itemId} at $leading, its row ${cell.rect}',
+          );
+          expect(
+            block.rect.intersect(leading),
+            leading,
+            reason: '${cell.itemId} at $leading, the stack ${block.rect}',
+          );
+          for (final other in block.cells) {
+            if (other.itemId == cell.itemId) continue;
+            for (final part in paintedOf(other)) {
+              expect(
+                leading.overlaps(part),
+                isFalse,
+                reason: '${cell.itemId} at $leading over ${other.itemId} $part',
+              );
+            }
+          }
+        }
+      });
+    }
   });
 
   group('captions', () {
@@ -373,10 +433,12 @@ void main() {
           fileCaptionHeights: {const MediaItemId('a'): 30},
         ),
       );
-      expect(_row(block, 'a').captionSlot, const Rect.fromLTWH(0, 56, 300, 30));
+      // The first of two rows: 53 (a lone row's 6 above the control, the
+      // grouped 3 below it).
+      expect(_row(block, 'a').captionSlot, const Rect.fromLTWH(0, 53, 300, 30));
       expect(_row(block, 'b').captionSlot, isNull);
       // The next row starts under the caption.
-      expect(_cell(block, 'b').top, 86);
+      expect(_cell(block, 'b').top, 83);
     });
 
     test('the last file with its own caption does not carry the time', () {
