@@ -674,7 +674,11 @@ void main() {
                   items: const [],
                   policy: policy,
                   composition: composition,
-                  caption: const SizedBox(width: 100, height: 20),
+                  caption: const SizedBox(
+                    key: ValueKey('caption'),
+                    width: 100,
+                    height: 20,
+                  ),
                   time: const SizedBox(key: timeKey),
                 ),
               ),
@@ -685,6 +689,10 @@ void main() {
         final media = tester.getRect(find.byType(MessageMediaView));
         expect(time.size, slot.size);
         expect(time.topLeft, media.topLeft + slot.topLeft);
+        // The card's own top inset is its gap from the text: the caption
+        // keeps no bottom padding above it.
+        final caption = tester.getRect(find.byKey(const ValueKey('caption')));
+        expect(media.top, caption.bottom);
       });
     }
   });
