@@ -70,6 +70,9 @@ enum TraceSection {
   paintHighlight('paint.highlight'),
   paintSelection('paint.selection'),
 
+  // A move of the provisional tail: the data source's write.
+  rebaseTail('rebase.rebaseTail'),
+
   // Per-child build, counted by the traced pass (a `phase` section); layout
   // and paint spans are `fine` only.
   childBuild('child.build'),

@@ -13,6 +13,7 @@ import 'package:chat_scroll_view/src/chat_scroll/chat_day_header_delegate.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_floating_header_controller.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_mutations.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_overscroll_sink.dart';
+import 'package:chat_scroll_view/src/chat_scroll/chat_rebase_diagnostics.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_row_chrome_delegate.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_row_chrome_transition.dart';
 import 'package:chat_scroll_view/src/chat_scroll/chat_scroll_activity.dart';
@@ -40,6 +41,8 @@ import 'package:chat_scroll_view/src/chat_widgets/message_menu/chat_message_menu
 import 'package:chat_scroll_view/src/util/constants.dart';
 import 'package:chat_scroll_view/src/util/logger.dart';
 import 'package:chat_scroll_view/src/util/trace_section.dart';
+import 'package:content_model/content_model.dart'
+    show ChatDiagnostics, ChatEventCategory, ChatEventLevel;
 import 'package:flutter/foundation.dart'
     show Listenable, ValueListenable, precisionErrorTolerance;
 import 'package:flutter/gestures.dart';
@@ -1969,7 +1972,58 @@ class RenderChatScrollView extends RenderBox implements ChatTailFoldHost {
         _scheduleSelfInsertFollow(ids);
       case RemoveBatchMutation(:final ids):
         _cancelAnimateIfPresencePinnedRemoved(ids);
+      case final RebaseTailMutation rebase:
+        _onTailRebased(rebase);
     }
+  }
+
+  /// A move of the provisional tail is neither a self insert nor a removal:
+  /// no follow for a reader in history, no cancel of a running animation
+  /// (ADR 048). At the tail the existing pins keep the bottom: an advanced
+  /// newest id repins (`tailAdvanced`), a shorter tail is clamped, and a
+  /// reorder keeps the tail's total height.
+  void _onTailRebased(RebaseTailMutation rebase) {
+    final diagnostics = ChatDiagnostics.current;
+    if (_animator.isAnimating) {
+      final pinned = _stitchPresencePinnedIds();
+      final touched = [
+        ...rebase.insertedIds,
+        ...rebase.moved.keys,
+        ...rebase.removedIds,
+      ];
+      final firstTouched = touched.isEmpty ? null : touched.reduce(math.min);
+      diagnostics.emit(
+        ChatEventLevel.debug,
+        ChatEventCategory.rebase,
+        ChatRebaseOp.animationKept,
+        fields: () => {
+          'target':
+              firstTouched != null && _animator.animateTargetId >= firstTouched
+              ? 'tail'
+              : 'history',
+          'pinned': touched.any(pinned.contains),
+        },
+      );
+    }
+    if (!_wasAtTailLastLayout && !_controller.isAtTail.value) {
+      diagnostics.emit(
+        ChatEventLevel.debug,
+        ChatEventCategory.rebase,
+        ChatRebaseOp.followSuppressed,
+        fields: () {
+          final newest = _dataSource.newestKnownId;
+          final box = newest == null ? null : _children[newest];
+          return {
+            if (box != null)
+              'distanceFromTailPx':
+                  _parentData(box).offset +
+                  box.size.height -
+                  (size.height - _bottomPad),
+          };
+        },
+      );
+    }
+    markNeedsLayout();
   }
 
   /// Explicit host delete of the animate target or stitch outgoing strip
