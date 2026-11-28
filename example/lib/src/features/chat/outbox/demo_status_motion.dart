@@ -1,7 +1,10 @@
+import 'package:chat_outbox/chat_outbox.dart';
+import 'package:chat_scroll_view_example/src/app/app_platform_policy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_delivery.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message_meta.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_row_appearance.dart';
-import 'package:flutter/foundation.dart';
+import 'package:chrome_foundation/chrome_foundation.dart'
+    show ChromeInputClass, ChromeWidthClass;
 import 'package:flutter/widgets.dart';
 
 /// How the time pill's status changes move on each platform.
@@ -46,17 +49,6 @@ final class DemoStatusMotionPolicy {
 
   /// Desktop's: the glyph swaps.
   const DemoStatusMotionPolicy.desktop() : this();
-
-  /// The preset of [platform], the running one's by default.
-  factory DemoStatusMotionPolicy.platform([TargetPlatform? platform]) =>
-      switch (platform ?? defaultTargetPlatform) {
-        TargetPlatform.android ||
-        TargetPlatform.fuchsia => const DemoStatusMotionPolicy.android(),
-        TargetPlatform.iOS => const DemoStatusMotionPolicy.ios(),
-        TargetPlatform.macOS ||
-        TargetPlatform.windows ||
-        TargetPlatform.linux => const DemoStatusMotionPolicy.desktop(),
-      };
 
   /// How long a glyph takes to cross-fade into the next; null swaps it.
   final Duration? crossFade;
@@ -110,6 +102,56 @@ final class DemoStatusMotionPolicy {
     checkPop,
     checkPopFrom,
   );
+}
+
+/// The outgoing motions of the app's platform family: how a fresh row
+/// appears ([appearanceOf]) and how its time pill's status moves
+/// ([statusOf]).
+///
+/// The web is not the desktop: a browser takes its motion from its window
+/// and its input as they are at [BuildContext], not from its system. A
+/// compact window used by touch moves as a phone (Android's values, no
+/// flight); any other window is still, as the desktop.
+abstract final class DemoOutgoingMotion {
+  /// The row appearance of [platform] (the running app's unless given) at
+  /// [context].
+  static OutgoingAppearancePolicy appearanceOf(
+    BuildContext context, {
+    AppPlatformPolicy? platform,
+  }) => switch (platform ?? AppPlatformPolicy.current()) {
+    AppPlatformPolicy$Mobile(android: true) =>
+      const OutgoingAppearancePolicy.android(),
+    AppPlatformPolicy$Mobile(android: false) =>
+      const OutgoingAppearancePolicy.ios(),
+    AppPlatformPolicy$Desktop(web: false) =>
+      const OutgoingAppearancePolicy.desktop(),
+    AppPlatformPolicy$Desktop(web: true) => OutgoingAppearancePolicy.web(
+      compactTouch: _compactTouch(context),
+    ),
+  };
+
+  /// The status motion of [platform] (the running app's unless given) at
+  /// [context].
+  static DemoStatusMotionPolicy statusOf(
+    BuildContext context, {
+    AppPlatformPolicy? platform,
+  }) => switch (platform ?? AppPlatformPolicy.current()) {
+    AppPlatformPolicy$Mobile(android: true) =>
+      const DemoStatusMotionPolicy.android(),
+    AppPlatformPolicy$Mobile(android: false) =>
+      const DemoStatusMotionPolicy.ios(),
+    AppPlatformPolicy$Desktop(web: false) =>
+      const DemoStatusMotionPolicy.desktop(),
+    AppPlatformPolicy$Desktop(web: true) =>
+      _compactTouch(context)
+          ? const DemoStatusMotionPolicy.android()
+          : const DemoStatusMotionPolicy.desktop(),
+  };
+
+  // The browser's window is a phone's: compact, and used by touch.
+  static bool _compactTouch(BuildContext context) =>
+      ChromeWidthClass.of(context).isCompact &&
+      ChromeInputClass.of(context).isTouch;
 }
 
 /// Which motion a status change runs.
@@ -325,7 +367,8 @@ class DemoDeliveryMeta extends StatefulWidget {
   /// The opacity of the "edited" label.
   final double editedOpacity;
 
-  /// The motion's values, the running platform's unless given.
+  /// The motion's values, the app platform's unless given
+  /// ([DemoOutgoingMotion.statusOf], read as the pill is first built).
   final DemoStatusMotionPolicy? policy;
 
   @override
@@ -336,7 +379,7 @@ class _DemoDeliveryMetaState extends State<DemoDeliveryMeta>
     with TickerProviderStateMixin {
   late final DemoStatusMotion _motion = DemoStatusMotion(
     vsync: this,
-    policy: widget.policy ?? DemoStatusMotionPolicy.platform(),
+    policy: widget.policy ?? DemoOutgoingMotion.statusOf(context),
     initial: widget.delivery,
   );
 

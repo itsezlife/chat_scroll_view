@@ -519,17 +519,22 @@ final class DemoOutboxChat {
   /// Whether the list was at its bottom is read as it was when the message
   /// was sent, when [attach] took a reader; else [atBottom], as the row is
   /// built. A row the list builds only once it scrolled to it may already
-  /// be sent: it is found by the client message id it had.
+  /// be sent: it is found by the client message id it had. [policy] is the
+  /// app platform's at the row ([DemoOutgoingMotion.appearanceOf]: the
+  /// web's by the window and input as they are now), the outbox's own
+  /// unless given.
   OutgoingAppearance? appearanceAt(
     int id, {
     required bool atBottom,
     required bool reduceMotion,
+    OutgoingAppearancePolicy? policy,
   }) => switch (clientMessageIdAt(id)) {
     final clientMessageId? => _outbox.appearanceOf(
       chatId,
       clientMessageId,
       atBottom: _$atBottomAtSend.remove(clientMessageId) ?? atBottom,
       reduceMotion: reduceMotion,
+      policy: policy,
     ),
     null => null,
   };

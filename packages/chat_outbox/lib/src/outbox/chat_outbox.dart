@@ -105,7 +105,8 @@ final class ChatOutbox<M> {
   /// "iOS"); the outbox only reads what the jobs do.
   ///
   /// [appearance] is how a fresh row appears ([appearanceOf]), the running
-  /// platform's preset unless given.
+  /// platform's preset unless given (`OutgoingAppearancePolicy.platform`;
+  /// on the web, a host passes the live one to [appearanceOf]).
   ChatOutbox({
     required OutboxTransfers transfers,
     required OutgoingPayloadCodec<M> codec,
@@ -1870,18 +1871,21 @@ final class ChatOutbox<M> {
   /// switch. The outbox knows the rest: a message without items is
   /// text-only, and one whose item still has its send origin (the cell has
   /// not taken it) flies in where the policy flies. Asking leaves the
-  /// origin for the cell. Reports `rowAppeared`.
+  /// origin for the cell. [policy] is the policy of this moment when the
+  /// host's is live (the web's, by the window and input as they are now),
+  /// [appearance] unless given. Reports `rowAppeared`.
   OutgoingAppearance? appearanceOf(
     String chatId,
     String clientMessageId, {
     required bool atBottom,
     required bool reduceMotion,
+    OutgoingAppearancePolicy? policy,
   }) {
     if (!isFreshOutgoing(chatId, clientMessageId)) return null;
     final message = _projection.lookup(chatId, clientMessageId);
     final items = message?.items ?? const <OutgoingItem>[];
     _projection.origins.expire(_now());
-    final resolved = appearance.resolve(
+    final resolved = (policy ?? appearance).resolve(
       atBottom: atBottom,
       originPresent: items.any((item) => _projection.origins.holds(item.id)),
       textOnly: items.isEmpty,

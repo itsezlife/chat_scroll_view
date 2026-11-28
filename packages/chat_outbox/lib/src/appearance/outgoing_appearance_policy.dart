@@ -17,6 +17,20 @@ enum OutgoingAppearanceForm {
   none,
 }
 
+/// How a policy moves a fresh row of its own: the forms of
+/// [OutgoingAppearanceForm] but the flight, which comes from a send origin
+/// only ([OutgoingAppearancePolicy.fliesFromOrigin]).
+enum OutgoingRowMotion {
+  /// The rows translate up from below by the added row's height.
+  slideUp,
+
+  /// The bubble fades in and grows to its size around its centre.
+  fadeScale,
+
+  /// The row is there at once.
+  none,
+}
+
 /// The values a fresh outgoing row appears with on each platform, and the
 /// resolver from the row's situation to the [OutgoingAppearance] the host
 /// animates.
@@ -26,6 +40,9 @@ enum OutgoingAppearanceForm {
 /// | at the bottom | [OutgoingAppearanceForm.slideUp]: 250 ms on `(0.199, 0.011, 0.279, 0.910)`, the rows at full opacity | the media flies from its send origin; without one, as Android | none |
 /// | off the bottom | [OutgoingAppearanceForm.fadeScale]: opacity 0 → 1 and scale 0.9 → 1 around the bubble centre, 250 ms, after up to 100 ms ([OutgoingAppearance$FadeScale.delayAt]) | the same flight; without an origin, as Android | none |
 /// | a text-only message | as media, never a flight | as media, never a flight | none |
+///
+/// The web is not the desktop: a page takes its form from its window and
+/// its input, live, not from the system it runs on ([web]).
 ///
 /// The whole-row motion is the host's, since it owns the row: it asks the
 /// outbox's `appearanceOf` (or `isFreshOutgoing` and [resolve] itself) once
@@ -37,7 +54,8 @@ enum OutgoingAppearanceForm {
 /// keeps the numbers and the decision.
 @immutable
 final class OutgoingAppearancePolicy {
-  /// A policy of the given values; the defaults are Android's.
+  /// A policy of the given forms; the motions' values default to
+  /// Android's.
   const OutgoingAppearancePolicy({
     required this.atBottom,
     required this.offBottom,
@@ -49,18 +67,14 @@ final class OutgoingAppearancePolicy {
     this.opacityFrom = 0,
     this.scaleFrom = 0.9,
     this.maxStartDelay = const Duration(milliseconds: 100),
-  }) : assert(
-         atBottom != OutgoingAppearanceForm.flight &&
-             offBottom != OutgoingAppearanceForm.flight,
-         'A flight comes from a send origin only: set fliesFromOrigin.',
-       );
+  });
 
   /// Android: the rows slide up at the bottom, the bubble fades and scales
   /// in elsewhere; a send origin is ignored.
   const OutgoingAppearancePolicy.android()
     : this(
-        atBottom: OutgoingAppearanceForm.slideUp,
-        offBottom: OutgoingAppearanceForm.fadeScale,
+        atBottom: OutgoingRowMotion.slideUp,
+        offBottom: OutgoingRowMotion.fadeScale,
         fliesFromOrigin: false,
       );
 
@@ -68,43 +82,62 @@ final class OutgoingAppearancePolicy {
   /// anything else appears as on Android.
   const OutgoingAppearancePolicy.ios()
     : this(
-        atBottom: OutgoingAppearanceForm.slideUp,
-        offBottom: OutgoingAppearanceForm.fadeScale,
+        atBottom: OutgoingRowMotion.slideUp,
+        offBottom: OutgoingRowMotion.fadeScale,
         fliesFromOrigin: true,
       );
 
   /// Desktop: a sent row is there at once.
   const OutgoingAppearancePolicy.desktop()
     : this(
-        atBottom: OutgoingAppearanceForm.none,
-        offBottom: OutgoingAppearanceForm.none,
+        atBottom: OutgoingRowMotion.none,
+        offBottom: OutgoingRowMotion.none,
         fliesFromOrigin: false,
       );
 
+  /// The web, by its window and its input as they are now: a compact
+  /// window used by touch ([compactTouch], the host's reading of the width
+  /// class and the input class) moves as a phone, Android's values; any
+  /// other window is there at once, as the desktop. A page never flies
+  /// media in, whichever system's browser it runs in.
+  ///
+  /// Both classes are live (a window resized, a mouse picked up), so the
+  /// host reads them as each fresh row appears and hands the result to
+  /// `ChatOutbox.appearanceOf`.
+  factory OutgoingAppearancePolicy.web({required bool compactTouch}) =>
+      compactTouch
+      ? const OutgoingAppearancePolicy.android()
+      : const OutgoingAppearancePolicy.desktop();
+
   /// The preset of [platform], the running one's by default: Android's for
   /// Android and Fuchsia, iOS's for iOS, desktop's for macOS, Windows and
-  /// Linux.
-  factory OutgoingAppearancePolicy.platform([TargetPlatform? platform]) =>
-      switch (platform ?? defaultTargetPlatform) {
-        TargetPlatform.android ||
-        TargetPlatform.fuchsia => const OutgoingAppearancePolicy.android(),
-        TargetPlatform.iOS => const OutgoingAppearancePolicy.ios(),
-        TargetPlatform.macOS ||
-        TargetPlatform.windows ||
-        TargetPlatform.linux => const OutgoingAppearancePolicy.desktop(),
-      };
+  /// Linux. On the web ([isWeb], the running build's by default) the
+  /// system does not decide: [web] for a window that is not a compact one
+  /// used by touch, until the host passes the live one.
+  factory OutgoingAppearancePolicy.platform({
+    TargetPlatform? platform,
+    bool isWeb = kIsWeb,
+  }) {
+    if (isWeb) return OutgoingAppearancePolicy.web(compactTouch: false);
+    return switch (platform ?? defaultTargetPlatform) {
+      TargetPlatform.android ||
+      TargetPlatform.fuchsia => const OutgoingAppearancePolicy.android(),
+      TargetPlatform.iOS => const OutgoingAppearancePolicy.ios(),
+      TargetPlatform.macOS ||
+      TargetPlatform.windows ||
+      TargetPlatform.linux => const OutgoingAppearancePolicy.desktop(),
+    };
+  }
 
   /// The curve a list item moves on: the rows' slide.
   static const Cubic listItemCurve = Cubic(0.199, 0.011, 0.279, 0.910);
 
   /// How a row appears while the list is at its bottom (the newest message
-  /// in view): [OutgoingAppearanceForm.slideUp], [fadeScale] or none.
-  ///
-  /// [fadeScale]: OutgoingAppearanceForm.fadeScale
-  final OutgoingAppearanceForm atBottom;
+  /// in view).
+  final OutgoingRowMotion atBottom;
 
   /// How a row appears while the list is scrolled up into history.
-  final OutgoingAppearanceForm offBottom;
+  final OutgoingRowMotion offBottom;
 
   /// Whether media with a send origin flies in from it, the row staying
   /// still; without an origin, and for a text-only message, [atBottom] or
@@ -149,19 +182,18 @@ final class OutgoingAppearancePolicy {
       return const OutgoingAppearance.flight();
     }
     return switch (atBottom ? this.atBottom : offBottom) {
-      OutgoingAppearanceForm.slideUp => OutgoingAppearance.slideUp(
+      OutgoingRowMotion.slideUp => OutgoingAppearance.slideUp(
         duration: slideDuration,
         curve: slideCurve,
       ),
-      OutgoingAppearanceForm.fadeScale => OutgoingAppearance.fadeScale(
+      OutgoingRowMotion.fadeScale => OutgoingAppearance.fadeScale(
         duration: fadeScaleDuration,
         curve: fadeScaleCurve,
         opacityFrom: opacityFrom,
         scaleFrom: scaleFrom,
         maxStartDelay: maxStartDelay,
       ),
-      OutgoingAppearanceForm.flight ||
-      OutgoingAppearanceForm.none => const OutgoingAppearance.none(),
+      OutgoingRowMotion.none => const OutgoingAppearance.none(),
     };
   }
 

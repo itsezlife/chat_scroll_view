@@ -94,6 +94,33 @@ void main() {
     );
   });
 
+  test('the host may answer with the policy of the moment (the web picks '
+      'it by the live window and input)', () {
+    final outbox = outboxOf(OutgoingAppearancePolicy.web(compactTouch: false));
+    final wide = sendPhoto(outbox);
+    final narrowed = sendPhoto(outbox);
+
+    expect(
+      outbox.appearanceOf(
+        'c1',
+        wide.clientMessageId,
+        atBottom: true,
+        reduceMotion: false,
+      ),
+      isA<OutgoingAppearance$None>(),
+    );
+    expect(
+      outbox.appearanceOf(
+        'c1',
+        narrowed.clientMessageId,
+        atBottom: true,
+        reduceMotion: false,
+        policy: OutgoingAppearancePolicy.web(compactTouch: true),
+      ),
+      isA<OutgoingAppearance$SlideUp>(),
+    );
+  });
+
   test('on iOS a held send origin gives the flight, without one a slide', () {
     final outbox = outboxOf(const OutgoingAppearancePolicy.ios());
     final flown = sendPhoto(outbox, from: origin);

@@ -11,10 +11,13 @@
 /// and through the policy's values.
 library;
 
+import 'package:chat_outbox/chat_outbox.dart';
+import 'package:chat_scroll_view_example/src/app/app_platform_policy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_delivery.dart';
 import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_status_motion.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_message_meta.dart';
 import 'package:chat_scroll_view_example/src/features/chat/widgets/demo_row_appearance.dart';
+import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -77,19 +80,90 @@ void main() {
       expect(policy.checkPop, isNull);
     });
 
-    test('platform picks the preset of each target platform', () {
-      expect(
-        DemoStatusMotionPolicy.platform(TargetPlatform.android),
-        const DemoStatusMotionPolicy.android(),
-      );
-      expect(
-        DemoStatusMotionPolicy.platform(TargetPlatform.iOS),
-        const DemoStatusMotionPolicy.ios(),
-      );
-      expect(
-        DemoStatusMotionPolicy.platform(TargetPlatform.macOS),
-        const DemoStatusMotionPolicy.desktop(),
-      );
+    group('the preset of the app platform, the web by its live window '
+        'and input', () {
+      Future<(DemoStatusMotionPolicy, OutgoingAppearancePolicy)> pick(
+        WidgetTester tester,
+        AppPlatformPolicy platform, {
+        Size size = const Size(400, 800),
+        ChromeInputClass input = ChromeInputClass.touch,
+      }) async {
+        late (DemoStatusMotionPolicy, OutgoingAppearancePolicy) picked;
+        await tester.pumpWidget(
+          MediaQuery(
+            data: MediaQueryData(size: size),
+            child: ChromeInputClassScope(
+              // The initial class is read once per scope.
+              key: ValueKey(input),
+              initial: input,
+              child: Builder(
+                builder: (context) {
+                  picked = (
+                    DemoOutgoingMotion.statusOf(context, platform: platform),
+                    DemoOutgoingMotion.appearanceOf(
+                      context,
+                      platform: platform,
+                    ),
+                  );
+                  return const SizedBox();
+                },
+              ),
+            ),
+          ),
+        );
+        return picked;
+      }
+
+      testWidgets('Android, iOS and the desktop app by their family', (
+        tester,
+      ) async {
+        expect(await pick(tester, const AppPlatformPolicy.android()), (
+          const DemoStatusMotionPolicy.android(),
+          const OutgoingAppearancePolicy.android(),
+        ));
+        expect(await pick(tester, const AppPlatformPolicy.iOS()), (
+          const DemoStatusMotionPolicy.ios(),
+          const OutgoingAppearancePolicy.ios(),
+        ));
+        expect(await pick(tester, const AppPlatformPolicy.desktop()), (
+          const DemoStatusMotionPolicy.desktop(),
+          const OutgoingAppearancePolicy.desktop(),
+        ));
+      });
+
+      testWidgets('a compact window touched moves as a phone', (tester) async {
+        expect(await pick(tester, const AppPlatformPolicy.web()), (
+          const DemoStatusMotionPolicy.android(),
+          const OutgoingAppearancePolicy.android(),
+        ));
+      });
+
+      testWidgets('a wide window, or a compact one with a mouse, does not', (
+        tester,
+      ) async {
+        expect(
+          await pick(
+            tester,
+            const AppPlatformPolicy.web(),
+            size: const Size(1200, 800),
+          ),
+          (
+            const DemoStatusMotionPolicy.desktop(),
+            const OutgoingAppearancePolicy.desktop(),
+          ),
+        );
+        expect(
+          await pick(
+            tester,
+            const AppPlatformPolicy.web(),
+            input: ChromeInputClass.mouse,
+          ),
+          (
+            const DemoStatusMotionPolicy.desktop(),
+            const OutgoingAppearancePolicy.desktop(),
+          ),
+        );
+      });
     });
   });
 
