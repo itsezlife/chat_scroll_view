@@ -51,6 +51,14 @@ typedef MediaBodyCellBuilder =
       Offset origin,
     });
 
+/// The hit of the host's own chrome drawn over the media at [globalOffset]
+/// (an error badge beside the time pill), or null where it draws none.
+///
+/// The media is the message's one non-text body, so a part of the host's
+/// over it cannot register a body of its own: the body asks this first,
+/// and a hit it answers is the message's ahead of the media's parts.
+typedef MediaChromeHitTest = ChatInlineHit? Function(Offset globalOffset);
+
 /// Called with the zone of a link preview card the user activated and the
 /// page: the host opens the page's URL ([LinkPreviewZone.body]) or runs the
 /// button's action ([LinkPreviewZone.button]).
@@ -67,9 +75,10 @@ typedef LinkPreviewActivated =
 /// Registered with the selection facade under [messageId]
 /// (`ChatSelectionController.putNonTextBody`), it answers [inlineHitAt]
 /// with `ChatInlineHit.bodyPart` carrying a [MediaHitPart], in this order:
-/// an options affordance's hit area (which may reach past its cell), a
-/// hidden spoiler (the whole cell), the status control while it offers a
-/// download or a cancel, else the content. No detector of the media's own
+/// the host's chrome over the media ([chromeHitAt]), an options
+/// affordance's hit area (which may reach past its cell), a hidden spoiler
+/// (the whole cell), the status control while it offers a download or a
+/// cancel, else the content. No detector of the media's own
 /// takes a tap, so the viewport arbitrates every one: in message selection
 /// each part toggles the message, and a long press is the message's.
 ///
@@ -119,6 +128,7 @@ class MessageMediaBody extends StatefulWidget {
     this.correlation = ChatCorrelation.none,
     this.sendState = MediaSendState.none,
     this.onItemCancelled,
+    this.chromeHitAt,
     super.key,
   });
 
@@ -182,6 +192,9 @@ class MessageMediaBody extends StatefulWidget {
   /// Hears the item whose cross was tapped.
   final ValueChanged<MediaItemId>? onItemCancelled;
 
+  /// The host's chrome over the media, asked before the media's parts.
+  final MediaChromeHitTest? chromeHitAt;
+
   @override
   State<MessageMediaBody> createState() => _MessageMediaBodyState();
 }
@@ -229,6 +242,8 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
   @override
   void didUpdateWidget(MessageMediaBody oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // The row was built again: its chrome may have moved.
+    _$chromeAnswer = null;
     if (!identical(oldWidget.state, widget.state)) {
       oldWidget.state.detachOrigins(_rectOf);
       widget.state.attachOrigins(_rectOf);
@@ -556,6 +571,7 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
     final box = _box;
     final id = widget.messageId;
     if (box == null || id == null || !mounted) return null;
+    if (_chromeAt(globalOffset) case final chrome?) return chrome;
     _lastQuery = globalOffset;
     final local = box.globalToLocal(globalOffset);
     final found = _partAt(local);
@@ -788,10 +804,30 @@ class _MessageMediaBodyState extends State<MessageMediaBody>
 
   // --- Mouse --------------------------------------------------------------
 
+  /// The host's chrome at [global], asked once per pointer position: the
+  /// hover and the viewport's hit query read the same pointer, and the
+  /// host's test may be costly. A new widget (the row built again)
+  /// forgets the answer, since the chrome may have moved with the row; a
+  /// rebuild of the body's own (a hover) keeps it.
+  ChatInlineHit? _chromeAt(Offset global) {
+    if (_$chromeAnswer case (final at, final hit) when at == global) return hit;
+    final hit = widget.chromeHitAt?.call(global);
+    _$chromeAnswer = (global, hit);
+    return hit;
+  }
+
+  (Offset, ChatInlineHit?)? _$chromeAnswer;
+
   void _updateHover(Offset? global) {
     _hoverAt = global;
     final box = _box;
-    final found = global == null || box == null || _inSelection
+    // The host's chrome over the media takes the pointer: no cell under
+    // it is hovered.
+    final found =
+        global == null ||
+            box == null ||
+            _inSelection ||
+            _chromeAt(global) != null
         ? null
         : _partAt(box.globalToLocal(global));
     _hovered = switch (found?.$1) {

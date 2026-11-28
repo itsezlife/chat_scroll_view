@@ -15,7 +15,7 @@ import 'package:message_media/src/message_media_hit_part.dart';
 import 'package:message_media/src/outgoing/media_send_state.dart';
 import 'package:message_media/src/paint/link_preview_card_view.dart';
 import 'package:message_media/src/paint/message_media_body.dart'
-    show LinkPreviewActivated;
+    show LinkPreviewActivated, MediaChromeHitTest;
 import 'package:message_media/src/policy/message_media_policy.dart';
 import 'package:message_media/src/transition/media_layout_transition.dart';
 import 'package:message_media/src/transition/media_transition_policy.dart';
@@ -106,6 +106,7 @@ class MessageMediaBubbleLayout extends StatefulWidget {
     this.linkPreviewColors,
     this.sendState = MediaSendState.none,
     this.onItemCancelled,
+    this.chromeHitAt,
     super.key,
   });
 
@@ -177,6 +178,10 @@ class MessageMediaBubbleLayout extends StatefulWidget {
 
   /// See `MessageMediaView.onItemCancelled`.
   final ValueChanged<MediaItemId>? onItemCancelled;
+
+  /// See `MessageMediaView.chromeHitAt`: the host's [time] pill and what it
+  /// draws beside it are over the media.
+  final MediaChromeHitTest? chromeHitAt;
 
   @override
   State<MessageMediaBubbleLayout> createState() =>
@@ -254,6 +259,7 @@ class _MessageMediaBubbleLayoutState extends State<MessageMediaBubbleLayout> {
     linkPreviewColors: widget.linkPreviewColors,
     sendState: widget.sendState,
     onItemCancelled: widget.onItemCancelled,
+    chromeHitAt: widget.chromeHitAt,
     builder: _bubble,
   );
 

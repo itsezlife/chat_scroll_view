@@ -903,6 +903,17 @@ class ChatScrollController {
     }
   }
 
+  /// Moves the stored Message highlight request with its message when a
+  /// provisional tail move carries it from a key of [moved] to its value, so
+  /// a bind / reattach replays it on the right row. Silent after [dispose].
+  @internal
+  void carryHighlightRequest(Map<int, int> moved) {
+    if (_disposed) return;
+    if (moved[_requestedHighlightMessageId] case final to?) {
+      _requestedHighlightMessageId = to;
+    }
+  }
+
   // --- Scrollbar hold, suppression, and flash ------------------------------
 
   final Set<ChatScrollbarHold> _scrollbarHolds = <ChatScrollbarHold>{};

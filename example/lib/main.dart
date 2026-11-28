@@ -166,6 +166,8 @@ Future<AppServices> _createServices() async {
         .$appCacheDirectory('media')
         .then((root) => root == null ? null : '$root/lottie_frames'),
     journal: journal,
+    // The transfer engine's journal: the outbox's sends survive a restart.
+    transfersDirectory: environment_specific.$appCacheDirectory('transfers'),
   );
   // Its own failure is awaited below; until then it is not an unhandled one.
   services.ignore();

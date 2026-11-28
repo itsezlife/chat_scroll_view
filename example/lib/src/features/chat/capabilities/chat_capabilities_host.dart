@@ -25,7 +25,10 @@ import 'package:listen/listen.dart' as listen;
 ///   and a toast on desktop and the web. A restriction the user can lift
 ///   carries the lift as the bulletin's action.
 /// - [send] marks a send in slow mode: the next send waits an interval from
-///   now, and the send is pending until it lands.
+///   now, and the send is pending until it lands. A chat whose sends go
+///   through the outbox marks the interval with [startInterval] instead and
+///   follows the outbox's send in flight as `pending`
+///   ([followSendInFlight]).
 /// - [set] and [update] replace the value live (the debug switcher).
 ///
 /// Created and disposed with the chat screen.
@@ -147,6 +150,39 @@ final class ChatCapabilitiesHost {
     }
   }
 
+  /// Starts slow mode's wait from now, for a send the outbox accepted;
+  /// outside slow mode nothing changes.
+  void startInterval() {
+    if (_disposed) return;
+    if (value.slowMode case final SlowMode$Active slow) {
+      update(
+        (c) => c.copyWith(
+          slowMode: slow.copyWith(nextSendAt: _now().add(slow.interval)),
+        ),
+      );
+    }
+  }
+
+  /// Folds [inFlight] (the outbox's send in flight for the chat) into slow
+  /// mode's `pending`, from now until [dispose]: the composer and the
+  /// picker hold the next send while one is still sending.
+  void followSendInFlight(listen.ValueListenable<bool> inFlight) {
+    _$inFlight?.removeListener(_foldInFlight);
+    _$inFlight = inFlight..addListener(_foldInFlight);
+    _foldInFlight();
+  }
+
+  listen.ValueListenable<bool>? _$inFlight;
+
+  void _foldInFlight() {
+    final pending = _$inFlight?.value ?? false;
+    if (_disposed) return;
+    if (value.slowMode case final SlowMode$Active slow
+        when slow.pending != pending) {
+      update((c) => c.copyWith(slowMode: slow.copyWith(pending: pending)));
+    }
+  }
+
   // --- Lifting a restriction --------------------------------------------------
 
   /// The action of the composer's default panel for [access]: the lift of an
@@ -208,6 +244,15 @@ final class ChatCapabilitiesHost {
 
   // --- Feedback --------------------------------------------------------------
 
+  /// The words of [action] denied for [reason], now.
+  String denialText(CapabilityAction action, DenialReason reason) =>
+      strings.text(action, reason, now: _now());
+
+  /// Shows [action] denied for [reason] as [feedback] does, for a
+  /// component that reports the attempt itself (the outbox).
+  void showDenied(CapabilityAction action, DenialReason reason) =>
+      _showDenied(action, reason);
+
   void _showDenied(CapabilityAction action, DenialReason reason) {
     if (_disposed || bulletins.isDisposed) return;
     bulletins.show(
@@ -242,6 +287,7 @@ final class ChatCapabilitiesHost {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
+    _$inFlight?.removeListener(_foldInFlight);
     _value.dispose();
   }
 }

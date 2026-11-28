@@ -1,3 +1,4 @@
+import 'package:chat_outbox/testing.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
 import 'package:chat_scroll_view_example/src/app/video_playback.dart';
@@ -25,6 +26,9 @@ import 'package:mpx_core/mpx_core.dart';
 /// Lottie playback is off unless [startLottie] says otherwise: the platform
 /// without the library, which every host must handle, and no render isolate in
 /// the many tests that do not draw stickers.
+///
+/// The outbox makes its jobs through [outboxTransfers] (a new fake unless
+/// given), so a test scripts the jobs' states.
 Future<AppServices> createTestServices({
   FakeKeyValueStore? storage,
   EmojiAssetLoader? loader,
@@ -33,6 +37,7 @@ Future<AppServices> createTestServices({
   String giphyApiKey = '',
   http.Client? giphyHttpClient,
   CorpusStickerPack corpus = CorpusStickerPack.none,
+  FakeOutboxTransfers? outboxTransfers,
 }) => AppServices.create(
   startLottie: startLottie,
   startVideo: startVideo,
@@ -45,6 +50,9 @@ Future<AppServices> createTestServices({
   deviceSignals: FakeDeviceSignals(),
   assetLoader: loader ?? rootBundle.loadString,
   clipboard: FakeRichClipboard(),
+  // No transfer engine: the outbox's jobs are a fake's, which a test moves
+  // (`FakeOutboxTransfers`).
+  outboxTransfers: outboxTransfers ?? FakeOutboxTransfers(),
 );
 
 Future<LottiePlayback?> _noLottie({

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:chat_outbox/chat_outbox.dart';
 import 'package:chat_scroll_view_example/src/app/environment_specific/library_players.dart';
 import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
 import 'package:chat_scroll_view_example/src/app/scrolling_surfaces.dart';
@@ -30,6 +31,11 @@ import 'package:chat_scroll_view_example/src/features/chat/data/sent_documents.d
 import 'package:chat_scroll_view_example/src/features/chat/data/shipped_packs_seed.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/static_sticker_pack.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/video_sticker_pack.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outbox.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_outgoing_media.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_transfers.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/demo_upload_transport.dart';
+import 'package:chat_scroll_view_example/src/features/chat/outbox/outbox_debug_actions.dart';
 import 'package:chat_scroll_view_example/src/features/chat/wallpaper/demo_wallpaper.dart';
 import 'package:chat_scroll_view_example/src/features/logs/data/diagnostics_journal.dart';
 import 'package:content_assets/content_assets.dart';
@@ -50,6 +56,7 @@ import 'package:mpx_core/mpx_core.dart';
 import 'package:mpx_library/mpx_library.dart';
 import 'package:mpx_player/mpx_player.dart' show PlayerPool;
 import 'package:mpx_svg/mpx_svg.dart';
+import 'package:mpx_transfer/mpx_transfer.dart';
 import 'package:panel_catalog/panel_catalog.dart' show PanelCatalogViewport;
 import 'package:panel_pages/panel_pages.dart';
 import 'package:panel_presentation/panel_presentation.dart';
@@ -98,7 +105,10 @@ import 'package:vector_graphics/vector_graphics.dart' show BytesLoader;
 ///    the pipeline, for the showcase chat and the recents, but no page lists
 ///    them;
 /// 5. the [clipboard]: the `rich_clipboard` adapter every copy and paste
-///    goes through, so text keeps its entities (ADR 032).
+///    goes through, so text keeps its entities (ADR 032);
+/// 6. the [outbox] of every chat's outgoing messages, over the transfer
+///    engine ([transfers], opened in step 3 before the asset cache, whose
+///    status controls show its uploads), its sender registered at once.
 ///
 /// ## Ownership
 ///
@@ -165,7 +175,17 @@ final class AppServices {
     required IBytesStore bytes,
     required HttpBytesClient? bytesClient,
     required RangedBytes? rangedBytes,
+    required this.outbox,
+    required this.transfers,
+    required this.uploadTransport,
+    required this.debugActions,
+    required DemoNetworkCut networkCut,
+    required HttpBytesClient? devServerClient,
+    required VoidCallback? stopNetworkFeed,
   }) : _deviceLibrary = deviceLibrary,
+       _stopNetworkFeed = stopNetworkFeed,
+       _networkCut = networkCut,
+       _devServerClient = devServerClient,
        _autoDownload = autoDownload,
        _downloads = downloads,
        _bytes = bytes,
@@ -262,6 +282,12 @@ final class AppServices {
   /// installed at start; the bytes store opens under its policy. Without
   /// one, a journal in memory is made (and freed) here, and no process-wide
   /// policy is touched.
+  ///
+  /// [outboxTransfers] is what the outbox makes its publish jobs through:
+  /// the transfer engine unless a test passes a fake, and then no engine is
+  /// opened. The engine journals in [transfersDirectory], whatever
+  /// [diskCache] says (the journal is the outbox's only store); the VM needs
+  /// one, the web keeps it in the page's storage.
   static Future<AppServices> create({
     KeyValueStore? keyValueStore,
     EmojiAssetLoader? assetLoader,
@@ -279,6 +305,8 @@ final class AppServices {
     IDeviceSignals? deviceSignals,
     bool diskCache = DemoConfig.diskCache,
     DiagnosticsJournal? journal,
+    OutboxTransfers? outboxTransfers,
+    Future<String?>? transfersDirectory,
   }) async {
     if (!diskCache) {
       l.i(
@@ -531,6 +559,63 @@ final class AppServices {
       // An SVG document's preview is drawn only from bytes already here: its
       // tag never downloads (the user's download of the file still does).
       final downloads = SvgDocumentPreview.localOnly(autoDownload);
+      // The app's visibility, which the pause policies below and the
+      // transfer engine read.
+      final lifecycleSource = owned(
+        WidgetsPlaybackLifecycleSource(),
+        (source) => source.dispose(),
+      );
+      // The transfer engine the outbox's publish jobs run in, uploading to
+      // the demo's in-process remote end; its tracked jobs are the asset
+      // cache scope's, so a cell's status control shows an upload. A test's
+      // fake leaves it unopened.
+      final signals = deviceSignals ?? ownedSignals!;
+      // The debug panel's network cut, read by the engine's connectivity
+      // feed and by every request to the dev upload server.
+      final networkCut = owned(DemoNetworkCut(), (cut) => cut.dispose());
+      final uploadTransport = DemoUploadTransport();
+      final devServer = outboxTransfers == null
+          ? DemoTransfers.devServer
+          : null;
+      final devServerClient = switch (devServer) {
+        null => null,
+        _ => owned(
+          HttpBytesClient(
+            middlewares: [
+              networkCut.middleware,
+              const HttpBytesTimeoutMiddleware().call,
+            ],
+          ),
+          (client) => client.close(),
+        ),
+      };
+      final transfers = outboxTransfers != null
+          ? null
+          : owned(
+              await DemoTransfers.open(
+                lifecycle: lifecycleSource,
+                transports: DemoTransfers.transportsFor(
+                  demo: uploadTransport,
+                  devServer: devServer,
+                  client: devServerClient,
+                ),
+                online: signals.network.value != NetworkClass.none,
+                store: bytes,
+                // The journal is the outbox's truth, not a cache: the disk
+                // switch leaves it on disk.
+                directory: await transfersDirectory,
+              ),
+              (transfers) => transfers.dispose(),
+            );
+      final stopNetworkFeed = switch (transfers) {
+        final transfers? => DemoTransfers.followNetwork(
+          transfers,
+          signals.network,
+          cut: networkCut,
+        ),
+        null => null,
+      };
+      if (stopNetworkFeed != null) unwind.add(stopNetworkFeed);
       // The device library for the attach sheet's Gallery, made on its first
       // use (Android and iOS have adapters); its thumbnails go through the
       // pipeline below.
@@ -550,17 +635,23 @@ final class AppServices {
           }
         },
       );
+      // The user's outgoing media, before the server has it: its keys are
+      // the outbox's items', and its pictures come from where each was
+      // picked (the library, a capture, a file), through the routes below.
+      final outgoingMedia = DemoOutgoingMedia();
       pipeline = owned(
         AssetPipeline(
           // Giphy first, then the corpus, then the bundle: each takes its own
           // keys and hands the rest on.
-          fetcher: _LibraryRoute(
-            deviceLibrary,
-            CaptureMedia.fetcher(
-              store: bytes,
-              client: captureClient,
-              otherwise: sentDocuments.route(
-                _contentFetcher(giphy, corpusPacks, rootBundle),
+          fetcher: outgoingMedia.route(
+            _LibraryRoute(
+              deviceLibrary,
+              CaptureMedia.fetcher(
+                store: bytes,
+                client: captureClient,
+                otherwise: sentDocuments.route(
+                  _contentFetcher(giphy, corpusPacks, rootBundle),
+                ),
               ),
             ),
           ),
@@ -603,6 +694,7 @@ final class AppServices {
           textGlyphsReady: glyphFontsReady,
           textures: textures,
           autoDownload: downloads,
+          tracked: transfers?.tracked,
         ),
         (scope) => scope.dispose(),
       );
@@ -612,10 +704,6 @@ final class AppServices {
       // covered by a dialog, or the switch below says power is short, and on
       // desktop and the web when the window loses focus; a phone's system
       // sheet over the app (the shade, a permission dialog) leaves them be.
-      final lifecycleSource = owned(
-        WidgetsPlaybackLifecycleSource(),
-        (source) => source.dispose(),
-      );
       // A stub: nothing here detects the system's battery saver (the packages
       // take no battery plugin). A host feeds this from its own detection;
       // here it is a switch a test or a debug panel flips.
@@ -790,7 +878,39 @@ final class AppServices {
         (source) => source.dispose(),
       );
 
+      // 6. The outbox over the engine, its sender registered now: a job of
+      // an earlier run publishes once its chat is opened again.
+      final outbox = DemoOutbox(
+        transfers: outboxTransfers ?? OutboxTransfers.of(transfers!),
+        media: outgoingMedia,
+      );
+      unwind.add(outbox.dispose);
+      // The outbox debug panel's actions, made once so a kill asked for
+      // outlives the panel; debug builds only, like the panel.
+      final debugActions = kDebugMode
+          ? owned(
+              OutboxDebugActions(
+                engine: switch (transfers) {
+                  final transfers? => TransferDebugHooks.engine(
+                    transfers,
+                    cut: networkCut,
+                    transport: uploadTransport,
+                  ),
+                  null => null,
+                },
+              ),
+              (actions) => actions.dispose(),
+            )
+          : null;
+
       return AppServices._(
+        outbox: outbox,
+        transfers: transfers,
+        uploadTransport: transfers == null ? null : uploadTransport,
+        debugActions: debugActions,
+        networkCut: networkCut,
+        devServerClient: devServerClient,
+        stopNetworkFeed: stopNetworkFeed,
         deviceLibrary: deviceLibrary,
         keyValueStore: storage,
         recents: recents,
@@ -1114,6 +1234,28 @@ final class AppServices {
       );
 
   final IDeviceSignals? _ownedSignals;
+
+  /// The outgoing messages of every chat: the outbox, its fake server, each
+  /// chat's binding (`DemoOutbox.chat`).
+  final DemoOutbox outbox;
+
+  /// The transfer engine the outbox's jobs run in, for a debug panel; null
+  /// when a test gave the outbox a fake.
+  final Transfers? transfers;
+
+  /// The in-process upload transport the engine sends to, for the debug
+  /// panel's switches; null when a test gave the outbox a fake.
+  final DemoUploadTransport? uploadTransport;
+
+  /// The outbox debug panel's actions: kill, network cut, system
+  /// interruption (without an engine only the kill acts); null in a
+  /// release or profile build, which has no panel.
+  final OutboxDebugActions? debugActions;
+
+  final DemoNetworkCut _networkCut;
+  final HttpBytesClient? _devServerClient;
+
+  final VoidCallback? _stopNetworkFeed;
   final WidgetsPlaybackLifecycleSource _lifecycleSource;
   final ValueNotifier<bool> _reducedMotion;
   final PacedGlyphProbePass? _webProbePass;
@@ -1182,6 +1324,20 @@ final class AppServices {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
+    // The outbox first: it stops watching the jobs and frees the chats'
+    // message sources; the engine after it, its jobs journaled.
+    debugActions?.dispose();
+    _stopNetworkFeed?.call();
+    _networkCut.dispose();
+    final engine = transfers;
+    final devServerClient = _devServerClient;
+    _closeReporting(
+      outbox
+          .dispose()
+          .then((_) => engine?.dispose())
+          .then((_) => devServerClient?.close()),
+      'the outbox and the transfer engine',
+    );
     _ownedJournal?.dispose();
     _webProbePass?.cancel();
     _deviceLibrary.dispose();

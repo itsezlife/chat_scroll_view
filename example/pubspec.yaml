@@ -20,6 +20,10 @@ dependencies:
   # The capabilities a chat's filtered log view describes at its top.
   chat_capabilities:
     path: ../packages/chat_capabilities
+  # Outgoing messages: the demo chat sends text and media through it, over
+  # the transfer engine and an in-process fake server.
+  chat_outbox:
+    path: ../packages/chat_outbox
   chat_scroll_view:
     path: ../
   keyboard_insets:
@@ -29,6 +33,8 @@ dependencies:
     path: ../packages/chat_composer
   chat_wallpaper:
     path: ../packages/chat_wallpaper
+  collection: ^1.19.1
+  uuid: ^4.6.0
   chrome_foundation:
     path: ../packages/chrome_foundation
   content_assets:
@@ -92,6 +98,12 @@ dependencies:
       url: https://github.com/itsezlife/mpx.git
       path: packages/mpx_player
       ref: a577316dd39ca36fb2130e755dd768f77016fd65
+  # The transfer engine the outbox's publish jobs run in.
+  mpx_transfer:
+    git:
+      url: https://github.com/itsezlife/mpx.git
+      path: packages/mpx_transfer
+      ref: a577316dd39ca36fb2130e755dd768f77016fd65
   mpx_ui:
     git:
       url: https://github.com/itsezlife/mpx.git
@@ -137,6 +149,8 @@ dev_dependencies:
     path: ../packages/golden_baseline
   flutter_test:
     sdk: flutter
+  # Timers of the fake server and the upload transport, run on a fake clock.
+  fake_async: ^1.3.3
   flutter_lints: ^6.0.0
   integration_test:
     sdk: flutter

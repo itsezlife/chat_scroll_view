@@ -374,3 +374,57 @@ const _months = [
   'Ноябрь',
   'Декабрь',
 ];
+
+/// The demo's strings for its outgoing messages' transfers: the system
+/// envelope's notification (`TransferEnvelopeConfig`) and the prompt that
+/// asks for a file whose upload source was lost.
+abstract final class DemoTransferStrings {
+  /// The envelope notification's title; it also names its channel.
+  static const String envelopeTitle = 'Отправка медиа';
+
+  /// The envelope notification's text.
+  static const String envelopeText = 'Отправка продолжится в фоне.';
+
+  /// The envelope's "cancel all" action.
+  static const String cancelAll = 'Отменить все';
+
+  /// The envelope's progress line: how many uploads are left.
+  static String uploadsLeft(int count) =>
+      'Осталось $count '
+      '${RussianPlural.wordOf(count, 'отправка', 'отправки', 'отправок')}';
+
+  /// The prompt's title when an upload's file is gone.
+  static const String sourceLostTitle = 'Файл недоступен';
+
+  /// The prompt's text.
+  static const String sourceLostMessage =
+      'Страница перезагрузилась, и файл больше недоступен. Выберите его '
+      'снова, чтобы отправить сообщение.';
+
+  /// The prompt's action that opens the file dialog.
+  static const String pickFile = 'Выбрать файл';
+
+  /// The prompt's cancel.
+  static const String cancel = 'Отмена';
+}
+
+/// The demo's strings for the status of the user's own messages: what the
+/// time pill and the error badge say to assistive technology, and the
+/// announcements of a send's start and end.
+abstract final class DemoOutgoingStrings {
+  /// A message on its way: preparing, uploading or publishing.
+  static const String sending = 'Отправляется';
+
+  /// A message the server has.
+  static const String sent = 'Отправлено';
+
+  /// A message that failed.
+  static const String notSent = 'Не отправлено';
+
+  /// The failed message's action that sends it again.
+  static const String retry = 'Повторить';
+
+  /// The failed message's hint.
+  static const String retryHint =
+      'Сообщение не отправлено. Повторите отправку или удалите его.';
+}

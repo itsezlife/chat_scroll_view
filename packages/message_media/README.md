@@ -203,7 +203,10 @@ upload's owner through `TrackedTransfers.cancel`, which drops the item from
 its job, and `onItemCancelled` hands the host the item's `MediaItemId`, so
 the item leaves the message's list and exits under the layout transition.
 A failed send shows no status control: the error badge and Retry / Delete
-are the host's.
+are the host's. A badge the host draws over the media (beside the time
+pill) answers through `chromeHitAt` (`MediaChromeHitTest`): the media is
+the message's one non-text body, so the body asks the host's chrome first
+and its hit wins over the media's parts, within the one registration.
 
 On iOS (`MessageMediaPolicy.sendFlight`, `MediaSendFlightPolicy.ios()`) a
 cell built for the first time asks the chat's

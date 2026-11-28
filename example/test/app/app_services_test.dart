@@ -3,6 +3,7 @@ library;
 
 import 'dart:io';
 
+import 'package:chat_outbox/testing.dart';
 import 'package:chat_scroll_view_example/src/app/app_services.dart';
 import 'package:chat_scroll_view_example/src/app/lottie_playback.dart';
 import 'package:chat_scroll_view_example/src/app/video_playback.dart';
@@ -106,6 +107,8 @@ void main() {
       final log = <String>[];
 
       final services = await AppServices.create(
+        // No transfer engine: it journals on disk, which a test has not.
+        outboxTransfers: FakeOutboxTransfers(),
         keyValueStore: _LoggingStore(log),
         assetLoader: (key) {
           log.add('asset:${key.split('/').last}');
@@ -270,6 +273,8 @@ void main() {
       String? framesDirectory,
       bool diskCache = true,
     }) => AppServices.create(
+      // No transfer engine: it journals on disk, which a test has not.
+      outboxTransfers: FakeOutboxTransfers(),
       keyValueStore: FakeKeyValueStore(),
       assetLoader: rootBundle.loadString,
       clipboard: FakeRichClipboard(),
@@ -339,6 +344,8 @@ void main() {
     test('is closed when a later step fails the boot', () async {
       await expectLater(
         AppServices.create(
+          // No transfer engine: it journals on disk, which a test has not.
+          outboxTransfers: FakeOutboxTransfers(),
           keyValueStore: FakeKeyValueStore(),
           assetLoader: (key) async => throw StateError('no catalogue'),
           startLottie: start,
@@ -384,6 +391,8 @@ void main() {
       test('is reported once when a later step fails the boot', () async {
         await expectLater(
           AppServices.create(
+            // No transfer engine: it journals on disk, which a test has not.
+            outboxTransfers: FakeOutboxTransfers(),
             keyValueStore: FakeKeyValueStore(),
             assetLoader: (key) async => throw StateError('no catalogue'),
             startLottie: failing,
@@ -482,6 +491,8 @@ void main() {
     test('is closed when a later step fails the boot', () async {
       await expectLater(
         AppServices.create(
+          // No transfer engine: it journals on disk, which a test has not.
+          outboxTransfers: FakeOutboxTransfers(),
           keyValueStore: FakeKeyValueStore(),
           assetLoader: (key) async => throw StateError('no catalogue'),
           startLottie:
@@ -519,6 +530,8 @@ void main() {
     test('is registered beside the animated image one, with no Lottie '
         'decoder', () async {
       final services = await AppServices.create(
+        // No transfer engine: it journals on disk, which a test has not.
+        outboxTransfers: FakeOutboxTransfers(),
         keyValueStore: FakeKeyValueStore(),
         assetLoader: rootBundle.loadString,
         clipboard: FakeRichClipboard(),
@@ -564,6 +577,8 @@ void main() {
 
       await expectLater(
         AppServices.create(
+          // No transfer engine: it journals on disk, which a test has not.
+          outboxTransfers: FakeOutboxTransfers(),
           keyValueStore: FakeKeyValueStore(),
           assetLoader: (key) async => throw StateError('no catalogue'),
         ),
@@ -581,6 +596,8 @@ void main() {
 
         await expectLater(
           AppServices.create(
+            // No transfer engine: it journals on disk, which a test has not.
+            outboxTransfers: FakeOutboxTransfers(),
             keyValueStore: _FailingStore(),
             assetLoader: rootBundle.loadString,
           ),
@@ -792,6 +809,8 @@ void main() {
     // byte, every disk tier given a folder under [dir].
     Future<AppServices> create({required bool diskCache}) async {
       final services = await AppServices.create(
+        // No transfer engine: it journals on disk, which a test has not.
+        outboxTransfers: FakeOutboxTransfers(),
         keyValueStore: FakeKeyValueStore(),
         assetLoader: rootBundle.loadString,
         clipboard: FakeRichClipboard(),
@@ -1170,6 +1189,8 @@ void main() {
       final signals = FakeDeviceSignals(network: NetworkClass.metered);
       addTearDown(signals.dispose);
       final services = await AppServices.create(
+        // No transfer engine: it journals on disk, which a test has not.
+        outboxTransfers: FakeOutboxTransfers(),
         keyValueStore: FakeKeyValueStore(),
         assetLoader: rootBundle.loadString,
         clipboard: FakeRichClipboard(),
@@ -1219,6 +1240,8 @@ void main() {
       final signals = FakeDeviceSignals(network: NetworkClass.roaming);
       addTearDown(signals.dispose);
       final services = await AppServices.create(
+        // No transfer engine: it journals on disk, which a test has not.
+        outboxTransfers: FakeOutboxTransfers(),
         keyValueStore: FakeKeyValueStore(),
         assetLoader: rootBundle.loadString,
         clipboard: FakeRichClipboard(),
@@ -1264,6 +1287,8 @@ void main() {
       final signals = FakeDeviceSignals();
       addTearDown(signals.dispose);
       final services = await AppServices.create(
+        // No transfer engine: it journals on disk, which a test has not.
+        outboxTransfers: FakeOutboxTransfers(),
         keyValueStore: FakeKeyValueStore(),
         assetLoader: rootBundle.loadString,
         clipboard: FakeRichClipboard(),

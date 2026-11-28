@@ -180,3 +180,38 @@ ADR 001 is amended: provisional tail slots are positions, not identity, and
   message moving to the bottom) are checked in implementation issues.
 - Glossary: *Outgoing message*, *Outbox*, *Provisional tail*, *Tail
   rebase*, *Send origin* in the Chat Scroll glossary.
+
+## Amendment (2026-11-28, accepted): what the implementation settled
+
+Decided with the maintainer while slicing the spec (acceptance-3 §5) and
+confirmed against the landed code. Nothing above is reversed.
+
+| Area | Decision |
+| ---- | -------- |
+| Leaving the tail | `rebaseTail`'s `order` may omit a provisional identity: the row leaves in the same atomic write and the rows after it shift. Cancel, delete, the envelope's cancel of all and a replay at an id the row cannot reach all use it, so the outbox never removes a provisional row through the data source's ordinary calls. The data source computes the tail at call time from `identityOf` (a settable field on `ChatDataSource`, not a constructor argument) and pins the tail's chunks against eviction. |
+| Rows and menus | A moved row keeps its widget state, so the host needs no global key. The engine cannot see menus: a host closes an open one through `ChatDataSource.rowPresence(id)`, which a move of that slot ends. |
+| Send origin keying | `attach_sheet` hands the thumbnail rectangles by the planned send's item order (`AttachOutcome.originsOf(plannedSend)`), because the outbox issues the `MediaItemId`s only when it accepts the send. `send(..., origins:)` takes that list and re-keys it by the items' ids, whether the outbox or the host issued them. A list whose length differs from the items is refused before any job. An origin lives until its message is sent, cancelled or made Absent, or `ChatOutbox.sendOriginLifetime` (5 s) after the accept. |
+| Send in flight | `ChatOutbox.sendInFlight(chatId)` is a listenable that is on while one of the chat's messages is sending. The host folds it into its capabilities value as `slowMode.pending`; the outbox does not write the host's value. The outbox's own slow-mode check also reads it, so a second send is refused before the host's value catches up. |
+| Restart | `pendingFor(chatId)` runs once per chat and reads the chat's jobs by the tag prefix. A payload the host's codec cannot read makes the message `failed(unknown)`, reported as `payloadDecodeFailed`; its row comes from the host's `undecodableRowOf`, and without that builder the message is left out. Only Delete helps it, and `retry` answers `undecodable`. A job under the prefix whose tag or item ids the outbox did not make is left alone with a `foreignJob` warning. A job of an earlier run that reaches `chat.send` before its chat is restored waits for the restore instead of failing. The job's payload is read through the engine's `PublishJob.payload`. |
+| Appearance | `OutgoingAppearancePolicy` lives in `chat_outbox`: pure values per platform (`android()`, `ios()`, `desktop()`, `platform()`) and the resolver that answers `slideUp`, `fadeScale`, `flight` or `none`. `ChatOutbox.appearanceOf` shares `isFreshOutgoing`'s one-shot. The animation stays the host's. `platform()` follows the operating system, so a web build takes its system's preset: a web preset is open. |
+| Seam additions | `OutgoingIdStrategy.proposedId` (null under `LocalIds`) and `removeAll`, so a cancel of all leaves in one `rebaseTail`; `OutgoingTailTarget.positionOf`, so a strategy reads its tail's first position back from the rows and rows a range fetch put before the tail move its tip. A host's own strategy implements them. |
+| Rejection codes | The outbox owns the `chat.` prefix of a job's rejection code: a server denial is journaled as `chat.denied:<action>`, a spent conflict loop as `chat.conflict`. A sender's own code with that prefix is refused. A replay at another id places the answer's `missing` messages before the row and confirms it there. |
+| Retry of a denial | A denied job fails with `retryable: false`, yet `retry` still republishes it, since the engine's retry does not read that flag. Whether Retry is offered after a denial is the host's per-platform menu. |
+| Failed rows sink | Kept as decided. No reference client moves a failed message to the bottom; the sink keeps `tip+1` free of failed rows, which the rejected alternative cannot. |
+| Cancel waits | A cancel while the sender call is in flight waits for the answer (`pending`): an accept leaves the message sent, any other answer cancels it. |
+| Diagnostics | `tailRebased` reasons are `incoming`, `publishStart`, `failedSink`, `retry`, `restart`, `removed` and `fetch`. A conflict's or a replay's `missing` messages move the tail through `incoming`, right after `publishConflict` or `replayRebased` for the same message. The engine's own events are `rebase` operations (`rebaseTail`, `orderRejected`, `stagingFinalised`, `followSuppressed`, `animationKept`, `rowStateCarried`, `fetchInsideTail`). |
+
+## Amendment (2026-11-28, review): what the code review settled
+
+Found by the chat-outbox code review and fixed with tests; replaces the rows it names in the amendment above.
+
+| Area | Decision |
+| ---- | -------- |
+| Confirm at the server's id | An accept confirms the row only where it sits at the server's id. A peer's message delivered, or a range fetch's rows, while the sender call is out may move the tail past it; the row then leaves in the same way as for a replay it cannot reach, and `onSent` (`rowAt` null) has the host place the confirmed message at the server's id. `onSent` is required, and replaces the row inside the call. |
+| Restored rows | A row placed again after a restart is inserted with `followSelf: false` (`ChatDataSource.insertMessage`, `InsertMutation.followSelf`): a reader scrolled up is not pulled to it. |
+| History after a restart | `settleFromHistory(chatId, clientMessageId, serverId:)`: a message the server stored before the app went, met in fetched history, is sent at that id; its restored row leaves and the replay's answer moves nothing. The host hands such history rows to it once `pendingFor` answered. |
+| Retry and slow mode | A retry is one more send unit: slow mode (countdown, a send in flight) refuses it as it refuses a send, `refused`, with `onDenied(sendNow)`. |
+| Rejection codes | Replaces the row above: every code the chat publisher journals carries `chat.` (`chat.rejected:<code>`, `chat.denied:<action>`, `chat.conflict`); a server's code is kept whatever it spells and the sender may give any code. Bare codes are the engine's: `network` and `sourceLost` as theirs, the rest unknown. |
+| Appearance on the web | Replaces "a web preset is open": `OutgoingAppearancePolicy.web(compactTouch:)` (a compact window used by touch moves as Android, never a flight; any other is still); `platform()` gives it on the web whatever the system; the host passes the live one to `appearanceOf(policy:)`, read from the width class and the input class. A policy's own row motions are `OutgoingRowMotion`s, so a flight comes from a send origin only. |
+| Identifiers and feedback | Chats and messages are `ChatId` and `ClientMessageId` (nominal strings). Denial feedback is per chat (`feedbackOf(chatId)`). A send may carry its own `itemOf`. |
+| Strategy reads | `OutgoingIdStrategy` gains `sync()`: its getters only read, and the outbox brings each strategy up to its rows at its entry points; every move syncs first. |
