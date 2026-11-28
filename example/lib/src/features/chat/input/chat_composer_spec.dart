@@ -115,24 +115,29 @@ ComposerSpec buildChatComposerSpec({
         heldBySlowMode: true,
         onTap: onAttach,
       ),
-      ActionDescriptor(
-        id: ChatComposerActions.primary,
-        icon: switch ((isEditing, hasText)) {
-          (true, _) => ChromeIconId.confirm,
-          (false, true) => ChromeIconId.send,
-          (false, false) => ChromeIconId.voice,
-        },
-        semanticLabel: switch ((isEditing, hasText)) {
-          (true, _) => composer.confirmEditAction,
-          (false, true) => composer.sendAction,
-          (false, false) => composer.recordVoiceAction,
-        },
-        primary: hasText,
-        // The voice button is the chat's voice right: dimmed and reporting
-        // where the chat denies it.
-        capability: isEditing || hasText ? null : CapabilityAction.sendVoice,
-        onTap: hasText ? onSubmit : onVoice,
-      ),
+      switch (editing) {
+        // An edit confirms, never records: a caption may be emptied, text
+        // alone may not, and the emptied text's confirm is inert.
+        final editing? => ActionDescriptor(
+          id: ChatComposerActions.primary,
+          icon: ChromeIconId.confirm,
+          semanticLabel: composer.confirmEditAction,
+          primary: editing.caption || hasText,
+          onTap: editing.caption || hasText ? onSubmit : null,
+        ),
+        null => ActionDescriptor(
+          id: ChatComposerActions.primary,
+          icon: hasText ? ChromeIconId.send : ChromeIconId.voice,
+          semanticLabel: hasText
+              ? composer.sendAction
+              : composer.recordVoiceAction,
+          primary: hasText,
+          // The voice button is the chat's voice right: dimmed and reporting
+          // where the chat denies it.
+          capability: hasText ? null : CapabilityAction.sendVoice,
+          onTap: hasText ? onSubmit : onVoice,
+        ),
+      },
     ],
   );
 }

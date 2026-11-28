@@ -6,6 +6,13 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Fixed (selection header after the camera)
+
+- The Gallery's selection header follows a selection cleared while a page
+  covered the sheet. Before, a capture that landed and was discarded under
+  the camera and its viewer left the header reading "1 photo selected"
+  once they closed, until the next change of the selection.
+
 ### Added (send origins)
 
 - `AttachOutcome.send` carries `origins`: the global rect of each item's
