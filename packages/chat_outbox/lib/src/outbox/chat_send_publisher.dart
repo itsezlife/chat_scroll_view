@@ -62,10 +62,10 @@ final class ChatSendPublisher<M> implements Publisher {
     required CapabilityFeedback feedback,
     required void Function(OutgoingSent<M> sent)? onSent,
     required PublishCounters counters,
-    void Function(OutgoingMessage message)? onStatusChanged,
     required DateTime Function() now,
     required Future<OutgoingMessage?> Function(String clientMessageId)
     restoredMessage,
+    void Function(OutgoingMessage message)? onStatusChanged,
   }) : _projection = projection,
        _restoredMessage = restoredMessage,
        _strategyOf = strategyOf,
