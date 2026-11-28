@@ -37,6 +37,12 @@ this package is pre-1.0.
   `FakeOutboxTransfers` in `testing.dart`.
 - `OutboxOp`: `accepted`, `refusedBeforeJob`, `jobCreated`,
   `statusChanged`, `sendInFlight`.
+- Send origins: `send(..., origins:)` takes the picker's thumbnail rects
+  by item order and keys them by the items' `MediaItemId`s;
+  `takeSendOrigin(id)` answers each once. An untaken origin goes when its
+  message is sent or cancelled, or after `ChatOutbox.sendOriginLifetime`.
+  The snapshot's items say whether their origin is still held.
+  `OutboxOp`: `sendOriginStored`, `sendOriginTaken`, `sendOriginDropped`.
 - The package now depends on `attach_model`, `listen`, `mpx_core` and
   `mpx_transfer`.
 

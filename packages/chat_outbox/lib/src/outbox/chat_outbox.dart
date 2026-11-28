@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:ui' show Rect;
 
 import 'package:attach_model/attach_model.dart';
 import 'package:chat_capabilities/chat_capabilities.dart';
@@ -90,6 +91,15 @@ final class ChatOutbox<M> {
   /// by the outbox.
   static const String publisherId = 'chat.send';
 
+  /// How long the outbox keeps a send origin nobody takes, from the send's
+  /// accept.
+  ///
+  /// A media cell takes its origin on its first frame, which comes within
+  /// a frame or two of the send when the host inserts the row at once; an
+  /// origin still untaken after this would fly from a thumbnail the user
+  /// stopped looking at long ago, so the cell appears without it.
+  static const Duration sendOriginLifetime = Duration(seconds: 5);
+
   /// The tag of the publish job of message [clientMessageId] of [chatId].
   static String tagOf(String chatId, String clientMessageId) =>
       '${tagPrefixOf(chatId)}$clientMessageId';
@@ -139,8 +149,14 @@ final class ChatOutbox<M> {
   /// [itemIds], one per item in order. The message is fresh: the host's
   /// [isFreshOutgoing] answers true for it once.
   ///
-  /// Reports `refusedBeforeJob`, or `accepted` then `jobCreated`. Throws an
-  /// [ArgumentError] when [itemIds] does not give one id per item, and
+  /// [origins] are the picker's send origins by item order: each item's
+  /// global thumbnail rect at send time, null for an item the picker did
+  /// not show. The outbox keys them by the items' `MediaItemId`s and hands
+  /// each out once through [takeSendOrigin].
+  ///
+  /// Reports `refusedBeforeJob`, or `accepted`, `jobCreated` and, with
+  /// [origins], `sendOriginStored`. Throws an [ArgumentError] when
+  /// [itemIds] or [origins] does not give one entry per item, and
   /// whatever the engine throws for a request it cannot run, after which
   /// the outbox holds nothing of the send.
   OutgoingMessage? send(
@@ -148,8 +164,10 @@ final class ChatOutbox<M> {
     PlannedSend send, {
     required M payload,
     List<MediaItemId>? itemIds,
+    List<Rect?>? origins,
   }) {
     _checkNotDisposed();
+    _projection.origins.expire(_now());
     final items = switch (send) {
       PlannedSend$Single(:final item) => [item],
       PlannedSend$Group(:final items) => items,
@@ -160,6 +178,13 @@ final class ChatOutbox<M> {
         itemIds.length,
         'itemIds',
         'One id per item: the send has ${items.length}.',
+      );
+    }
+    if (origins != null && origins.length != items.length) {
+      throw ArgumentError.value(
+        origins.length,
+        'origins',
+        'One origin (or null) per item: the send has ${items.length}.',
       );
     }
     final clientMessageId = _issueClientMessageId();
@@ -227,6 +252,7 @@ final class ChatOutbox<M> {
       ],
     );
     _projection.put(message, fresh: true, job: OutboxJobView(jobId));
+    if (origins != null) _storeOrigins(message, origins);
     _$accepted++;
     _watch(chatId);
     _syncInFlight(chatId);
@@ -252,6 +278,67 @@ final class ChatOutbox<M> {
   /// The same listenable on every call for one chat, until [dispose].
   ValueListenable<bool> sendInFlight(String chatId) => _$inFlightNotifiers
       .putIfAbsent(chatId, () => ValueNotifier(_$inFlight[chatId] ?? false));
+
+  /// The send origin of item [id]: the global rect its thumbnail had in the
+  /// picker when the user sent it, or null when the outbox holds none.
+  ///
+  /// One-shot: an origin is answered once, then null. One the cell never
+  /// takes goes with its message once it is sent or cancelled, or after
+  /// [sendOriginLifetime]. The host hands this to its media state as the
+  /// one-shot origin lookup, a `Rect? Function(MediaItemId)`. Reports
+  /// `sendOriginTaken` for an item of an outgoing message here.
+  Rect? takeSendOrigin(MediaItemId id) {
+    final now = _now();
+    _projection.origins.expire(now);
+    final taken = _projection.origins.take(id);
+    final message = _projection.messageOfItem(id);
+    if (message != null) {
+      ChatDiagnostics.current.emit(
+        ChatEventLevel.debug,
+        ChatEventCategory.outbox,
+        OutboxOp.sendOriginTaken,
+        correlation: ChatCorrelation(
+          chatId: message.chatId,
+          clientMessageId: message.clientMessageId,
+          mediaItemId: '$id',
+        ),
+        fields: () => {
+          'present': taken != null,
+          if (taken case (:final acceptedAt, rect: _))
+            'msSinceAccept': now.difference(acceptedAt).inMilliseconds,
+        },
+      );
+    }
+    return taken?.rect;
+  }
+
+  void _storeOrigins(OutgoingMessage message, List<Rect?> origins) {
+    final accepted = _now();
+    final held = {
+      for (final (index, item) in message.items.indexed)
+        item.id: ?origins[index],
+    };
+    _projection.origins.store(
+      message.chatId,
+      message.clientMessageId,
+      held,
+      at: accepted,
+      expiresAt: accepted.add(sendOriginLifetime),
+    );
+    ChatDiagnostics.current.emit(
+      ChatEventLevel.debug,
+      ChatEventCategory.outbox,
+      OutboxOp.sendOriginStored,
+      correlation: ChatCorrelation(
+        chatId: message.chatId,
+        clientMessageId: message.clientMessageId,
+      ),
+      fields: () => {
+        'withOrigin': held.length,
+        'withoutOrigin': origins.length - held.length,
+      },
+    );
+  }
 
   SendRefusal? _refusalOf(String chatId, PlannedSend send) {
     final capabilities = _capabilitiesOf?.call(chatId)?.value;
@@ -348,6 +435,7 @@ final class ChatOutbox<M> {
 
   void _project(String chatId, List<PublishJobSnapshot> jobs) {
     if (_$disposed) return;
+    _projection.origins.expire(_now());
     OutboxTrace.project.run(() {
       final prefix = tagPrefixOf(chatId);
       for (final job in jobs) {
@@ -475,20 +563,26 @@ final class ChatOutbox<M> {
   /// What the outbox holds for [chatId] right now, without user content;
   /// see [OutboxDebugSnapshot].
   ///
-  /// Reading it changes nothing: a row's fresh flag stays unread.
-  OutboxDebugSnapshot debugSnapshot(String chatId) => OutboxDebugSnapshot(
-    chatId: chatId,
-    tail: [
-      for (final message in _projection.tailOf(chatId))
-        OutboxDebugRow.of(
-          message,
-          fresh: _projection.isFresh(chatId, message.clientMessageId),
-          job: _projection.jobOf(chatId, message.clientMessageId),
-        ),
-    ],
-    sendInFlight: _projection.hasInFlight(chatId),
-    counters: OutboxDebugCounters(accepted: _$accepted),
-  );
+  /// Reading it changes nothing: a row's fresh flag stays unread, and an
+  /// origin it shows as held is still there to take (it drops the expired
+  /// ones first, as every call does).
+  OutboxDebugSnapshot debugSnapshot(String chatId) {
+    _projection.origins.expire(_now());
+    return OutboxDebugSnapshot(
+      chatId: chatId,
+      tail: [
+        for (final message in _projection.tailOf(chatId))
+          OutboxDebugRow.of(
+            message,
+            fresh: _projection.isFresh(chatId, message.clientMessageId),
+            job: _projection.jobOf(chatId, message.clientMessageId),
+            sendOriginHeld: _projection.origins.holds,
+          ),
+      ],
+      sendInFlight: _projection.hasInFlight(chatId),
+      counters: OutboxDebugCounters(accepted: _$accepted),
+    );
+  }
 
   // --- Lifecycle -------------------------------------------------------------
 

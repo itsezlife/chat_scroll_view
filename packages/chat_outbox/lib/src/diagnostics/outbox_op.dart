@@ -38,4 +38,17 @@ enum OutboxOp implements DiagnosticOp {
 
   /// Whether a send of the chat is in flight changed (debug): on or off.
   sendInFlight,
+
+  /// An accepted send came with the picker's send origins (debug): how many
+  /// items have one, and how many have none (scrolled off, or not from the
+  /// picker's grid).
+  sendOriginStored,
+
+  /// A media cell asked for an outgoing item's send origin (debug): whether
+  /// one was held and, if so, the milliseconds since its send was accepted.
+  sendOriginTaken,
+
+  /// The outbox let go of a send origin nobody took (debug): why (`sent`,
+  /// `cancelled`, `expired`).
+  sendOriginDropped,
 }

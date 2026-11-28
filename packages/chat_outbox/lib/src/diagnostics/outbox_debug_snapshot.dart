@@ -80,12 +80,14 @@ final class OutboxDebugRow {
   }) : items = List.unmodifiable(items);
 
   /// The row of [message]; [fresh] tells whether its fresh flag is unread,
-  /// and [job] is its publish job as the outbox last saw it.
+  /// [job] is its publish job as the outbox last saw it, and
+  /// [sendOriginHeld] tells whether an item's send origin is still held.
   @internal
   factory OutboxDebugRow.of(
     OutgoingMessage message, {
     required bool fresh,
     OutboxJobView? job,
+    bool Function(MediaItemId id)? sendOriginHeld,
   }) => OutboxDebugRow(
     position: message.position,
     clientMessageId: message.clientMessageId,
@@ -96,7 +98,10 @@ final class OutboxDebugRow {
     },
     payloadBytes: message.payload.length,
     fresh: fresh,
-    items: [for (final item in message.items) OutboxDebugItem.of(item)],
+    items: [
+      for (final item in message.items)
+        OutboxDebugItem.of(item, sendOriginHeld: sendOriginHeld?.call(item.id)),
+    ],
     jobId: job?.id,
     jobState: job?.state,
     stage: job?.stage?.name,
@@ -164,16 +169,18 @@ final class OutboxDebugItem {
     this.sendOriginHeld,
   });
 
-  /// The item of [item].
+  /// The item of [item]; [sendOriginHeld] as known.
   @internal
-  factory OutboxDebugItem.of(OutgoingItem item) => OutboxDebugItem(
-    mediaItemId: '${item.id}',
-    localKey: switch (item.localKey) {
-      // An external id may be a URL, which is user content: its kind only.
-      ContentKey$External() => 'external',
-      final key => key.encoded,
-    },
-  );
+  factory OutboxDebugItem.of(OutgoingItem item, {bool? sendOriginHeld}) =>
+      OutboxDebugItem(
+        sendOriginHeld: sendOriginHeld,
+        mediaItemId: '${item.id}',
+        localKey: switch (item.localKey) {
+          // An external id may be a URL, which is user content: its kind only.
+          ContentKey$External() => 'external',
+          final key => key.encoded,
+        },
+      );
 
   /// The item's `MediaItemId` in its string form.
   final String mediaItemId;

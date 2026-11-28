@@ -74,7 +74,7 @@ void main() {
               'localKey': 'document:local-m1-0',
               'mediaKey': null,
               'transfer': null,
-              'sendOriginHeld': null,
+              'sendOriginHeld': false,
             },
           ],
         },

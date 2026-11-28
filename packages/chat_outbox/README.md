@@ -12,7 +12,7 @@ Decision: [ADR 048](../../docs/adr/048-outgoing-messages.md). Diagnostics:
 
 | Type | Role |
 | --- | --- |
-| `ChatOutbox<M>` | The facade. `send(chatId, plannedSend, payload:)` and `sendText` make one publish job per send, after slow mode and the chat's limits let it through (a refusal reaches `onDenied` and makes no job); `sendInFlight(chatId)` is on while one of the chat's messages is sending; `byClientMessageId(chatId, id)` matches the server's echo of the host's own message, so the host inserts no twin row; `isFreshOutgoing(chatId, id)` answers true once per message the user just sent, for the host's row appearance; `debugSnapshot(chatId)` describes what it holds. |
+| `ChatOutbox<M>` | The facade. `send(chatId, plannedSend, payload:)` and `sendText` make one publish job per send, after slow mode and the chat's limits let it through (a refusal reaches `onDenied` and makes no job); `sendInFlight(chatId)` is on while one of the chat's messages is sending; `byClientMessageId(chatId, id)` matches the server's echo of the host's own message, so the host inserts no twin row; `isFreshOutgoing(chatId, id)` answers true once per message the user just sent, for the host's row appearance; `takeSendOrigin(mediaItemId)` answers an item's send origin once; `debugSnapshot(chatId)` describes what it holds. |
 | `OutgoingMessage` | Chat id, `clientMessageId` (its identity), its current position in the provisional tail (null until an id strategy places the row), its items (`OutgoingItem`: `MediaItemId` and local `ContentKey`), status and payload bytes. |
 | `OutgoingStatus` | `preparing`, `uploading`, `publishing`, `sent`, `failed(OutgoingFailure)`, `cancelled`. |
 | `OutgoingFailure` | The closed set of reasons: `network`, `rejected(reason)`, `denied(CapabilityAction)`, `sourceLost`, `tooLarge`, `unknown`. |
@@ -30,6 +30,7 @@ Decision: [ADR 048](../../docs/adr/048-outgoing-messages.md). Diagnostics:
 | Resolve attach items | `itemOf(item, form)` returns the item's keys (the media key through the content assets' key mapping) and its source: a preparation input with its intent, a prepared file, or `remote`. |
 | Pass the chat's capabilities | `capabilitiesOf(chatId)` returns the listenable the chat's other consumers read; the outbox checks slow mode and the limits against it before each job. |
 | Fold the send in flight | Put `sendInFlight(chatId)` into the chat's capabilities as `slowMode.pending`, so the composer and the picker hold the next send. |
+| Hand the send origins | Pass the picker's rects by item order with the send (`send(..., origins:)`), and the outbox's `takeSendOrigin` to the media state as its one-shot origin lookup. |
 | Dispose | `dispose()` when the outbox goes; the jobs run on in the engine. |
 
 ## The publish job
@@ -47,6 +48,17 @@ A job's state is the message's status: `preparing`, `uploading` and
 `publishing` as they are, `completed` as `sent`, `failed` with its closed
 reason; a paused job and one waiting for its publisher read as `uploading`
 or `publishing` by how far its items got.
+
+## Send origin
+
+The picker hands each item's on-screen thumbnail rect with the planned
+send, by the item's order in it (null for an item it did not show). The
+outbox keys the rects by the items' `MediaItemId`s, the ones it issues or
+the host's, and `takeSendOrigin` answers each once, then null. An origin
+nobody takes goes when its message is sent or cancelled, or
+`ChatOutbox.sendOriginLifetime` (5 s) after the send. Neither the picker
+nor the media cells depend on the outbox: the lookup is a plain
+`Rect? Function(MediaItemId)`.
 
 ## Identity
 

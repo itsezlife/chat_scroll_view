@@ -1,5 +1,7 @@
 import 'package:chat_outbox/src/message/outgoing_message.dart';
 import 'package:chat_outbox/src/message/outgoing_status.dart';
+import 'package:chat_outbox/src/outbox/outbox_send_origins.dart';
+import 'package:content_model/content_model.dart';
 import 'package:meta/meta.dart';
 import 'package:mpx_transfer/mpx_transfer.dart';
 
@@ -28,6 +30,10 @@ final class OutboxProjection {
   /// message id).
   final Map<(String, String), OutboxJobView> _$jobs = {};
 
+  /// The send origins of the messages here: a message that is sent,
+  /// cancelled or made Absent takes its untaken origins with it.
+  final OutboxSendOrigins origins = OutboxSendOrigins();
+
   /// Puts [message] in its chat, in place of the one with its client
   /// message id if any.
   ///
@@ -40,6 +46,19 @@ final class OutboxProjection {
     (_$chats[message.chatId] ??= {})[message.clientMessageId] = message;
     if (fresh) _$fresh.add(key);
     if (job != null) _$jobs[key] = job;
+    final drop = switch (message.status) {
+      OutgoingStatus$Sent() => SendOriginDrop.sent,
+      OutgoingStatus$Cancelled() => SendOriginDrop.cancelled,
+      // A failed message keeps them until they expire: a retry does not
+      // fly again, but the row may not have been drawn yet.
+      OutgoingStatus$Preparing() ||
+      OutgoingStatus$Uploading() ||
+      OutgoingStatus$Publishing() ||
+      OutgoingStatus$Failed() => null,
+    };
+    if (drop case final drop?) {
+      origins.dropMessage(message.chatId, message.clientMessageId, drop);
+    }
   }
 
   /// Makes the message [clientMessageId] of [chatId] Absent.
@@ -50,6 +69,7 @@ final class OutboxProjection {
     if (chat.isEmpty) _$chats.remove(chatId);
     _$fresh.remove((chatId, clientMessageId));
     _$jobs.remove((chatId, clientMessageId));
+    origins.dropMessage(chatId, clientMessageId, SendOriginDrop.cancelled);
   }
 
   /// The message [clientMessageId] of [chatId], or null when it is Absent.
@@ -60,6 +80,16 @@ final class OutboxProjection {
   /// when it has none or is Absent.
   OutboxJobView? jobOf(String chatId, String clientMessageId) =>
       _$jobs[(chatId, clientMessageId)];
+
+  /// The message with an item [id], or null when no message here has one.
+  OutgoingMessage? messageOfItem(MediaItemId id) {
+    for (final chat in _$chats.values) {
+      for (final message in chat.values) {
+        if (message.items.any((item) => item.id == id)) return message;
+      }
+    }
+    return null;
+  }
 
   /// Whether the message is fresh, clearing the mark: true at most once per
   /// mark.
