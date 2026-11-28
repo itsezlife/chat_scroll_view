@@ -26,6 +26,8 @@ void main() {
     'retries': 0,
     'cancels': 0,
     'restores': 0,
+    'itemsDropped': 0,
+    'cancelsTooLate': 0,
   };
 
   test('an empty outbox declares every section', () {

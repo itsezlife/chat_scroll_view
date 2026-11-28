@@ -4,6 +4,7 @@ import 'dart:ui' show AppLifecycleState;
 import 'package:chat_outbox/chat_outbox.dart';
 import 'package:chat_outbox/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mpx_core/mpx_core.dart';
 import 'package:mpx_core/testing.dart';
 import 'package:mpx_transfer/mpx_transfer.dart';
 import 'package:mpx_transfer/testing.dart';
@@ -183,6 +184,78 @@ void main() {
           );
         },
       );
+
+      test('cancel removes the job from watchJobs, and answers false for '
+          'a job it no longer has', () async {
+        final transfers = await open();
+        final id = transfers.publish(textOf('chat:c1:a'));
+        await pumpEventQueue();
+
+        expect(transfers.cancel(id), isTrue);
+        await pumpEventQueue();
+        final jobs = await transfers
+            .watchJobs(const PublishJobFilter(tagPrefix: 'chat:c1:'))
+            .first;
+
+        expect(jobs, isEmpty);
+        expect(transfers.cancel(id), isFalse);
+      });
+
+      test('removeItem drops the item from the job, and the last one leaves '
+          'the job awaiting its owner', () async {
+        final transfers = await open();
+        final id = transfers.publish(albumOf('chat:c1:a', ['a:0', 'a:1']));
+        await pumpEventQueue();
+
+        expect(transfers.removeItem(id, 'a:0'), isTrue);
+        final one = await settled(transfers, id);
+        expect([for (final item in one.items) item.itemId], ['a:1']);
+        expect(one.state, isNot(isA<PublishJobState$AwaitingOwner>()));
+
+        expect(transfers.removeItem(id, 'a:1'), isTrue);
+        final none = await settled(transfers, id);
+        expect(none.items, isEmpty);
+        expect(none.state, const PublishJobState.awaitingOwner());
+        expect(transfers.removeItem(id, 'a:1'), isFalse);
+      });
+
+      test('commit publishes a job awaiting its owner with what it has '
+          'left', () async {
+        final transfers = await open();
+        final publisher = FakePublisher();
+        final id = transfers.publish(albumOf('chat:c1:a', ['a:0']));
+        await pumpEventQueue();
+        expect(transfers.removeItem(id, 'a:0'), isTrue);
+        transfers.registerPublisher(ChatOutbox.publisherId, publisher);
+        await pumpEventQueue();
+        expect(publisher.calls, isEmpty);
+
+        expect(transfers.commit(id), isTrue);
+        final job = await settled(transfers, id);
+
+        expect(publisher.calls.single.items, isEmpty);
+        expect(job.state, isA<PublishJobState$Completed>());
+        expect(transfers.commit(id), isFalse);
+      });
     });
   }
 }
+
+/// A job of items [itemIds] the server already has (nothing to upload).
+PublishRequest albumOf(String tag, List<String> itemIds) => PublishRequest(
+  tag: tag,
+  items: [
+    for (final (index, itemId) in itemIds.indexed)
+      PublishItem(
+        itemId: itemId,
+        key: MediaKey.local(
+          '00000000-0000-4000-8000-${'$index'.padLeft(12, '0')}',
+        ),
+        source: const PublishSource.remote(),
+      ),
+  ],
+  payload: Uint8List.fromList([1, 2, 3]),
+  publisher: ChatOutbox.publisherId,
+  idempotencyKey: tag,
+  orderingGroup: 'c1',
+);

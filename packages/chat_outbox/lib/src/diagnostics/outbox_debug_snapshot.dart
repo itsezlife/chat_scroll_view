@@ -222,6 +222,8 @@ final class OutboxDebugCounters {
     this.retries = 0,
     this.cancels = 0,
     this.restores = 0,
+    this.itemsDropped = 0,
+    this.cancelsTooLate = 0,
   });
 
   /// Sends accepted.
@@ -242,6 +244,12 @@ final class OutboxDebugCounters {
   /// Messages restored after a restart.
   final int restores;
 
+  /// Items that left a message that went on.
+  final int itemsDropped;
+
+  /// Cancels that came after the server accepted the message.
+  final int cancelsTooLate;
+
   /// The counters as a map; see [OutboxDebugSnapshot.toMap].
   Map<String, Object?> toMap() => {
     'accepted': accepted,
@@ -250,5 +258,7 @@ final class OutboxDebugCounters {
     'retries': retries,
     'cancels': cancels,
     'restores': restores,
+    'itemsDropped': itemsDropped,
+    'cancelsTooLate': cancelsTooLate,
   };
 }

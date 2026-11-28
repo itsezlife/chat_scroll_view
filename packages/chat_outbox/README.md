@@ -12,7 +12,7 @@ Decision: [ADR 048](../../docs/adr/048-outgoing-messages.md). Diagnostics:
 
 | Type | Role |
 | --- | --- |
-| `ChatOutbox<M>` | The facade. `send(chatId, plannedSend, payload:)` and `sendText` make one publish job per send, after slow mode and the chat's limits let it through (a refusal reaches `onDenied` and makes no job); `idStrategy(chatId)` is the chat's id strategy, which places each accepted message's row; `sendInFlight(chatId)` is on while one of the chat's messages is sending; `byClientMessageId(chatId, id)` matches the server's echo of the host's own message, so the host inserts no twin row; `isFreshOutgoing(chatId, id)` answers true once per message the user just sent, for the host's row appearance; `takeSendOrigin(mediaItemId)` answers an item's send origin once; `registerSender(sender)` makes the host's sender the chats' publisher; `debugSnapshot(chatId)` describes what it holds. |
+| `ChatOutbox<M>` | The facade. `send(chatId, plannedSend, payload:)` and `sendText` make one publish job per send, after slow mode and the chat's limits let it through (a refusal reaches `onDenied` and makes no job); `idStrategy(chatId)` is the chat's id strategy, which places each accepted message's row; `sendInFlight(chatId)` is on while one of the chat's messages is sending; `byClientMessageId(chatId, id)` matches the server's echo of the host's own message, so the host inserts no twin row; `isFreshOutgoing(chatId, id)` answers true once per message the user just sent, for the host's row appearance; `takeSendOrigin(mediaItemId)` answers an item's send origin once; `registerSender(sender)` makes the host's sender the chats' publisher; `cancel(chatId, id)` and `cancelItem(chatId, id, itemId)` cancel a message or one of its items (see Cancel); `debugSnapshot(chatId)` describes what it holds. |
 | `OutgoingMessageSender<M>` | The host's transport: `send(OutgoingSendRequest)` once per attempt, with the chat, the `clientMessageId` (the idempotency key), the decoded payload, each item's remote references and, under `SequentialServerIds`, `proposedId`. |
 | `OutgoingSendAnswer<M>` | What the server said: `sent` (`OutgoingSendResult(serverMessageId, serverKeys, payloadAsStored, missing)`), `reuploadItems(ids)`, `conflict(nextId, missing)`, `rejected(reason, retryable)` or `denied(action, reason)`. |
 | `OutgoingSent<M>` | What `onSent` hands the host for a published message: its id from now on, the row to replace (`rowAt`), the payload as sent and as stored, the server keys. |
@@ -24,7 +24,9 @@ Decision: [ADR 048](../../docs/adr/048-outgoing-messages.md). Diagnostics:
 | `OutgoingFailure` | The closed set of reasons: `network`, `rejected(reason)`, `denied(CapabilityAction)`, `sourceLost`, `tooLarge`, `unknown`. |
 | `OutgoingPayloadCodec<M>` | The host's message model to bytes and back, a `dart:convert` `Codec`; the outbox stores bytes only. |
 | `OutgoingSendItem` | The host's answer for one attach item: its local `ContentKey`, its `MediaKey` and where its bytes come from (`PublishSource`). |
-| `OutboxTransfers` | What the outbox uses of mpx's `Transfers`: `publish`, `watchJobs` and `registerPublisher`. `OutboxTransfers.of(transfers)` wraps the host's facade; `FakeOutboxTransfers` (`testing.dart`) scripts job states and runs a registered publisher as the engine does. `RecordingOutgoingSender` (`testing.dart`) answers from a script. |
+| `OutgoingCancelOutcome` | What a cancel did: `cancelled`, `itemDropped`, `pending` (the server's answer is in flight), `tooLate` (the server accepted), `dropped` (a repeat), `unknown`. |
+| `OutgoingCancelled`, `OutgoingItemDropped` | What `onCancelled` and `onItemDropped` hand the host: the cancelled message and whether its row left the tail; the message without the item, the item and its index. |
+| `OutboxTransfers` | What the outbox uses of mpx's `Transfers`: `publish`, `watchJobs`, `registerPublisher`, and the owner's `cancel`, `removeItem` and `commit`. `OutboxTransfers.of(transfers)` wraps the host's facade; `FakeOutboxTransfers` (`testing.dart`) scripts job states and runs a registered publisher as the engine does. `RecordingOutgoingSender` (`testing.dart`) answers from a script. |
 | `OutboxDebugSnapshot` | The strategy and tip, the tail row by row, the publisher, the send in flight and counters, as `toMap()`; no user content. |
 | `OutboxOp` | The `outbox` diagnostics operations. |
 
@@ -38,6 +40,7 @@ Decision: [ADR 048](../../docs/adr/048-outgoing-messages.md). Diagnostics:
 | Hand incoming messages | An incoming message whose id falls inside the provisional tail goes to `idStrategy(chatId).incoming([...])`; when it answers false, insert it as usual. |
 | Register the sender | `registerSender(sender)` once at start; jobs wait at their publish stage until then, after a restart too. |
 | Settle a sent row | `onSent(sent)` (a `ChatOutbox` argument) runs inside the publish call: replace the row at `sent.rowAt` with the confirmed message (`updateMessage`, a message `identityOf` answers null for), from `payloadAsStored` when given (the rich-text reconcile). With `rowAt` null the row has left; place the confirmed message at `sent.position` when the history reaches it. Address a provisional row by its current position (`positionOf`). |
+| Follow a cancel | `onCancelled(cancelled)`: the row has left the tail; when `rowRemoved` is false (a row an appended message settled), remove the row at `message.position`. `onItemDropped(dropped)`: drop the item from the row at `message.position`. Both fire for the status control's cancel too, which reaches the outbox through the jobs. |
 | Answer the server | Return a conflict or a replay with the confirmed messages between the tip and the server's id in `missing` when you have them, so the row can move to the server's id; return a server denial as `denied(action, reason)`, not a rejection. |
 | Resolve attach items | `itemOf(item, form)` returns the item's keys (the media key through the content assets' key mapping) and its source: a preparation input with its intent, a prepared file, or `remote`. |
 | Pass the chat's capabilities | `capabilitiesOf(chatId)` returns the listenable the chat's other consumers read; the outbox checks slow mode and the limits against it before each job. |
@@ -78,6 +81,24 @@ A job's state is the message's status: `preparing`, `uploading` and
 `publishing` as they are, `completed` as `sent`, `failed` with its closed
 reason; a paused job and one waiting for its publisher read as `uploading`
 or `publishing` by how far its items got.
+
+## Cancel
+
+| The user cancels | The outbox does |
+| --- | --- |
+| the message (`cancel`) | cancels the job; status `cancelled`; the message is Absent and its row leaves the tail |
+| one item of an album (`cancelItem`) | the item leaves the job; the rest publish |
+| the only item, or the last one left, with no text | cancels the job, as above |
+| the last item, with text | the item leaves; the text publishes alone, after the chat's other sending messages |
+| an item's upload, from a cell's status control | reads the item's removal from the jobs and applies the rows above (a job left empty waits for the outbox, its owner) |
+
+While the server's answer to the message's publish is in flight a cancel
+waits for it (`pending`): an accept leaves the message sent, any other
+answer cancels it. A cancel of a sent message is too late (`tooLate`); the
+host deletes it as any sent message. A repeated cancel of a message, or of
+one item, changes nothing (`dropped`). A cancelled message's
+`clientMessageId` is never issued again; under `SequentialServerIds` the
+next message may take its row's position.
 
 ## Send origin
 

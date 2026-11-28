@@ -24,6 +24,9 @@ final class PublishCounters {
   /// Conflicts answered, every chat.
   int conflicts = 0;
 
+  /// Cancels that waited for the sender's answer, which was an accept.
+  int cancelsTooLate = 0;
+
   /// The sender calls for message [clientMessageId] of [chatId] so far.
   int? attemptsOf(String chatId, String clientMessageId) =>
       _$attempts[(chatId, clientMessageId)];
@@ -152,7 +155,11 @@ final class ChatSendPublisher<M> implements Publisher {
         'proposedId': ?proposedId,
         'remoteRefs': refs.length,
       });
+      final key = (chatId, clientMessageId);
       final OutgoingSendAnswer<M> answer;
+      // While the call is out, a cancel waits for its answer: the server
+      // may be accepting the message, and an accepted message stays sent.
+      _projection.sending.add(key);
       try {
         answer = await _sender.send(
           OutgoingSendRequest(
@@ -169,7 +176,25 @@ final class ChatSendPublisher<M> implements Publisher {
         _report(ChatEventLevel.error, OutboxOp.senderFailed, correlation(), {
           'errorType': '${error.runtimeType}',
         });
+        _projection.sending.remove(key);
+        _projection.cancelRequests.remove(key)?.call();
         Error.throwWithStackTrace(error, stackTrace);
+      }
+      _projection.sending.remove(key);
+      if (_projection.cancelRequests.remove(key) case final cancel?) {
+        if (answer case OutgoingSendResult<M>()) {
+          _report(ChatEventLevel.info, OutboxOp.cancelTooLate, correlation(), {
+            'stage': PublishStage.publish.name,
+          });
+          _counters.cancelsTooLate++;
+        } else {
+          // Not accepted: the cancel applies. The job is gone by then, so
+          // the engine reads nothing of this answer.
+          cancel();
+          return const PublishOutcome.rejected(
+            reason: PublishFailureReason.cancelled,
+          );
+        }
       }
       switch (answer) {
         case OutgoingSendResult<M>():
@@ -268,6 +293,8 @@ final class ChatSendPublisher<M> implements Publisher {
     required PublishJobId? jobId,
   }) {
     final OutgoingMessage(:chatId, :clientMessageId) = message;
+    // From here a cancel is too late, before the job's completion is seen.
+    _projection.accepted.add((chatId, clientMessageId));
     final serverId = result.serverMessageId ?? proposedId;
     int? rowAt;
     if (proposedId != null && serverId != null && serverId != proposedId) {

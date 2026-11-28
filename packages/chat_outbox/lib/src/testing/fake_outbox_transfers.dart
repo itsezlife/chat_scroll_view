@@ -26,6 +26,13 @@ import 'package:mpx_transfer/mpx_transfer.dart';
 /// items had uploaded; a second one fails it as `reuploadRefused`. With no
 /// publisher registered a job at `publishing` stays there until the test
 /// moves it (`awaitingPublisher` is the test's to script).
+///
+/// The owner's verbs act as the engine's: [cancel] takes the job away,
+/// [removeItem] drops an item (the last one leaves the job
+/// `awaitingOwner`), and [commit] lets a job waiting for its owner publish
+/// what it has left; each is recorded ([cancelled], [removedItems],
+/// [committed]). [cancelUpload] drops an item as the status control's
+/// cancel of its upload does, which the owner reads from the jobs.
 final class FakeOutboxTransfers implements OutboxTransfers {
   /// A fake with no jobs.
   FakeOutboxTransfers();
@@ -135,6 +142,83 @@ final class FakeOutboxTransfers implements OutboxTransfers {
     _changed();
   }
 
+  /// The jobs the owner cancelled through [cancel], in order.
+  List<PublishJobId> get cancelled => List.unmodifiable(_$cancelled);
+
+  /// The items the owner removed through [removeItem], in order, as (job,
+  /// item id).
+  List<(PublishJobId, String)> get removedItems =>
+      List.unmodifiable(_$removedItems);
+
+  /// The jobs the owner committed through [commit], in order.
+  List<PublishJobId> get committed => List.unmodifiable(_$committed);
+
+  final List<PublishJobId> _$cancelled = [];
+  final List<(PublishJobId, String)> _$removedItems = [];
+  final List<PublishJobId> _$committed = [];
+
+  @override
+  bool cancel(PublishJobId id) {
+    if (!_jobs.any((job) => job.id == id)) return false;
+    _$cancelled.add(id);
+    remove(id);
+    return true;
+  }
+
+  @override
+  bool removeItem(PublishJobId id, String itemId) {
+    if (!_drop(id, itemId)) return false;
+    _$removedItems.add((id, itemId));
+    return true;
+  }
+
+  /// The status control's cancel of item [itemId]'s upload in job [id]
+  /// (`TrackedTransfers.cancel` by its key): the item leaves the job as
+  /// with [removeItem], without the owner asking, so the owner reads it
+  /// from [watchJobs]. Answers false as [removeItem] does.
+  bool cancelUpload(PublishJobId id, String itemId) => _drop(id, itemId);
+
+  @override
+  bool commit(PublishJobId id) {
+    final index = _jobs.indexWhere((job) => job.id == id);
+    if (index < 0 || _jobs[index].state is! PublishJobState$AwaitingOwner) {
+      return false;
+    }
+    _$committed.add(id);
+    setState(id, const PublishJobState.publishing());
+    return true;
+  }
+
+  /// Takes item [itemId] out of job [id]: the last one leaves the job
+  /// waiting for its owner, unless its publisher runs (the engine shows a
+  /// job publishing then, and the publisher's answer ends it).
+  bool _drop(PublishJobId id, String itemId) {
+    final index = _jobs.indexWhere((job) => job.id == id);
+    if (index < 0) return false;
+    final job = _jobs[index];
+    if (job.state
+        case PublishJobState$Completed() || PublishJobState$Failed()) {
+      return false;
+    }
+    if (!job.items.any((item) => item.itemId == itemId)) return false;
+    final left = [
+      for (final item in job.items)
+        if (item.itemId != itemId) item,
+    ];
+    _jobs[index] = PublishJobSnapshot(
+      id: job.id,
+      tag: job.tag,
+      publisher: job.publisher,
+      createdAt: job.createdAt,
+      state: left.isEmpty && !_$attempting.contains(id)
+          ? const PublishJobState.awaitingOwner()
+          : job.state,
+      items: left,
+    );
+    _changed();
+    return true;
+  }
+
   @override
   Stream<List<PublishJobSnapshot>> watchJobs(PublishJobFilter filter) {
     late final _Watcher watcher;
@@ -160,15 +244,17 @@ final class FakeOutboxTransfers implements OutboxTransfers {
     };
     if (request == null || publisher == null || !_$attempting.add(id)) return;
     _$attempts[id] = attemptsOf(id) + 1;
+    final left = {for (final item in _jobs[_indexOf(id)].items) item.itemId};
     final refs = {
       for (final item in request.items)
-        item.itemId: switch (item.source) {
-          PublishSource$Remote() => PublishItemRefs(key: item.key),
-          _ => PublishItemRefs(
-            key: item.key,
-            file: RemoteRef('remote-${item.itemId}'),
-          ),
-        },
+        if (left.contains(item.itemId))
+          item.itemId: switch (item.source) {
+            PublishSource$Remote() => PublishItemRefs(key: item.key),
+            _ => PublishItemRefs(
+              key: item.key,
+              file: RemoteRef('remote-${item.itemId}'),
+            ),
+          },
     };
     // Later, as the engine's attempt runs after its journal write: the
     // caller that made the job sees it before its publisher does.

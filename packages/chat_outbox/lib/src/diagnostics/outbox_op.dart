@@ -130,4 +130,33 @@ enum OutboxOp implements DiagnosticOp {
   /// A job's payload did not decode through the host's codec (error):
   /// `errorType` and `payloadBytes`, its length.
   payloadDecodeFailed,
+
+  /// The outbox cancelled a message's job, and the message is Absent
+  /// (info): `trigger` (`menu`; `onlyItem`, the cross on its only item with
+  /// no text; `lastItemNoText`, the cross on the last item left of an album
+  /// with no text; `statusControl`, a cell's cancel of the last item's
+  /// upload with no text) and `stage`, the job's stage at the cancel
+  /// (`prepare`, `upload`, `publish`) or the status it read (`failed`).
+  cancelled,
+
+  /// An item left its message, which goes on (info): `index`, the item's
+  /// index before it left, `itemsLeft`, `hasText`, and `trigger` (`cross`,
+  /// the host's call; `statusControl`, a cell's cancel of its upload); the
+  /// item's media item id and media key in the ids.
+  itemDropped,
+
+  /// A cancel came after the server accepted the message, which stays sent
+  /// (info): `stage`, what the cancel found (`publish`, the server's answer
+  /// in flight; `sent`).
+  cancelTooLate,
+
+  /// A message's job lost its last item and waits for the outbox, its owner
+  /// (warning): `itemsLeft` (0), `hasText`, and `action` taken (`commit`:
+  /// the text publishes alone; `cancel`: nothing is left to send).
+  awaitingOwner,
+
+  /// An action on a message was dropped by its input guard (debug):
+  /// `action` (`cancel`), `msSinceAccepted`, the time since the one it
+  /// repeats was accepted.
+  actionDropped,
 }
