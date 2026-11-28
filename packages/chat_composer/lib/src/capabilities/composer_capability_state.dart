@@ -64,6 +64,12 @@ final class ComposerCapabilityState {
     false => null,
   };
 
+  /// Whether the row offers the spec's actions: not while [accessPanel]
+  /// replaces it. The panel takes the whole row, send included, so a draft
+  /// the field held is kept (the controller's text is untouched and comes
+  /// back with the field) but cannot be sent until the user may write.
+  bool get offersActions => accessPanel == null;
+
   /// Why plain text is denied, locking the field; null when it is allowed.
   DenialReason? get textDenial => denialOf(CapabilityAction.sendText);
 
