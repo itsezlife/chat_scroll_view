@@ -1,4 +1,6 @@
 import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:chat_scroll_view_example/src/features/chat/utils/message_menu_media.dart'
+    show MediaMenuReach;
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:panel_shell/panel_shell.dart';
@@ -88,6 +90,9 @@ sealed class AppPlatformPolicy {
     ChatSelectionPolicy policy,
   ) => ChatMessageMenuPresentation.forPolicy(policy);
 
+  /// Which media a message menu opened beside a message's media reaches.
+  MediaMenuReach get mediaMenuReach;
+
   /// The press feedback of the platform, which also picks the message menu's
   /// chrome: the Android rows and glass for [ChromeInkKind.ripple], the
   /// pointer menu's rows and card for [ChromeInkKind.pointer].
@@ -123,6 +128,10 @@ final class AppPlatformPolicy$Mobile extends AppPlatformPolicy {
 
   @override
   bool get saysListReplacements => true;
+
+  @override
+  MediaMenuReach get mediaMenuReach =>
+      android ? MediaMenuReach.wholeMessage : MediaMenuReach.firstItem;
 
   @override
   ChromeInkKind get inkKind =>
@@ -174,6 +183,9 @@ final class AppPlatformPolicy$Desktop extends AppPlatformPolicy {
   ) => web
       ? ChatMessageMenuPresentation.popup
       : super.messageMenuPresentationFor(policy);
+
+  @override
+  MediaMenuReach get mediaMenuReach => MediaMenuReach.pressedItemOnly;
 
   @override
   ChromeInkKind get inkKind => ChromeInkKind.pointer;

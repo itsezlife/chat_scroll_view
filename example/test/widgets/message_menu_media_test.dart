@@ -1,9 +1,12 @@
 /// The message menu on media: the per-item rows of a `MediaHitPart` under
-/// the chat's protection, and Copy link on a link preview card.
+/// the chat's protection, the media rows of a press beside the media (the
+/// whole album, the first item or none, per platform), and Copy link on a
+/// link preview card.
 library;
 
 import 'package:chat_capabilities/chat_capabilities.dart';
 import 'package:chat_scroll_view/chat_scroll_view.dart';
+import 'package:chat_scroll_view_example/src/app/app_platform_policy.dart';
 import 'package:chat_scroll_view_example/src/features/chat/data/demo_photos.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_menu.dart';
 import 'package:chat_scroll_view_example/src/features/chat/utils/message_menu_media.dart';
@@ -57,6 +60,87 @@ void main() {
       ),
       isNull,
     );
+  });
+
+  group('a press beside the media', () {
+    const beside = ChatMessageMenuRequest(
+      messageId: 3,
+      slotGlobal: Rect.fromLTWH(0, 0, 300, 200),
+      tapGlobal: Offset(20, 190),
+    );
+    final second = MediaItem(
+      id: const MediaItemId('3.2'),
+      descriptor: DemoPhotos.meadow.descriptor,
+    );
+
+    test('on Android it reaches the whole album, with the save rows its '
+        'items share', () {
+      final targets = MessageMenuMediaRows.targetsOf(beside, [
+        photo,
+        second,
+      ], reach: const AppPlatformPolicy.android().mediaMenuReach);
+      expect(targets, [photo, second]);
+      final rows = MessageMenuMediaRows.rowsForTargets(
+        targets,
+        (item) => MediaItemAction.allowedItemActions(
+          item,
+          protection: const ChatProtection(),
+          messageProtected: false,
+        ),
+      );
+      expect(idsOf(rows), [
+        MessageMenuMediaRows.idOf(MediaItemAction.saveToGallery),
+      ]);
+    });
+
+    test('on iOS it reaches the first item, with its own rows', () {
+      final targets = MessageMenuMediaRows.targetsOf(beside, [
+        photo,
+        second,
+      ], reach: const AppPlatformPolicy.iOS().mediaMenuReach);
+      expect(targets, [photo]);
+    });
+
+    test('a single item is reached on a phone; on desktop only a press on '
+        'the item reaches it', () {
+      for (final platform in [
+        const AppPlatformPolicy.android(),
+        const AppPlatformPolicy.iOS(),
+      ]) {
+        expect(
+          MessageMenuMediaRows.targetsOf(beside, [
+            photo,
+          ], reach: platform.mediaMenuReach),
+          [photo],
+        );
+      }
+      expect(
+        MessageMenuMediaRows.targetsOf(beside, [
+          photo,
+        ], reach: const AppPlatformPolicy.desktop().mediaMenuReach),
+        isEmpty,
+      );
+      expect(
+        MessageMenuMediaRows.targetsOf(
+          _onPart(MediaHitPart(second.id, part: MediaPart.content)),
+          [photo, second],
+          reach: const AppPlatformPolicy.desktop().mediaMenuReach,
+        ),
+        [second],
+      );
+    });
+
+    test('protection takes the album rows away', () {
+      final rows = MessageMenuMediaRows.rowsForTargets(
+        [photo, second],
+        (item) => MediaItemAction.allowedItemActions(
+          item,
+          protection: const ChatProtection(),
+          messageProtected: true,
+        ),
+      );
+      expect(rows, isEmpty);
+    });
   });
 
   test('rows follow the kind and what protection allows', () {
