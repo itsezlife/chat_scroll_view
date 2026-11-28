@@ -22,6 +22,8 @@ import 'outbox/chat_outbox_capabilities_test.dart'
 import 'outbox/chat_outbox_ids_test.dart' as outbox_chat_outbox_ids_test;
 import 'outbox/chat_outbox_projection_test.dart'
     as outbox_chat_outbox_projection_test;
+import 'outbox/chat_outbox_restart_test.dart'
+    as outbox_chat_outbox_restart_test;
 import 'outbox/chat_outbox_send_origin_test.dart'
     as outbox_chat_outbox_send_origin_test;
 import 'outbox/chat_outbox_send_test.dart' as outbox_chat_outbox_send_test;
@@ -60,6 +62,10 @@ void main() {
   group(
     'outbox/chat_outbox_projection_test.dart',
     outbox_chat_outbox_projection_test.main,
+  );
+  group(
+    'outbox/chat_outbox_restart_test.dart',
+    outbox_chat_outbox_restart_test.main,
   );
   group(
     'outbox/chat_outbox_send_origin_test.dart',

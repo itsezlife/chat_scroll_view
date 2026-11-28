@@ -30,6 +30,11 @@ final class OutboxProjection {
   /// message id).
   final Map<(String, String), OutboxJobView> _$jobs = {};
 
+  /// Messages restored with a payload the host's codec could not read, as
+  /// (chat id, client message id): they read as failed whatever their job
+  /// does, since no row of the host's can show them sending.
+  final Set<(String, String)> _$undecodable = {};
+
   /// The send origins of the messages here: a message that is sent,
   /// cancelled or made Absent takes its untaken origins with it.
   final OutboxSendOrigins origins = OutboxSendOrigins();
@@ -69,8 +74,19 @@ final class OutboxProjection {
     if (chat.isEmpty) _$chats.remove(chatId);
     _$fresh.remove((chatId, clientMessageId));
     _$jobs.remove((chatId, clientMessageId));
+    _$undecodable.remove((chatId, clientMessageId));
     origins.dropMessage(chatId, clientMessageId, SendOriginDrop.cancelled);
   }
+
+  /// Marks the message [clientMessageId] of [chatId] as restored with a
+  /// payload the host's codec could not read.
+  void markUndecodable(String chatId, String clientMessageId) =>
+      _$undecodable.add((chatId, clientMessageId));
+
+  /// Whether the message [clientMessageId] of [chatId] was restored with a
+  /// payload the host's codec could not read.
+  bool isUndecodable(String chatId, String clientMessageId) =>
+      _$undecodable.contains((chatId, clientMessageId));
 
   /// The message [clientMessageId] of [chatId], or null when it is Absent.
   OutgoingMessage? lookup(String chatId, String clientMessageId) =>

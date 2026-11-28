@@ -362,8 +362,8 @@ void main() {
     );
   });
 
-  test('a job whose message this run does not hold fails as the '
-      "publisher's error", () async {
+  test('a job whose message this run never restores fails as the '
+      "publisher's error once the outbox is disposed", () async {
     final diagnostics = RecordingDiagnostics.install();
     final job = transfers.publish(
       PublishRequest(
@@ -376,6 +376,14 @@ void main() {
     );
 
     outbox.registerSender(sender);
+    await pumpEventQueue();
+    // It waits for its chat's restore.
+    expect(
+      transfers.jobs.singleWhere((snapshot) => snapshot.id == job).state,
+      const PublishJobState.publishing(),
+    );
+
+    await outbox.dispose();
     await pumpEventQueue();
 
     expect(sender.requests, isEmpty);

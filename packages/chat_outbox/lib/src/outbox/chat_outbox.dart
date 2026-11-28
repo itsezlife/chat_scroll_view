@@ -22,6 +22,7 @@ import 'package:chat_scroll_view/chat_scroll_view.dart';
 import 'package:content_model/content_model.dart';
 import 'package:listen/listen.dart';
 import 'package:meta/meta.dart';
+import 'package:mpx_core/mpx_core.dart';
 import 'package:mpx_transfer/mpx_transfer.dart';
 
 /// The outbox: the outgoing messages of every chat, sent as publish jobs
@@ -63,6 +64,13 @@ final class ChatOutbox<M> {
   /// publish call: the host's duty there is to replace the outbox's row with
   /// the confirmed message (see [OutgoingSent]), before the chat's next
   /// outgoing row publishes.
+  ///
+  /// [localKeyOf] and [undecodableRowOf] serve [pendingFor] after a restart,
+  /// when a message is known only from its job: [localKeyOf] maps an item's
+  /// media key back to its local content key (the inverse of the mapping
+  /// [itemOf] answers with), and [undecodableRowOf] builds the row of a
+  /// message whose payload the [codec] cannot read, which has no model for
+  /// [rowOf].
   ChatOutbox({
     required OutboxTransfers transfers,
     required OutgoingPayloadCodec<M> codec,
@@ -74,6 +82,8 @@ final class ChatOutbox<M> {
     String Function()? clientMessageIds,
     DateTime Function() now = DateTime.now,
     void Function(OutgoingSent<M> sent)? onSent,
+    ContentKey Function(MediaKey mediaKey)? localKeyOf,
+    IChatMessage Function(OutgoingMessage message)? undecodableRowOf,
   }) : this.over(
          OutboxProjection(),
          transfers: transfers,
@@ -86,6 +96,8 @@ final class ChatOutbox<M> {
          clientMessageIds: clientMessageIds,
          now: now,
          onSent: onSent,
+         localKeyOf: localKeyOf,
+         undecodableRowOf: undecodableRowOf,
        );
 
   /// An outbox reading [projection], for tests that set rows up directly.
@@ -102,7 +114,11 @@ final class ChatOutbox<M> {
     String Function()? clientMessageIds,
     DateTime Function() now = DateTime.now,
     void Function(OutgoingSent<M> sent)? onSent,
+    ContentKey Function(MediaKey mediaKey)? localKeyOf,
+    IChatMessage Function(OutgoingMessage message)? undecodableRowOf,
   }) : _transfers = transfers,
+       _localKeyOf = localKeyOf,
+       _undecodableRowOf = undecodableRowOf,
        _codec = codec,
        _itemOf = itemOf,
        _makeIdStrategy = idStrategyOf,
@@ -148,6 +164,8 @@ final class ChatOutbox<M> {
   final String Function() _issueClientMessageId;
   final DateTime Function() _now;
   final void Function(OutgoingSent<M> sent)? _onSent;
+  final ContentKey Function(MediaKey mediaKey)? _localKeyOf;
+  final IChatMessage Function(OutgoingMessage message)? _undecodableRowOf;
 
   /// What the chat publisher counted, across registrations.
   final PublishCounters _$publishCounters = PublishCounters();
@@ -165,6 +183,15 @@ final class ChatOutbox<M> {
   final Map<String, ValueNotifier<bool>> _$inFlightNotifiers = {};
 
   int _$accepted = 0;
+
+  /// Each chat's restore, run once: [pendingFor] awaits it.
+  final Map<String, Future<void>> _$restores = {};
+
+  /// The publisher's calls waiting for their message's restore, by client
+  /// message id.
+  final Map<String, Completer<OutgoingMessage?>> _$restoreWaiters = {};
+
+  int _$restored = 0;
   bool _$disposed = false;
 
   // --- Sending ---------------------------------------------------------------
@@ -510,6 +537,7 @@ final class ChatOutbox<M> {
         onSent: _onSent,
         counters: _$publishCounters,
         now: _now,
+        restoredMessage: _restoredMessage,
       ),
     );
     _$senderRegistered = true;
@@ -536,6 +564,239 @@ final class ChatOutbox<M> {
         correlation: correlation,
         fields: () => {'waiting': waiting},
       );
+
+  // --- Restart ---------------------------------------------------------------
+
+  /// The outgoing messages of [chatId] still on their way or failed, in
+  /// tail order: after a restart, read back from the engine's publish jobs.
+  ///
+  /// The outbox keeps nothing of its own, so the first call per chat
+  /// restores the chat from the jobs under its tag prefix: each message
+  /// takes a fresh tail position from the chat's id strategy, the sending
+  /// ones first in creation order, then the failed ones below them in
+  /// creation order, and the strategy inserts the host's row for each. A
+  /// sending message goes on (a job waiting for its publisher waits until
+  /// [registerSender]); a failed one waits for the user. A completed job is
+  /// not pending: the server has its message. Later calls answer the
+  /// messages as they are now.
+  ///
+  /// Each payload decodes through the host's codec into the model its row
+  /// is built from. A payload the codec cannot read gives a message failed
+  /// for an unknown reason, with the row `undecodableRowOf` builds; without
+  /// that builder it is left out. A job under the prefix whose tag names no
+  /// client message id is left alone.
+  ///
+  /// The host's duty: call it for a chat before the chat's first send in
+  /// this run, so the restored rows sit above the new ones; and for every
+  /// chat it may hold messages of, since a job whose chat is not restored
+  /// waits at its publish stage until it is. Reports `restored`,
+  /// `positionAllocated` per message, `payloadDecodeFailed` and
+  /// `foreignJob`. Throws a [StateError] when a restored message has items
+  /// and the outbox was made without `localKeyOf`.
+  Future<List<OutgoingMessage>> pendingFor(String chatId) async {
+    _checkNotDisposed();
+    final restore = _$restores[chatId] ??= _restore(chatId);
+    try {
+      await restore;
+    } on Object {
+      // A restore that failed runs again on the next call.
+      if (identical(_$restores[chatId], restore)) {
+        unawaited(_$restores.remove(chatId));
+      }
+      rethrow;
+    }
+    return [
+      for (final message in _projection.tailOf(chatId))
+        if (_isPending(message.status)) _current(message),
+    ]..sort((a, b) => a.position.compareTo(b.position));
+  }
+
+  static bool _isPending(OutgoingStatus status) => switch (status) {
+    OutgoingStatus$Preparing() ||
+    OutgoingStatus$Uploading() ||
+    OutgoingStatus$Publishing() ||
+    OutgoingStatus$Failed() => true,
+    OutgoingStatus$Sent() || OutgoingStatus$Cancelled() => false,
+  };
+
+  Future<void> _restore(String chatId) async {
+    final jobs = await _transfers
+        .watchJobs(
+          PublishJobFilter(
+            tagPrefix: tagPrefixOf(chatId),
+            publisher: publisherId,
+          ),
+        )
+        .first;
+    if (_$disposed) return;
+    final prefix = tagPrefixOf(chatId);
+    final sending = <_Restored<M>>[];
+    final failed = <_Restored<M>>[];
+    var awaitingPublisher = 0;
+    for (final job in [...jobs]..sort(_byCreation)) {
+      final tag = job.tag;
+      if (tag == null || !tag.startsWith(prefix)) continue;
+      final clientMessageId = tag.substring(prefix.length);
+      if (clientMessageId.isEmpty || clientMessageId.contains(':')) {
+        _reportForeign(
+          chatId,
+          job.id,
+          why: clientMessageId.isEmpty ? 'emptyId' : 'separator',
+        );
+        continue;
+      }
+      if (job.items.any((item) => MediaItemId.tryParse(item.itemId) == null)) {
+        _reportForeign(chatId, job.id, why: 'itemId');
+        continue;
+      }
+      if (job.state case PublishJobState$Completed()) continue;
+      // A message this run sent is already here.
+      if (_projection.lookup(chatId, clientMessageId) != null) continue;
+      final restored = _restoredOf(chatId, clientMessageId, job);
+      if (restored == null) continue;
+      switch (restored.message.status) {
+        case OutgoingStatus$Failed():
+          failed.add(restored);
+        case _:
+          sending.add(restored);
+          if (job.state case PublishJobState$AwaitingPublisher()) {
+            awaitingPublisher++;
+          }
+      }
+    }
+    final strategy = idStrategy(chatId);
+    for (final (index, restored) in [...sending, ...failed].indexed) {
+      final _Restored(:message, :model, :job) = restored;
+      final IChatMessage Function(OutgoingMessage message) rowOf;
+      switch (model) {
+        case (final model,):
+          rowOf = (message) => _rowOf(message, model);
+        case null:
+          final undecodableRowOf = _undecodableRowOf;
+          if (undecodableRowOf == null) continue;
+          rowOf = undecodableRowOf;
+      }
+      final position = strategy.allocate(
+        message.clientMessageId,
+        (position) => rowOf(message.withPosition(position)),
+        failed: index >= sending.length,
+        restored: true,
+      );
+      _projection.put(message.withPosition(position), job: job);
+      if (model == null) {
+        _projection.markUndecodable(chatId, message.clientMessageId);
+      }
+      _$restored++;
+    }
+    ChatDiagnostics.current.emit(
+      ChatEventLevel.info,
+      ChatEventCategory.outbox,
+      OutboxOp.restored,
+      correlation: ChatCorrelation(chatId: chatId),
+      fields: () => {
+        'sending': sending.length,
+        'failed': failed.length,
+        'awaitingPublisher': awaitingPublisher,
+      },
+    );
+    _watch(chatId);
+    _syncInFlight(chatId);
+    for (final restored in [...sending, ...failed]) {
+      final clientMessageId = restored.message.clientMessageId;
+      _$restoreWaiters
+          .remove(clientMessageId)
+          ?.complete(_projection.lookup(chatId, clientMessageId));
+    }
+  }
+
+  static int _byCreation(PublishJobSnapshot a, PublishJobSnapshot b) =>
+      a.createdAt.compareTo(b.createdAt);
+
+  /// The message of [job] as its journal holds it, its payload decoded; null
+  /// when the engine no longer has the job.
+  _Restored<M>? _restoredOf(
+    String chatId,
+    String clientMessageId,
+    PublishJobSnapshot job,
+  ) {
+    final payload = _transfers.payloadOf(job.id);
+    if (payload == null) return null;
+    final (status: projected, :stage) = JobProjection.of(
+      job,
+      const OutgoingStatus.publishing(),
+    );
+    (M,)? model;
+    try {
+      model = (_codec.decode(payload),);
+    } on Object catch (error) {
+      // The error may quote the payload: only its type.
+      ChatDiagnostics.current.emit(
+        ChatEventLevel.error,
+        ChatEventCategory.outbox,
+        OutboxOp.payloadDecodeFailed,
+        correlation: ChatCorrelation(
+          chatId: chatId,
+          clientMessageId: clientMessageId,
+          jobId: job.id,
+        ),
+        fields: () => {
+          'errorType': '${error.runtimeType}',
+          'payloadBytes': payload.length,
+        },
+      );
+    }
+    final items = [
+      for (final item in job.items)
+        if (item.state is! PublishItemState$Removed)
+          OutgoingItem(
+            id: MediaItemId.parse(item.itemId),
+            localKey: switch (_localKeyOf) {
+              final localKeyOf? => localKeyOf(item.key),
+              null => throw StateError(
+                'A restored message has items: the outbox needs localKeyOf.',
+              ),
+            },
+          ),
+    ];
+    return _Restored(
+      message: OutgoingMessage(
+        chatId: chatId,
+        clientMessageId: clientMessageId,
+        // A stand-in until the strategy places the row.
+        position: 0,
+        status: model == null
+            ? const OutgoingStatus.failed(OutgoingFailure.unknown())
+            : projected,
+        payload: payload,
+        items: items,
+      ),
+      model: model,
+      job: OutboxJobView(job.id, state: job.state.name, stage: stage),
+    );
+  }
+
+  static void _reportForeign(
+    String chatId,
+    PublishJobId jobId, {
+    required String why,
+  }) => ChatDiagnostics.current.emit(
+    ChatEventLevel.warning,
+    ChatEventCategory.outbox,
+    OutboxOp.foreignJob,
+    correlation: ChatCorrelation(chatId: chatId, jobId: jobId),
+    fields: () => {'why': why},
+  );
+
+  /// The message [clientMessageId] once a restore places it, for the
+  /// publisher's call of a job from an earlier run; null when this run will
+  /// not hold it (the outbox was disposed, or its restore left it out).
+  Future<OutgoingMessage?> _restoredMessage(String clientMessageId) {
+    if (_projection.find(clientMessageId) case final message?) {
+      return Future.value(message);
+    }
+    if (_$disposed) return Future.value();
+    return _$restoreWaiters.putIfAbsent(clientMessageId, Completer.new).future;
+  }
 
   // --- Status projection -----------------------------------------------------
 
@@ -587,7 +848,12 @@ final class ChatOutbox<M> {
         _projection.jobOf(chatId, clientMessageId)?.id != job.id) {
       return;
     }
-    final (:status, :stage) = JobProjection.of(job, message.status);
+    final (status: projected, :stage) = JobProjection.of(job, message.status);
+    // A message whose payload did not decode stays failed: its row cannot
+    // show it sending, and its publish fails at the decode anyway.
+    final status = _projection.isUndecodable(chatId, clientMessageId)
+        ? message.status
+        : projected;
     final changed = status != message.status;
     _projection.put(
       changed ? message.withStatus(status) : message,
@@ -717,6 +983,7 @@ final class ChatOutbox<M> {
         accepted: _$accepted,
         rebases: strategy?.rebases ?? const {},
         conflicts: _$publishCounters.conflicts,
+        restores: _$restored,
       ),
     );
   }
@@ -735,6 +1002,10 @@ final class ChatOutbox<M> {
       notifier.dispose();
     }
     _$inFlightNotifiers.clear();
+    for (final waiter in _$restoreWaiters.values) {
+      waiter.complete(null);
+    }
+    _$restoreWaiters.clear();
     await Future.wait([for (final watch in watches) watch.cancel()]);
   }
 
@@ -748,6 +1019,17 @@ final class ChatOutbox<M> {
     for (var i = 0; i < 16; i++)
       _$random.nextInt(256).toRadixString(16).padLeft(2, '0'),
   ].join();
+}
+
+/// One message read back from its job by a restore, before its row is
+/// placed: its decoded model (null when the payload did not decode) and its
+/// job as seen.
+final class _Restored<M> {
+  _Restored({required this.message, required this.model, required this.job});
+
+  final OutgoingMessage message;
+  final (M,)? model;
+  final OutboxJobView job;
 }
 
 /// Builds the host's row for an accepted outgoing [message], at

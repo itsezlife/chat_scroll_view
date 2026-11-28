@@ -60,7 +60,10 @@ final class ChatSendPublisher<M> implements Publisher {
     required void Function(OutgoingSent<M> sent)? onSent,
     required PublishCounters counters,
     required DateTime Function() now,
+    required Future<OutgoingMessage?> Function(String clientMessageId)
+    restoredMessage,
   }) : _projection = projection,
+       _restoredMessage = restoredMessage,
        _strategyOf = strategyOf,
        _codec = codec,
        _sender = sender,
@@ -82,6 +85,11 @@ final class ChatSendPublisher<M> implements Publisher {
   final PublishCounters _counters;
   final DateTime Function() _now;
 
+  /// The message [clientMessageId] once its chat is restored; null when it
+  /// never will be in this run.
+  final Future<OutgoingMessage?> Function(String clientMessageId)
+  _restoredMessage;
+
   @override
   Future<PublishOutcome> publish(
     Uint8List payload,
@@ -97,10 +105,16 @@ final class ChatSendPublisher<M> implements Publisher {
     String clientMessageId,
   ) async {
     final started = _now();
-    final message = _projection.find(clientMessageId);
+    // A job of an earlier run publishes as soon as the sender registers,
+    // which may be before the host restores its chat: it waits for the
+    // restore, since only then does its message have a row to confirm.
+    final message =
+        _projection.find(clientMessageId) ??
+        await _restoredMessage(clientMessageId);
     if (message == null) {
-      // A job of an earlier run whose message is not restored yet. Thrown,
-      // the engine fails it as its publisher's error, retryable.
+      // A message this run will not restore (the outbox was disposed, or its
+      // payload could not be read and the host gave no row for that).
+      // Thrown, the engine fails it as its publisher's error, retryable.
       _report(
         ChatEventLevel.error,
         OutboxOp.senderFailed,
