@@ -9,6 +9,8 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'boundaries_test.dart' as boundaries_test;
+import 'draft_options/draft_link_choice_test.dart'
+    as draft_options_draft_link_choice_test;
 import 'draft_options/draft_options_keyboard_test.dart'
     as draft_options_keyboard_test;
 import 'draft_options/draft_options_overlay_test.dart'
@@ -106,6 +108,10 @@ import 'view/composer_view_test.dart' as composer_view_test;
 
 void main() {
   group('boundaries_test.dart', boundaries_test.main);
+  group(
+    'draft_options/draft_link_choice_test.dart',
+    draft_options_draft_link_choice_test.main,
+  );
   group(
     'draft_options/draft_options_keyboard_test.dart',
     draft_options_keyboard_test.main,

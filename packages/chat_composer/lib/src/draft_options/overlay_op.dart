@@ -59,6 +59,19 @@ enum OverlayOp implements DiagnosticOp {
   /// A copy local to the overlay was dropped unsaved (debug): its `edits`.
   editsDiscarded,
 
+  /// A tap in the live preview chose another link (debug): its `index` in
+  /// the text's links and their `count`.
+  linkTapped,
+
+  /// A tap on a link in the live preview chose nothing (debug): `why`,
+  /// `singleLink` (the policy needs more than one), `current` (the link
+  /// already previewed) or `notInText` (not one of the text's links).
+  linkTapIgnored,
+
+  /// The chosen link's lookup stands at `state` (debug): `pending`,
+  /// `loaded` or `none`, `ms` since the tap.
+  linkState,
+
   /// The overlay stated a keyboard intent through the composer (debug): the
   /// `intent` (`keep`, `hold`, `hide`), whether the keyboard was up on open
   /// (`keyboardWasUp`) and whether a held keyboard was reopened

@@ -19,6 +19,15 @@ is pre-1.0.
   order, apply mode, opening rule, title and scrim preset. `OverlayOp`
   names its `overlay` events. Test support: `RecordingDraftOptionsHost`,
   `FakeDraftBubbleBuilder`.
+- Choosing another link: the bubble builder's `DraftOptionsPreview` carries
+  `onLinkTap(url, contourPath)` and `selectable` (false). A tap edits the
+  url, asks `DraftOptionsHost.chooseLink` for the link's lookup and marks
+  the link (`DraftOptionsSession.highlight`, a `DraftLinkHighlight`) with a
+  spinner above the bubble until the page is loaded or none.
+  `DraftOptionsPolicy.linkChoice` (Android: only among several links) and
+  `keepsChosenLinkSelected` (desktop) set the rule; `open` takes the text's
+  `links`. Breaking for hosts implementing `DraftOptionsHost`: they add
+  `chooseLink`.
 
 ### Changed (link preview strip, breaking)
 

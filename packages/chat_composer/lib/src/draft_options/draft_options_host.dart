@@ -1,6 +1,7 @@
 import 'package:chat_composer/src/draft_options/draft_link_part.dart';
 import 'package:content_model/content_model.dart';
 import 'package:flutter/widgets.dart' hide RichText;
+import 'package:listen/listen.dart' as listen;
 
 /// What the draft options overlay asks of its host.
 ///
@@ -10,7 +11,23 @@ import 'package:flutter/widgets.dart' hide RichText;
 abstract interface class DraftOptionsHost {
   /// The link part is now [part]: the host writes it into the draft.
   void linkPartEdited(DraftLinkPart part);
+
+  /// The user chose [url], a link of the draft's text, as the one to
+  /// preview: the host re-asks its resolver for that link alone and returns
+  /// the lookup, which the overlay follows from pending to loaded or none.
+  ///
+  /// The choice itself reaches the draft as an edit of the url, by the
+  /// apply mode like any other ([linkPartEdited]); under commit on save a
+  /// cancel discards it, though the lookup already ran. A cache of pages
+  /// already resolved is the host's or its resolver's: the overlay asks
+  /// again on every choice.
+  listen.ValueListenable<LinkPreviewState> chooseLink(Uri url);
 }
+
+/// A tap on a link in the live preview: its [url] as the text spells it and
+/// its [contourPath], the outline of the link's text in the bubble's
+/// coordinates, which the overlay draws as the chosen link's highlight.
+typedef DraftLinkTap = void Function(String url, Path contourPath);
 
 /// The draft as the live preview draws it: its [text], its link [part] and
 /// the [page] the link resolved to so far.
@@ -21,6 +38,8 @@ final class DraftOptionsPreview {
     required this.text,
     required this.part,
     required this.page,
+    required this.onLinkTap,
+    this.selectable = false,
   });
 
   /// The draft's text.
@@ -32,12 +51,25 @@ final class DraftOptionsPreview {
 
   /// Where the link's page stands; pending draws no card.
   final LinkPreviewState page;
+
+  /// What the bubble calls when a link of its text is tapped, with the
+  /// link's contour from the bubble's inline hit; the overlay decides
+  /// whether the tap chooses that link.
+  final DraftLinkTap onLinkTap;
+
+  /// Whether the message's and the card's text may be selected: false in
+  /// the preview, where a press on text is a link choice or nothing.
+  final bool selectable;
 }
 
 /// Builds the live preview of the draft as the real message bubble, the way
 /// the chat draws it (its media policy, its wallpaper under the bubble).
 ///
 /// The overlay knows no message media and no wallpaper: the host's builder
-/// draws both. The preview's text is not selectable.
+/// draws both. The preview's text is not selectable
+/// ([DraftOptionsPreview.selectable]); a link tap goes to
+/// [DraftOptionsPreview.onLinkTap]. The bubble's change between two previews
+/// is the builder's: the host's media layout interpolates it with the
+/// platform's transition.
 typedef DraftOptionsBubbleBuilder =
     Widget Function(BuildContext context, DraftOptionsPreview preview);

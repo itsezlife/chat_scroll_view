@@ -40,6 +40,17 @@ enum DraftOptionsTitle {
   none,
 }
 
+/// Which links of the draft's text a tap in the live preview may choose as
+/// the one to preview.
+enum DraftOptionsLinkChoice {
+  /// Any link, only when the text has more than one: a tap on the single
+  /// link of a text is ignored.
+  severalLinks,
+
+  /// Any link of the text, a single one too.
+  anyLink,
+}
+
 /// The overlay's presentation family, as its events name it.
 enum DraftOptionsPresentation {
   /// A full-window card over the chat.
@@ -117,6 +128,8 @@ sealed class DraftOptionsPolicy {
     required this.opensOnPending,
     required this.title,
     required this.keyboard,
+    required this.linkChoice,
+    required this.keepsChosenLinkSelected,
   });
 
   /// See [DraftOptionsPolicy$Android].
@@ -127,6 +140,8 @@ sealed class DraftOptionsPolicy {
     DraftOptionsTitle title,
     ChromeScrimPreset scrim,
     DraftOptionsKeyboard keyboard,
+    DraftOptionsLinkChoice linkChoice,
+    bool keepsChosenLinkSelected,
   }) = DraftOptionsPolicy$Android;
 
   /// See [DraftOptionsPolicy$IOS].
@@ -138,6 +153,8 @@ sealed class DraftOptionsPolicy {
     DraftOptionsTitle title,
     ChromeScrimPreset? scrim,
     DraftOptionsKeyboard keyboard,
+    DraftOptionsLinkChoice linkChoice,
+    bool keepsChosenLinkSelected,
   }) = DraftOptionsPolicy$IOS;
 
   /// See [DraftOptionsPolicy$Desktop].
@@ -148,6 +165,8 @@ sealed class DraftOptionsPolicy {
     DraftOptionsTitle title,
     ChromeScrimPreset scrim,
     DraftOptionsKeyboard keyboard,
+    DraftOptionsLinkChoice linkChoice,
+    bool keepsChosenLinkSelected,
   }) = DraftOptionsPolicy$Desktop;
 
   /// See [DraftOptionsPolicy$Web].
@@ -156,6 +175,7 @@ sealed class DraftOptionsPolicy {
     DraftOptionsApply apply,
     bool opensOnPending,
     DraftOptionsKeyboard keyboard,
+    DraftOptionsLinkChoice linkChoice,
   }) = DraftOptionsPolicy$Web;
 
   /// The default of [platform]: Android (and Fuchsia), iOS (the iPad form
@@ -196,6 +216,13 @@ sealed class DraftOptionsPolicy {
   /// What the overlay asks of the soft keyboard.
   final DraftOptionsKeyboard keyboard;
 
+  /// Which links a tap in the live preview may choose.
+  final DraftOptionsLinkChoice linkChoice;
+
+  /// Whether the chosen link stays highlighted as selected once its page has
+  /// loaded; otherwise the highlight goes with the spinner.
+  final bool keepsChosenLinkSelected;
+
   /// The presentation family, for the overlay's events.
   DraftOptionsPresentation get presentation;
 
@@ -228,6 +255,8 @@ final class DraftOptionsPolicy$Android extends DraftOptionsPolicy {
     super.title = DraftOptionsTitle.titleAndSubtitle,
     this.scrim = ChromeScrimPreset.android,
     super.keyboard = DraftOptionsKeyboard.hold,
+    super.linkChoice = DraftOptionsLinkChoice.severalLinks,
+    super.keepsChosenLinkSelected = false,
   });
 
   @override
@@ -255,6 +284,8 @@ final class DraftOptionsPolicy$IOS extends DraftOptionsPolicy {
     super.title = DraftOptionsTitle.none,
     ChromeScrimPreset? scrim,
     super.keyboard = DraftOptionsKeyboard.keep,
+    super.linkChoice = DraftOptionsLinkChoice.anyLink,
+    super.keepsChosenLinkSelected = false,
   }) : _scrim = scrim;
 
   /// Whether the window is regular width: the iPad form.
@@ -287,6 +318,8 @@ final class DraftOptionsPolicy$Desktop extends DraftOptionsPolicy {
     super.title = DraftOptionsTitle.titleWithOnePart,
     this.scrim = ChromeScrimPreset.desktop,
     super.keyboard = DraftOptionsKeyboard.keep,
+    super.linkChoice = DraftOptionsLinkChoice.anyLink,
+    super.keepsChosenLinkSelected = true,
   });
 
   @override
@@ -309,7 +342,8 @@ final class DraftOptionsPolicy$Web extends DraftOptionsPolicy {
     super.apply = DraftOptionsApply.liveApply,
     super.opensOnPending = true,
     super.keyboard = DraftOptionsKeyboard.keep,
-  }) : super(title: DraftOptionsTitle.none);
+    super.linkChoice = DraftOptionsLinkChoice.anyLink,
+  }) : super(title: DraftOptionsTitle.none, keepsChosenLinkSelected: false);
 
   @override
   ChromeScrimPreset? get scrim => null;
