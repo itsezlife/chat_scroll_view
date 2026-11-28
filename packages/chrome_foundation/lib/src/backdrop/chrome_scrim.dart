@@ -33,10 +33,25 @@ enum ChromeScrimStillSkip {
   reduceTransparency,
 }
 
+/// How much a scrim phase weighs in its owner's log: the level of the
+/// event the owner turns it into.
+enum ChromeScrimPhaseLevel {
+  /// Timings and sizes, for a traced run.
+  trace,
+
+  /// What happened to the scrim.
+  debug,
+
+  /// The still could not be made.
+  error,
+}
+
 /// A step of a chrome scrim's life, told to its owner with its numbers.
 ///
 /// The scrim reports and never logs: its owner turns these into its own
-/// events.
+/// events, each at the phase's [level] with the phase's [fields] beside its
+/// own (the owner's name, the preset's). Every owner logs a phase the same
+/// way, so the mapping lives here once.
 sealed class ChromeScrimPhase {
   const ChromeScrimPhase();
 
@@ -74,9 +89,17 @@ sealed class ChromeScrimPhase {
   /// The capture threw, or its still could not be made; with [glassSource],
   /// the glass source's.
   const factory ChromeScrimPhase.captureFailed(
-    Object error, {
+    Object error,
+    StackTrace stackTrace, {
     bool glassSource,
   }) = ChromeScrimPhase$CaptureFailed;
+
+  /// The level of the owner's event for this phase.
+  ChromeScrimPhaseLevel get level;
+
+  /// The phase's numbers as event fields: durations as whole microseconds
+  /// or milliseconds, sizes as whole pixels, enums by name. No user content.
+  Map<String, Object> get fields;
 }
 
 /// The window was captured, in [captureTime], at [stillSize] pixels.
@@ -92,6 +115,16 @@ final class ChromeScrimPhase$Captured extends ChromeScrimPhase {
 
   /// The still's size in pixels.
   final ui.Size stillSize;
+
+  @override
+  ChromeScrimPhaseLevel get level => ChromeScrimPhaseLevel.trace;
+
+  @override
+  Map<String, Object> get fields => {
+    'captureUs': captureTime.inMicroseconds,
+    'stillWidth': stillSize.width.round(),
+    'stillHeight': stillSize.height.round(),
+  };
 }
 
 /// The still was made, [makeTime] after the capture.
@@ -109,6 +142,15 @@ final class ChromeScrimPhase$StillReady extends ChromeScrimPhase {
   /// From the capture to the still being made: reading its pixels, the blur
   /// and the tone (off the UI isolate where there is another), the decode.
   final Duration makeTime;
+
+  @override
+  ChromeScrimPhaseLevel get level => ChromeScrimPhaseLevel.trace;
+
+  @override
+  Map<String, Object> get fields => {
+    'cpuMs': makeTime.inMilliseconds,
+    'glassSource': glassSource,
+  };
 }
 
 /// The scrim has no still, for [why].
@@ -118,6 +160,12 @@ final class ChromeScrimPhase$StillSkipped extends ChromeScrimPhase {
 
   /// Why there is no still.
   final ChromeScrimStillSkip why;
+
+  @override
+  ChromeScrimPhaseLevel get level => ChromeScrimPhaseLevel.debug;
+
+  @override
+  Map<String, Object> get fields => {'why': why.name};
 }
 
 /// The scrim was closed [by] a press outside, back or Escape.
@@ -130,12 +178,24 @@ final class ChromeScrimPhase$Dismissed extends ChromeScrimPhase {
 
   /// When a press outside closes the scrim, by its preset.
   final ChromeScrimCloseOn closeOn;
+
+  @override
+  ChromeScrimPhaseLevel get level => ChromeScrimPhaseLevel.debug;
+
+  @override
+  Map<String, Object> get fields => {'by': by.name, 'closeOn': closeOn.name};
 }
 
 /// The scrim was cancelled.
 final class ChromeScrimPhase$Cancelled extends ChromeScrimPhase {
   /// See [ChromeScrimPhase.cancelled].
   const ChromeScrimPhase$Cancelled();
+
+  @override
+  ChromeScrimPhaseLevel get level => ChromeScrimPhaseLevel.debug;
+
+  @override
+  Map<String, Object> get fields => const {};
 }
 
 /// The scrim let go of [stills] stills.
@@ -145,18 +205,42 @@ final class ChromeScrimPhase$Disposed extends ChromeScrimPhase {
 
   /// How many stills it disposed.
   final int stills;
+
+  @override
+  ChromeScrimPhaseLevel get level => ChromeScrimPhaseLevel.trace;
+
+  @override
+  Map<String, Object> get fields => {'stills': stills};
 }
 
-/// The capture failed with [error].
+/// The capture failed with [error], thrown at [stackTrace].
 final class ChromeScrimPhase$CaptureFailed extends ChromeScrimPhase {
   /// See [ChromeScrimPhase.captureFailed].
-  const ChromeScrimPhase$CaptureFailed(this.error, {this.glassSource = false});
+  const ChromeScrimPhase$CaptureFailed(
+    this.error,
+    this.stackTrace, {
+    this.glassSource = false,
+  });
 
   /// Whether the glass source's capture failed, not the still's.
   final bool glassSource;
 
   /// What was thrown, or a [StateError] when the still was never made.
   final Object error;
+
+  /// Where [error] was thrown; for a still never made, where its making was
+  /// found to have failed. The owner reports it with the error.
+  final StackTrace stackTrace;
+
+  @override
+  ChromeScrimPhaseLevel get level => ChromeScrimPhaseLevel.error;
+
+  /// The error's type, never its message: a message may quote content.
+  @override
+  Map<String, Object> get fields => {
+    'errorType': '${error.runtimeType}',
+    'glassSource': glassSource,
+  };
 }
 
 /// One chrome scrim's life: its still, what it shows, its closing.
@@ -265,8 +349,8 @@ final class ChromeScrimController implements Listenable {
     final BackdropSnapshot? captured;
     try {
       captured = _snapshot(context, still);
-    } on Object catch (error) {
-      _report(ChromeScrimPhase.captureFailed(error));
+    } on Object catch (error, stackTrace) {
+      _report(ChromeScrimPhase.captureFailed(error, stackTrace));
       return null;
     }
     final snapshot = switch (captured) {
@@ -303,8 +387,10 @@ final class ChromeScrimController implements Listenable {
     final BackdropSnapshot? snapshot;
     try {
       snapshot = _snapshot(context, glassSource);
-    } on Object catch (error) {
-      _report(ChromeScrimPhase.captureFailed(error, glassSource: true));
+    } on Object catch (error, stackTrace) {
+      _report(
+        ChromeScrimPhase.captureFailed(error, stackTrace, glassSource: true),
+      );
       return null;
     }
     if (snapshot case final snapshot?) {
@@ -341,6 +427,7 @@ final class ChromeScrimController implements Listenable {
         snapshot.image == null
             ? ChromeScrimPhase.captureFailed(
                 StateError('The still could not be made.'),
+                StackTrace.current,
                 glassSource: glassSource,
               )
             : ChromeScrimPhase.stillReady(
@@ -422,7 +509,7 @@ final class _ScrimChanges extends ChangeNotifier {
 /// faded by opacity alone (the still by its paint's alpha, the dim by its
 /// colour's: no opacity layer, no backdrop filter), each on its own clock. A
 /// press outside the child closes it on the preset's `closeOn`, and goes no
-/// further; back closes it, and Escape where the preset says. Once its
+/// further; back and Escape close it where the preset says. Once its
 /// controller is done it draws nothing, the child included.
 ///
 /// The scrim draws no text; a surface on it puts its own text root.
@@ -615,14 +702,14 @@ class _ChromeScrimState extends State<ChromeScrim>
     if (_preset.closesOnEscape) {
       scrim = Focus(autofocus: true, onKeyEvent: _onKey, child: scrim);
     }
-    return IgnorePointer(
-      ignoring: controller.isClosing,
-      child: OverlayBackButtonListener(
+    if (_preset.closesOnBack) {
+      scrim = OverlayBackButtonListener(
         parentDispatcher: controller._backDispatcher,
         onBackButtonPressed: _onBack,
         child: scrim,
-      ),
-    );
+      );
+    }
+    return IgnorePointer(ignoring: controller.isClosing, child: scrim);
   }
 }
 

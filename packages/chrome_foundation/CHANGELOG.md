@@ -20,16 +20,15 @@ package is pre-1.0.
 
 ### Added (card overlay timing)
 
-- `ChromeCardOverlayTiming` (`show`, `hide`, `offsets`, `listScroll`: 250 ms
-  on the list cubic; `offsetsDelay` 50 ms): a full-window card overlay's open,
-  close and change, as the draft options overlay's Android card plays them.
+- `ChromeCardOverlayTiming` (`motion`, 250 ms on the list cubic;
+  `offsetsDelay` 50 ms): a full-window card overlay's open, close and
+  change, each on the list's own motion.
 
 ### Added (source spring timing)
 
-- `ChromeSourceSpringTiming`: a surface growing out of its source on the
-  context menu's spring (cut at 0.42 s, from scale 0.01), its content fading
-  in over 0.15 s and its actions over 0.05 s, closing over 0.2 s ease
-  in-out with the content gone after 0.16 s, and resizing over 0.5 s.
+- `ChromeSourceSpringTiming`: the content fades of a surface growing out of
+  its source on the context menu's spring (`AppearMotion$Spring`): in over
+  0.15 s, out over 0.16 s, and its resize over 0.5 s.
 
 ### Added (draft options buttons, breaking)
 
@@ -69,9 +68,11 @@ package is pre-1.0.
 - `ChromeScrim` and `ChromeScrimController`: the backdrop of a surface over
   the whole window, a still captured before the surface paints under a dim,
   on separate clocks; closes on a press outside (`ChromeScrimCloseOn`), back
-  and Escape where the preset says; `cancel` removes it at once; it disposes
-  its still itself. Owners are told its phases (`ChromeScrimPhase`) and
-  report them; the package emits nothing.
+  and Escape where the preset says (`closesOnBack`, off for `ios` and
+  `ipad`; `closesOnEscape`); `cancel` removes it at once; it disposes its
+  still itself. Owners are told its phases (`ChromeScrimPhase`, each with
+  its `level` and its event `fields`; a failed capture with its
+  `stackTrace`) and report them; the package emits nothing.
 - `ChromeScrimPreset` (`android`, `ios`, `ipad`, `desktop`, `web`,
   `contentPreview`), `ChromeScrimStill` (with `androidGlassSource`, declared
   for glass on a scrim) and `ChromeScrimTone`; the presets' fades in

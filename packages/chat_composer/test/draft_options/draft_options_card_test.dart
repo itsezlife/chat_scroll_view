@@ -233,7 +233,17 @@ void main() {
     });
   });
 
-  test('ChromeCardOverlayTiming is the list cubic', () {
-    expect(ChromeCardOverlayTiming.show.curve, ChromeMotion.androidListCurve);
+  test('every move of the card is 250 ms on the list cubic', () {
+    const motion = DraftOptionsCardMotion.android;
+    for (final spec in [
+      motion.open,
+      motion.close,
+      motion.offsets,
+      motion.scroll,
+    ]) {
+      expect(spec.duration, const Duration(milliseconds: 250));
+      expect(spec.curve, ChromeMotion.androidListCurve);
+    }
+    expect(motion.offsetsDelay, const Duration(milliseconds: 50));
   });
 }

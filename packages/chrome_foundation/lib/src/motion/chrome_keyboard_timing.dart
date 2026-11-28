@@ -1,5 +1,5 @@
-/// Timing of a soft keyboard that a surface over the composer holds down
-/// while its height stays occupied, and gives back as it closes.
+/// Timing of a soft keyboard that a surface holds down while the
+/// keyboard's height stays occupied, and gives back as the surface closes.
 abstract final class ChromeKeyboardTiming {
   /// From the start of the surface's close to the keyboard's reopening
   /// (50 ms): the keyboard rises while the surface fades, under the height

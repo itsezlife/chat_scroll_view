@@ -159,6 +159,7 @@ final class ChromeScrimPreset {
     this.dimOpacity = 1,
     MotionSpec? stillFade,
     this.closesOnEscape = false,
+    this.closesOnBack = true,
     this.glassSource,
   }) : _stillFade = stillFade;
 
@@ -177,7 +178,7 @@ final class ChromeScrimPreset {
 
   /// iOS: a still standing in for the live system blur (its radius is
   /// unverified) under a dim of `0x000A26` at 20 % by day and black at 60 %
-  /// by night, over 0.2 s, closing on contact.
+  /// by night, over 0.2 s, closing on contact and not on back.
   static const ChromeScrimPreset ios = ChromeScrimPreset(
     name: 'ios',
     still: ChromeScrimStill(),
@@ -185,16 +186,18 @@ final class ChromeScrimPreset {
     dimLight: Color(0x33000A26),
     dimFade: ScrimMotion.ios,
     closeOn: ChromeScrimCloseOn.down,
+    closesOnBack: false,
   );
 
   /// iPad in a regular-width window: 40 % black and no still, over 0.2 s,
-  /// closing on contact.
+  /// closing on contact and not on back.
   static const ChromeScrimPreset ipad = ChromeScrimPreset(
     name: 'ipad',
     dimDark: Color(0x66000000),
     dimLight: Color(0x66000000),
     dimFade: ScrimMotion.ios,
     closeOn: ChromeScrimCloseOn.down,
+    closesOnBack: false,
   );
 
   /// Desktop: 50 % black and no still, over 200 ms ease-out-circ, closing on
@@ -263,6 +266,10 @@ final class ChromeScrimPreset {
   /// Whether Escape closes the scrim.
   final bool closesOnEscape;
 
+  /// Whether the system back closes the scrim. Off, the scrim takes no back
+  /// at all: it reaches whatever handles it under the scrim.
+  final bool closesOnBack;
+
   /// The second, toned still glass on the scrim samples, or null.
   final ChromeScrimStill? glassSource;
 
@@ -282,6 +289,7 @@ final class ChromeScrimPreset {
     MotionSpec? stillFade,
     ChromeScrimCloseOn? closeOn,
     bool? closesOnEscape,
+    bool? closesOnBack,
   }) => ChromeScrimPreset(
     name: name ?? this.name,
     still: still,
@@ -292,6 +300,7 @@ final class ChromeScrimPreset {
     stillFade: stillFade ?? _stillFade,
     closeOn: closeOn ?? this.closeOn,
     closesOnEscape: closesOnEscape ?? this.closesOnEscape,
+    closesOnBack: closesOnBack ?? this.closesOnBack,
     glassSource: glassSource,
   );
 
@@ -307,6 +316,7 @@ final class ChromeScrimPreset {
       other._stillFade == _stillFade &&
       other.closeOn == closeOn &&
       other.closesOnEscape == closesOnEscape &&
+      other.closesOnBack == closesOnBack &&
       other.glassSource == glassSource;
 
   @override
@@ -320,6 +330,7 @@ final class ChromeScrimPreset {
     _stillFade,
     closeOn,
     closesOnEscape,
+    closesOnBack,
     glassSource,
   );
 }

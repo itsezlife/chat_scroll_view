@@ -387,6 +387,73 @@ void main() {
     );
   });
 
+  testWidgets('a capture that throws is told with its stack', (tester) async {
+    final h = _Harness(tester);
+    await h.pump();
+    // A still larger than the window breaks the capture's invariant.
+    final scrim = h.open(
+      preset: ChromeScrimPreset(
+        name: 'broken',
+        still: const ChromeScrimStill(downscale: 0.5),
+        dimDark: _plain.dimDark,
+        dimLight: _plain.dimLight,
+        dimFade: _plain.dimFade,
+        closeOn: _plain.closeOn,
+      ),
+    );
+    expect(scrim.still, isNull);
+    final failed = h.phases.single as ChromeScrimPhase$CaptureFailed;
+    expect(failed.error, isA<AssertionError>());
+    expect(failed.stackTrace.toString(), contains('backdrop_snapshot.dart'));
+    expect(failed.level, ChromeScrimPhaseLevel.error);
+    expect(failed.fields.keys, ['errorType', 'glassSource']);
+    expect(failed.fields['errorType'], contains('AssertionError'));
+    expect(failed.fields['glassSource'], isFalse);
+    scrim.cancel();
+  });
+
+  test('each phase gives its level and its fields, enums by name', () {
+    const phases = [
+      ChromeScrimPhase.captured(
+        captureTime: Duration(microseconds: 1500),
+        stillSize: Size(80.4, 59.6),
+      ),
+      ChromeScrimPhase.stillReady(
+        makeTime: Duration(milliseconds: 12),
+        glassSource: true,
+      ),
+      ChromeScrimPhase.stillSkipped(ChromeScrimStillSkip.noSource),
+      ChromeScrimPhase.dismissed(
+        by: ChromeScrimDismissal.back,
+        closeOn: ChromeScrimCloseOn.up,
+      ),
+      ChromeScrimPhase.cancelled(),
+      ChromeScrimPhase.disposed(stills: 2),
+    ];
+    expect(
+      [for (final phase in phases) phase.level],
+      [
+        ChromeScrimPhaseLevel.trace,
+        ChromeScrimPhaseLevel.trace,
+        ChromeScrimPhaseLevel.debug,
+        ChromeScrimPhaseLevel.debug,
+        ChromeScrimPhaseLevel.debug,
+        ChromeScrimPhaseLevel.trace,
+      ],
+    );
+    expect(
+      [for (final phase in phases) phase.fields],
+      [
+        {'captureUs': 1500, 'stillWidth': 80, 'stillHeight': 60},
+        {'cpuMs': 12, 'glassSource': true},
+        {'why': 'noSource'},
+        {'by': 'back', 'closeOn': 'up'},
+        isEmpty,
+        {'stills': 2},
+      ],
+    );
+  });
+
   testWidgets('outside a source the still is skipped', (tester) async {
     late BuildContext context;
     await tester.pumpWidget(
@@ -484,6 +551,19 @@ void main() {
     await tester.pump();
     expect(await tester.binding.handlePopRoute(), isFalse);
   });
+
+  for (final preset in [ChromeScrimPreset.ios, ChromeScrimPreset.ipad]) {
+    testWidgets('${preset.name} leaves back alone', (tester) async {
+      final h = _Harness(tester);
+      await h.pump();
+      final scrim = h.open(preset: preset);
+      await tester.pump();
+      expect(await tester.binding.handlePopRoute(), isFalse);
+      expect(scrim.isClosing, isFalse);
+      expect(h.dismissals, isEmpty);
+      scrim.cancel();
+    });
+  }
 
   testWidgets('Escape closes it where the preset says', (tester) async {
     final h = _Harness(tester);

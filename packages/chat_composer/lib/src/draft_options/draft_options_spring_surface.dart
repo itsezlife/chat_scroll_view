@@ -22,12 +22,18 @@ import 'package:flutter/physics.dart';
 final class DraftOptionsSpringMotion {
   /// A spring motion; every value has the iOS default.
   const DraftOptionsSpringMotion({
-    this.spring = ChromeSourceSpringTiming.spring,
-    this.springCut = ChromeSourceSpringTiming.springCut,
-    this.startScale = ChromeSourceSpringTiming.startScale,
+    this.spring = AppearMotion$Spring.spring,
+    this.springCut = AppearMotion$Spring.show,
+    this.startScale = AppearMotion$Spring.startScale,
     this.contentShowFade = ChromeSourceSpringTiming.contentShowFade,
-    this.actionsShowFade = ChromeSourceSpringTiming.actionsShowFade,
-    this.close = ChromeSourceSpringTiming.close,
+    this.actionsShowFade = const MotionSpec(
+      AppearMotion$Spring.showFade,
+      AppearMotion$Spring.ease,
+    ),
+    this.close = const MotionSpec(
+      AppearMotion$Spring.hide,
+      AppearMotion$Spring.ease,
+    ),
     this.contentHideFade = ChromeSourceSpringTiming.contentHideFade,
     this.change = ChromeSourceSpringTiming.change,
   });

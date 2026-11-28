@@ -1,5 +1,6 @@
-/// The timing of a surface springing out of its source: the context menu's
-/// spring, its cut and start scale, and the surface's own fades.
+/// The timing of a surface springing out of its source: the content's own
+/// fades and change (the spring, its cut and the close are the context
+/// menu's, `AppearMotion$Spring`).
 ///
 /// **Seam:** `ChromeSourceSpringTiming`.
 library;
@@ -11,19 +12,8 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   const ease = Cubic(0.42, 0, 0.58, 1);
 
-  test('the open: a spring of damping 104 cut at 0.42 s, from scale 0.01', () {
-    expect(ChromeSourceSpringTiming.spring.mass, 1);
-    expect(ChromeSourceSpringTiming.spring.stiffness, 900);
-    expect(ChromeSourceSpringTiming.spring.damping, 104);
-    expect(
-      ChromeSourceSpringTiming.springCut,
-      const Duration(milliseconds: 420),
-    );
-    expect(ChromeSourceSpringTiming.startScale, 0.01);
-  });
-
-  test('the fades: content in over 0.15 s and out over 0.16 s, actions in '
-      'over 0.05 s; the close 0.2 s; all on the ease in-out', () {
+  test('the content fades in over 0.15 s and out over 0.16 s on the ease '
+      'in-out', () {
     expect(
       ChromeSourceSpringTiming.contentShowFade,
       const MotionSpec(Duration(milliseconds: 150), ease),
@@ -31,14 +21,6 @@ void main() {
     expect(
       ChromeSourceSpringTiming.contentHideFade,
       const MotionSpec(Duration(milliseconds: 160), ease),
-    );
-    expect(
-      ChromeSourceSpringTiming.actionsShowFade,
-      const MotionSpec(Duration(milliseconds: 50), ease),
-    );
-    expect(
-      ChromeSourceSpringTiming.close,
-      const MotionSpec(Duration(milliseconds: 200), ease),
     );
   });
 
