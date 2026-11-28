@@ -90,4 +90,16 @@ enum OverlayOp implements DiagnosticOp {
   /// (`keyboardWasUp`) and whether a held keyboard was reopened
   /// (`reopened`). Once on open, and once more when a hold ends.
   keyboardIntent,
+
+  /// The web's draft options menu opened at the strip (debug): the
+  /// `inputClass` (`touch`, `mouse`) and `widthClass` (`compact`, `medium`,
+  /// `expanded`) at the open, its `trigger` (`hover`, `tap`) and the `side`
+  /// it prefers (`towardEnd`, `towardStart`).
+  webMenuOpened,
+
+  /// The web's draft options menu closed (debug): its `trigger`, `outside`
+  /// (a press on the catcher), `leave` (the mouse left the strip and the
+  /// menu), `secondaryClick`, `choice` (a row applied) or `denied` (link
+  /// previews were denied while it was up).
+  webMenuClosed,
 }

@@ -6,6 +6,12 @@ package is pre-1.0.
 
 ## [Unreleased]
 
+### Added (anchored menu timing)
+
+- `ChromeAnchoredMenuTiming` (`hoverOpen` 200 ms, `leaveGrace` 200 ms,
+  `reveal` 0.2 s on the standard easing): a menu anchored at a control and
+  opened by hovering it.
+
 ### Added (keyboard timing)
 
 - `ChromeKeyboardTiming` (`heldReopen` 50 ms, `holdRelease` 15 ms): when a

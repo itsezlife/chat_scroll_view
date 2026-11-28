@@ -1,4 +1,5 @@
 import 'package:chat_composer/src/draft_options/draft_link_page_policy.dart';
+import 'package:chat_composer/src/draft_options/draft_options_web_menu_policy.dart';
 import 'package:chat_composer/src/input/composer_keyboard_intent.dart';
 import 'package:chrome_foundation/chrome_foundation.dart';
 import 'package:flutter/foundation.dart';
@@ -182,6 +183,7 @@ sealed class DraftOptionsPolicy {
     DraftOptionsKeyboard keyboard,
     DraftOptionsLinkChoice linkChoice,
     DraftLinkPagePolicy linkPage,
+    DraftOptionsWebMenuPolicy menu,
   }) = DraftOptionsPolicy$Web;
 
   /// The default of [platform]: Android (and Fuchsia), iOS (the iPad form
@@ -357,7 +359,12 @@ final class DraftOptionsPolicy$Web extends DraftOptionsPolicy {
     super.keyboard = DraftOptionsKeyboard.keep,
     super.linkChoice = DraftOptionsLinkChoice.anyLink,
     super.linkPage = DraftLinkPagePolicy.web,
+    this.menu = DraftOptionsWebMenuPolicy.standard,
   }) : super(title: DraftOptionsTitle.none, keepsChosenLinkSelected: false);
+
+  /// The menu anchored at the strip: how it opens, looks, moves and
+  /// closes.
+  final DraftOptionsWebMenuPolicy menu;
 
   @override
   ChromeScrimPreset? get scrim => null;

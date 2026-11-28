@@ -19,6 +19,8 @@ export 'src/draft_options/draft_options_host.dart';
 export 'src/draft_options/draft_options_overlay.dart';
 export 'src/draft_options/draft_options_policy.dart';
 export 'src/draft_options/draft_options_session.dart';
+export 'src/draft_options/draft_options_web_menu.dart';
+export 'src/draft_options/draft_options_web_menu_policy.dart';
 export 'src/draft_options/overlay_op.dart';
 export 'src/input/composer_controller.dart';
 export 'src/input/composer_keyboard_intent.dart';

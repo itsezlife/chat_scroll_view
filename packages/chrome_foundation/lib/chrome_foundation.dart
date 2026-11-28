@@ -40,6 +40,7 @@ export 'src/menu/pointer_menu_row.dart'
     show PointerMenuPanelKey, PointerMenuRowKey;
 export 'src/motion/appear_controller.dart';
 export 'src/motion/appear_motion.dart';
+export 'src/motion/chrome_anchored_menu_timing.dart';
 export 'src/motion/chrome_appear.dart';
 export 'src/motion/chrome_countdown_timing.dart';
 export 'src/motion/chrome_hint_timing.dart';
