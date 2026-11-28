@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:listen/listen.dart' show ValueListenable;
 import 'package:message_media/src/chrome/media_chrome_slots.dart';
 import 'package:message_media/src/chrome/media_options_affordance.dart';
+import 'package:message_media/src/chrome/media_viewer_fade.dart';
 import 'package:message_media/src/diagnostics/media_build_guard.dart';
 import 'package:message_media/src/diagnostics/media_op.dart';
 import 'package:message_media/src/layout/media_layout.dart';
@@ -47,6 +48,11 @@ class MediaControlsScope extends InheritedWidget {
 /// revealed: from the origin the gesture left (`MessageMediaState
 /// .revealSpoiler(at:)`), else the cell's centre; under reduce motion it
 /// jumps to revealed. Each start reports `media` / `spoilerRevealed`.
+///
+/// While the media viewer stands over the item ([MediaViewerFade], from the
+/// state's `setViewerHidden` / `setViewerCovered`) the cell's picture is
+/// hidden and its controls and options are gone; they fade back in once the
+/// viewer lets the item go.
 class MediaCellChrome extends StatefulWidget {
   /// The chrome of [cell] over [child].
   const MediaCellChrome({
@@ -239,51 +245,67 @@ class _MediaCellChromeState extends State<MediaCellChrome>
         _ => false,
       },
     );
-    final controls = _covers ? _reveal : kAlwaysCompleteAnimation;
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        KeyedSubtree(
-          key: const ValueKey('cell'),
-          child: MediaControlsScope(controls: controls, child: widget.child),
-        ),
-        if (covered)
-          Positioned.fill(
-            key: const ValueKey('spoiler'),
-            // A spoiler slot that fails must not show what it hides: the
-            // fallback is an opaque cover.
-            child: _guarded(
-              MediaBuilder.spoiler,
-              () => widget.slots.spoiler(
-                context,
-                MediaSpoilerData(
-                  chrome: _data,
-                  reveal: _reveal,
-                  origin: _origin ?? size.center(Offset.zero),
-                  form: widget.slots.reveal,
+    final reveal = _covers ? _reveal : kAlwaysCompleteAnimation;
+    return MediaViewerFade(
+      state: widget.state,
+      items: [widget.item.id],
+      builder: (context, overlays, {required pictureHidden}) {
+        final controls = AnimationMin<double>(reveal, overlays);
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            KeyedSubtree(
+              key: const ValueKey('cell'),
+              // Hidden in place, not removed: the cell keeps its element
+              // and binding while the viewer's copy stands over it.
+              child: Opacity(
+                key: const ValueKey('viewer-source'),
+                opacity: pictureHidden ? 0 : 1,
+                child: MediaControlsScope(
+                  controls: controls,
+                  child: widget.child,
                 ),
               ),
-              const ColoredBox(color: Color(0xFF000000)),
             ),
-          ),
-        if (affordance?.shift(-widget.cell.rect.topLeft) case final local?)
-          Positioned.fromRect(
-            key: const ValueKey('options'),
-            rect: local.iconRect,
-            child: _OptionsFade(
-              controls: controls,
-              selection: widget.selectionProgress,
-              child: _guarded(
-                MediaBuilder.options,
-                () => widget.slots.optionsAffordance(
-                  context,
-                  MediaOptionsData(chrome: _data, affordance: local),
+            if (covered)
+              Positioned.fill(
+                key: const ValueKey('spoiler'),
+                // A spoiler slot that fails must not show what it hides: the
+                // fallback is an opaque cover.
+                child: _guarded(
+                  MediaBuilder.spoiler,
+                  () => widget.slots.spoiler(
+                    context,
+                    MediaSpoilerData(
+                      chrome: _data,
+                      reveal: _reveal,
+                      origin: _origin ?? size.center(Offset.zero),
+                      form: widget.slots.reveal,
+                    ),
+                  ),
+                  const ColoredBox(color: Color(0xFF000000)),
                 ),
-                const SizedBox.shrink(),
               ),
-            ),
-          ),
-      ],
+            if (affordance?.shift(-widget.cell.rect.topLeft) case final local?)
+              Positioned.fromRect(
+                key: const ValueKey('options'),
+                rect: local.iconRect,
+                child: _OptionsFade(
+                  controls: controls,
+                  selection: widget.selectionProgress,
+                  child: _guarded(
+                    MediaBuilder.options,
+                    () => widget.slots.optionsAffordance(
+                      context,
+                      MediaOptionsData(chrome: _data, affordance: local),
+                    ),
+                    const SizedBox.shrink(),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }

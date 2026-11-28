@@ -433,7 +433,12 @@ void main() {
               find
                   .ancestor(
                     of: inCell('a', MediaBoxCell).first,
-                    matching: find.byType(Opacity),
+                    // The flight's own, not the viewer's hide.
+                    matching: find.byWidgetPredicate(
+                      (w) =>
+                          w is Opacity &&
+                          w.key != const ValueKey('viewer-source'),
+                    ),
                   )
                   .first,
             )

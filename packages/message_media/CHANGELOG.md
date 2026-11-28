@@ -99,8 +99,15 @@ their changes.
 - `MediaItemAction.allowedItemActions`: the per-item actions an item allows
   under the chat's protection.
 - `MessageMediaState`: what a chat's items remember while it is open (a
-  revealed spoiler), the send origin and the mounted views' rects
-  (`MediaItemRect`).
+  revealed spoiler, the media viewer standing over an item), the send
+  origin and the mounted views' rects (`MediaItemRect`).
+- The media viewer's source: `MessageMediaState.setViewerHidden` hides an
+  item's cell (picture and overlays) while the viewer's copy stands over
+  it, and `setViewerCovered` takes its overlays away while the viewer shows
+  it; a host's viewer bridge calls them by item id, so the hidden cell
+  follows the page. The overlays come back over 200 ms once the viewer
+  lets go. `MediaViewerFade` fades a host's own overlays over the media
+  (the time pill) the same way.
 - Outgoing media: `MediaSendState`, uploads on the status control, the sent
   check, the cross that drops an item being sent (`onItemCancelled`) and
   the iOS flight from the send origin.

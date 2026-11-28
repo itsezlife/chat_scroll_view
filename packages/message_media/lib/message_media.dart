@@ -36,6 +36,7 @@ export 'src/chrome/media_options_affordance.dart';
 export 'src/chrome/media_spoiler_cover.dart';
 export 'src/chrome/media_spoiler_reveal.dart';
 export 'src/chrome/media_time_pill.dart';
+export 'src/chrome/media_viewer_fade.dart';
 export 'src/diagnostics/link_preview_card_op.dart';
 export 'src/diagnostics/media_op.dart';
 export 'src/gesture/media_gesture_policy.dart';

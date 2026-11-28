@@ -287,6 +287,12 @@ class _DemoMediaBubbleState extends State<DemoMediaBubble> {
         null => time,
       };
       final placement = MediaBubbleTime.of(layout, input);
+      Widget pill() => _TimePill(
+        createdAt: widget.createdAt,
+        delivery: widget.delivery,
+        edited: widget.edited,
+        badge: badge,
+      );
       final caption = switch ((widget.caption, placement)) {
         (final caption?, MediaBubbleTime.inText) => Column(
           mainAxisSize: MainAxisSize.min,
@@ -307,12 +313,18 @@ class _DemoMediaBubbleState extends State<DemoMediaBubble> {
         captionRevision: widget.body,
         header: widget.header,
         time: switch (placement) {
-          MediaBubbleTime.overMedia => _TimePill(
-            createdAt: widget.createdAt,
-            delivery: widget.delivery,
-            edited: widget.edited,
-            badge: badge,
-          ),
+          // The pill is over the media: it goes with the cells' overlays
+          // while the viewer shows one of the items.
+          MediaBubbleTime.overMedia => switch (MessageMediaStateScope.maybeOf(
+            context,
+          )) {
+            final state? => MediaViewerFade(
+              state: state,
+              items: [for (final item in widget.items) item.id],
+              child: pill(),
+            ),
+            null => pill(),
+          },
           MediaBubbleTime.underCard => Align(
             alignment: AlignmentDirectional.bottomEnd,
             child: meta,
